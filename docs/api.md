@@ -232,6 +232,39 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 }
 ```
 
+### 6. 翻转订单状态
+- **接口**: PUT `/order/toggle-status`
+- **描述**: 将订单状态转换为下一个状态
+- **参数**:
+  - id: 订单ID
+- **请求示例**:
+```bash
+curl -X PUT "https://gkbdewdnxhwz.sealoshzh.site/api/v1/order/toggle-status?id=1"
+```
+- **状态转换规则**:
+  - pending -> accepted（待处理 -> 已接单）
+  - accepted -> shipped（已接单 -> 已发货）
+  - shipped -> completed（已发货 -> 已完成）
+  - rejected/completed/canceled 状态保持不变
+- **响应**:
+```json
+{
+    "message": "订单状态更新成功",
+    "old_status": "pending",
+    "new_status": "accepted",
+    "order": {
+        "id": 1,
+        "user_id": 1,
+        "total_price": 299.7,
+        "status": "accepted",
+        "remark": "订单备注",
+        "items": [...],
+        "created_at": "2024-03-14T12:00:00Z",
+        "updated_at": "2024-03-14T12:00:00Z"
+    }
+}
+```
+
 ## 错误响应
 所有接口在发生错误时会返回相应的HTTP状态码和错误信息：
 

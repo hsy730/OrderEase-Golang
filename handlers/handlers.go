@@ -452,3 +452,61 @@ func (h *Handler) GetProductImage(w http.ResponseWriter, r *http.Request) {
 	// 提供文件
 	http.ServeFile(w, r, imagePath)
 }
+
+// 翻转订单状态
+func (h *Handler) ToggleOrderStatus(w http.ResponseWriter, r *http.Request) {
+	orderID := r.URL.Query().Get("id")
+	if orderID == "" {
+		utils.Logger.Printf("翻转订单状态失败: 缺少订单ID")
+		http.Error(w, "缺少订单ID", http.StatusBadRequest)
+		return
+	}
+
+	var order models.Order
+	if err := h.DB.First(&order, orderID).Error; err != nil {
+		utils.Logger.Printf("翻转订单状态失败: 订单不存在, ID: %s, 错误: %v", orderID, err)
+		http.Error(w, "订单不存在", http.StatusNotFound)
+		return
+	}
+
+	// 获取下一个状态
+	nextStatus, exists := models.OrderStatusTransitions[order.Status]
+	if !exists {
+		nextStatus = models.OrderStatusPending // 如果当前状态未定义转换，重置为待处理
+	}
+
+	// 开启事务
+	tx := h.DB.Begin()
+
+	// 更新订单状态
+	if err := tx.Model(&order).Update("status", nextStatus).Error; err != nil {
+		tx.Rollback()
+		utils.Logger.Printf("更新订单状态失败: %v", err)
+		http.Error(w, "更新订单状态失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 记录状态变更
+	if err := tx.Create(&models.OrderStatusLog{
+		OrderID:     order.ID,
+		OldStatus:   order.Status,
+		NewStatus:   nextStatus,
+		ChangedTime: time.Now(),
+	}).Error; err != nil {
+		tx.Rollback()
+		utils.Logger.Printf("记录状态变更失败: %v", err)
+		http.Error(w, "记录状态变更失败", http.StatusInternalServerError)
+		return
+	}
+
+	tx.Commit()
+
+	// 返回更新后的订单信息
+	order.Status = nextStatus
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":    "订单状态更新成功",
+		"old_status": order.Status,
+		"new_status": nextStatus,
+		"order":      order,
+	})
+}

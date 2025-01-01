@@ -54,11 +54,22 @@ func main() {
 	}
 	utils.Logger.Println("数据库连接成功")
 
-	// 自动迁移数据库表
-	if err := db.AutoMigrate(&models.Product{}, &models.Order{}, &models.OrderItem{}); err != nil {
-		utils.Logger.Fatal("数据库迁移失败:", err)
+	// 数据库迁移
+	tables := []interface{}{
+		&models.Product{},
+		&models.Order{},
+		&models.OrderItem{},
+		&models.OrderStatusLog{},
 	}
-	utils.Logger.Println("数据库迁移完成")
+
+	for _, table := range tables {
+		if err := db.AutoMigrate(table); err != nil {
+			utils.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
+		}
+		utils.Logger.Printf("表 %T 迁移成功", table)
+	}
+
+	utils.Logger.Println("所有数据库表迁移完成")
 
 	h := &handlers.Handler{DB: db}
 
@@ -102,6 +113,7 @@ func main() {
 	mux.HandleFunc(fmt.Sprintf("%s/order/list", basePath), h.GetOrders)
 	mux.HandleFunc(fmt.Sprintf("%s/order/detail", basePath), h.GetOrder)
 	mux.HandleFunc(fmt.Sprintf("%s/order/delete", basePath), h.DeleteOrder)
+	mux.HandleFunc(fmt.Sprintf("%s/order/toggle-status", basePath), h.ToggleOrderStatus)
 
 	// 添加静态文件服务
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
