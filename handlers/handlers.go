@@ -415,6 +415,10 @@ func (h *Handler) GetProductImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !strings.HasPrefix(imagePath, "/") {
+		imagePath = "/" + imagePath
+	}
+
 	// 验证图片路径
 	if err := utils.ValidateImageURL(imagePath); err != nil {
 		utils.Logger.Printf("无效的图片路径请求: %v", err)
