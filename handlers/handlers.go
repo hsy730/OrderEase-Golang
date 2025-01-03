@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 
 	"encoding/csv"
 	"io"
+
+	"archive/zip"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -628,129 +631,190 @@ func successResponse(c *gin.Context, data interface{}) {
 
 // 导出数据
 func (h *Handler) ExportData(c *gin.Context) {
-	// 设置响应头为CSV
-	c.Header("Content-Type", "text/csv")
-	c.Header("Content-Disposition", "attachment;filename=export.csv")
+	// 生成带时间戳的文件名
+	timestamp := time.Now().Format("20060102_150405")
+	zipFilename := fmt.Sprintf("export_%s.zip", timestamp)
 
-	// 创建CSV writer
-	writer := csv.NewWriter(c.Writer)
-	defer writer.Flush()
+	// 创建一个缓冲区来保存 ZIP 文件
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
 
-	// 写入商品表头
-	productHeaders := []string{"id", "name", "description", "price", "stock", "image_url", "created_at", "updated_at"}
-	if err := writer.Write(productHeaders); err != nil {
-		h.logger.Printf("写入商品表头失败: %v", err)
+	// 导出用户数据
+	if err := exportTableToCSV(h.DB, zipWriter, "users.csv", &[]models.User{}); err != nil {
+		h.logger.Printf("导出用户数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出商品数据
-	var products []models.Product
-	if err := h.DB.Find(&products).Error; err != nil {
-		h.logger.Printf("查询商品数据失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "导出失败")
-		return
-	}
-
-	for _, p := range products {
-		row := []string{
-			strconv.FormatUint(uint64(p.ID), 10),
-			p.Name,
-			p.Description,
-			strconv.FormatFloat(p.Price, 'f', 2, 64),
-			strconv.Itoa(p.Stock),
-			p.ImageURL,
-			p.CreatedAt.Format(time.RFC3339),
-			p.UpdatedAt.Format(time.RFC3339),
-		}
-		if err := writer.Write(row); err != nil {
-			h.logger.Printf("写入商品数据失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "导出失败")
-			return
-		}
-	}
-
-	// 写入空行作为分隔
-	writer.Write([]string{})
-
-	// 写入订单表头
-	orderHeaders := []string{"id", "user_id", "total_price", "status", "remark", "created_at", "updated_at"}
-	if err := writer.Write(orderHeaders); err != nil {
-		h.logger.Printf("写入订单表头失败: %v", err)
+	if err := exportTableToCSV(h.DB, zipWriter, "products.csv", &[]models.Product{}); err != nil {
+		h.logger.Printf("导出商品数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出订单数据
-	var orders []models.Order
-	if err := h.DB.Find(&orders).Error; err != nil {
-		h.logger.Printf("查询订单数据失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "导出失败")
-		return
-	}
-
-	for _, o := range orders {
-		row := []string{
-			strconv.FormatUint(uint64(o.ID), 10),
-			strconv.FormatUint(uint64(o.UserID), 10),
-			strconv.FormatFloat(float64(o.TotalPrice), 'f', 2, 64),
-			o.Status,
-			o.Remark,
-			o.CreatedAt.Format(time.RFC3339),
-			o.UpdatedAt.Format(time.RFC3339),
-		}
-		if err := writer.Write(row); err != nil {
-			h.logger.Printf("写入订单数据失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "导出失败")
-			return
-		}
-	}
-
-	// 写入空行作为分隔
-	writer.Write([]string{})
-
-	// 写入订单项表头
-	orderItemHeaders := []string{"id", "order_id", "product_id", "quantity", "price"}
-	if err := writer.Write(orderItemHeaders); err != nil {
-		h.logger.Printf("写入订单项表头失败: %v", err)
+	if err := exportTableToCSV(h.DB, zipWriter, "orders.csv", &[]models.Order{}); err != nil {
+		h.logger.Printf("导出订单数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出订单项数据
-	var orderItems []models.OrderItem
-	if err := h.DB.Find(&orderItems).Error; err != nil {
-		h.logger.Printf("查询订单项数据失败: %v", err)
+	if err := exportTableToCSV(h.DB, zipWriter, "order_items.csv", &[]models.OrderItem{}); err != nil {
+		h.logger.Printf("导出订单项数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
-	for _, item := range orderItems {
-		row := []string{
-			strconv.FormatUint(uint64(item.ID), 10),
-			strconv.FormatUint(uint64(item.OrderID), 10),
-			strconv.FormatUint(uint64(item.ProductID), 10),
-			strconv.Itoa(item.Quantity),
-			strconv.FormatFloat(float64(item.Price), 'f', 2, 64),
-		}
-		if err := writer.Write(row); err != nil {
-			h.logger.Printf("写入订单项数据失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "导出失败")
-			return
+	// 关闭 ZIP writer
+	if err := zipWriter.Close(); err != nil {
+		h.logger.Printf("关闭 ZIP writer 失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 设置响应头为 ZIP
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", zipFilename))
+
+	// 发送 ZIP 文件
+	c.Writer.Write(buf.Bytes())
+}
+
+// 辅助函数：导出表数据到 CSV 文件
+func exportTableToCSV(db *gorm.DB, zipWriter *zip.Writer, filename string, model interface{}) error {
+	// 创建 CSV 文件
+	w, err := zipWriter.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	// 创建 CSV writer
+	csvWriter := csv.NewWriter(w)
+	defer csvWriter.Flush()
+
+	// 查询数据
+	if err := db.Find(model).Error; err != nil {
+		return err
+	}
+
+	// 获取表头
+	headers, err := getCSVHeaders(model)
+	if err != nil {
+		return err
+	}
+
+	// 写入表头
+	if err := csvWriter.Write(headers); err != nil {
+		return err
+	}
+
+	// 写入数据
+	records, err := getCSVRecords(model)
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if err := csvWriter.Write(record); err != nil {
+			return err
 		}
 	}
+
+	return nil
+}
+
+// 辅助函数：获取 CSV 表头
+func getCSVHeaders(model interface{}) ([]string, error) {
+	// 根据模型类型返回表头
+	switch model.(type) {
+	case *[]models.User:
+		return []string{"id", "name", "phone", "address", "type", "created_at", "updated_at"}, nil
+	case *[]models.Product:
+		return []string{"id", "name", "description", "price", "stock", "image_url", "created_at", "updated_at"}, nil
+	case *[]models.Order:
+		return []string{"id", "user_id", "total_price", "status", "remark", "created_at", "updated_at"}, nil
+	case *[]models.OrderItem:
+		return []string{"id", "order_id", "product_id", "quantity", "price"}, nil
+	default:
+		return nil, fmt.Errorf("unsupported model type")
+	}
+}
+
+// 辅助函数：获取 CSV 记录
+func getCSVRecords(model interface{}) ([][]string, error) {
+	var records [][]string
+
+	switch v := model.(type) {
+	case *[]models.User:
+		for _, u := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(u.ID), 10),
+				u.Name,
+				u.Phone,
+				u.Address,
+				u.Type,
+				u.CreatedAt.Format(time.RFC3339),
+				u.UpdatedAt.Format(time.RFC3339),
+			}
+			records = append(records, record)
+		}
+	case *[]models.Product:
+		for _, p := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(p.ID), 10),
+				p.Name,
+				p.Description,
+				strconv.FormatFloat(p.Price, 'f', 2, 64),
+				strconv.Itoa(p.Stock),
+				p.ImageURL,
+				p.CreatedAt.Format(time.RFC3339),
+				p.UpdatedAt.Format(time.RFC3339),
+			}
+			records = append(records, record)
+		}
+	case *[]models.Order:
+		for _, o := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(o.ID), 10),
+				strconv.FormatUint(uint64(o.UserID), 10),
+				strconv.FormatFloat(float64(o.TotalPrice), 'f', 2, 64),
+				o.Status,
+				o.Remark,
+				o.CreatedAt.Format(time.RFC3339),
+				o.UpdatedAt.Format(time.RFC3339),
+			}
+			records = append(records, record)
+		}
+	case *[]models.OrderItem:
+		for _, item := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(item.ID), 10),
+				strconv.FormatUint(uint64(item.OrderID), 10),
+				strconv.FormatUint(uint64(item.ProductID), 10),
+				strconv.Itoa(item.Quantity),
+				strconv.FormatFloat(float64(item.Price), 'f', 2, 64),
+			}
+			records = append(records, record)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported model type")
+	}
+
+	return records, nil
 }
 
 // 导入数据
 func (h *Handler) ImportData(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "请上传CSV文件")
+		errorResponse(c, http.StatusBadRequest, "请上传ZIP文件")
 		return
 	}
 
-	if !strings.HasSuffix(file.Filename, ".csv") {
-		errorResponse(c, http.StatusBadRequest, "只支持CSV文件")
+	if !strings.HasSuffix(file.Filename, ".zip") {
+		errorResponse(c, http.StatusBadRequest, "只支持ZIP文件")
 		return
 	}
 
@@ -762,17 +826,47 @@ func (h *Handler) ImportData(c *gin.Context) {
 	}
 	defer f.Close()
 
-	reader := csv.NewReader(f)
-	tx := h.DB.Begin()
-
-	// 读取并导入商品数据
-	productHeaders, err := reader.Read()
+	// 读取 ZIP 文件
+	zipReader, err := zip.NewReader(f, file.Size)
 	if err != nil {
-		tx.Rollback()
-		errorResponse(c, http.StatusBadRequest, "无效的CSV格式")
+		h.logger.Printf("读取ZIP文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "文件处理失败")
 		return
 	}
 
+	tx := h.DB.Begin()
+
+	// 逐个处理 CSV 文件
+	for _, zipFile := range zipReader.File {
+		if err := importCSVFile(tx, zipFile); err != nil {
+			tx.Rollback()
+			h.logger.Printf("导入数据失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "导入失败")
+			return
+		}
+	}
+
+	tx.Commit()
+	successResponse(c, gin.H{"message": "数据导入成功"})
+}
+
+// 辅助函数：导入 CSV 文件
+func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
+	f, err := zipFile.Open()
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(f)
+
+	// 读取表头
+	headers, err := reader.Read()
+	if err != nil {
+		return fmt.Errorf("读取CSV表头失败: %v", err)
+	}
+
+	// 逐行读取并导入数据
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
@@ -781,64 +875,79 @@ func (h *Handler) ImportData(c *gin.Context) {
 		if err != nil {
 			continue // 跳过空行
 		}
-		if len(record) != len(productHeaders) {
+		if len(record) != len(headers) {
 			continue // 跳过格式不匹配的行
 		}
 
-		// 根据不同的表头处理不同的数据
-		switch record[0] {
-		case "id": // 跳过表头行
-			continue
-		case "": // 跳过空行
-			continue
-		default:
-			// 处理数据行
-			if len(record) == 8 { // 商品数据
-				product := models.Product{
-					Name:        record[1],
-					Description: record[2],
-					Price:       parseFloat(record[3]),
-					Stock:       parseInt(record[4]),
-					ImageURL:    record[5],
-				}
-				if err := tx.Create(&product).Error; err != nil {
-					tx.Rollback()
-					h.logger.Printf("导入商品数据失败: %v", err)
-					errorResponse(c, http.StatusInternalServerError, "导入失败")
-					return
-				}
-			} else if len(record) == 7 { // 订单数据
-				order := models.Order{
-					UserID:     uint(parseInt(record[1])),
-					TotalPrice: models.Price(parseFloat(record[2])),
-					Status:     record[3],
-					Remark:     record[4],
-				}
-				if err := tx.Create(&order).Error; err != nil {
-					tx.Rollback()
-					h.logger.Printf("导入订单数据失败: %v", err)
-					errorResponse(c, http.StatusInternalServerError, "导入失败")
-					return
-				}
-			} else if len(record) == 5 { // 订单项数据
-				orderItem := models.OrderItem{
-					OrderID:   uint(parseInt(record[1])),
-					ProductID: uint(parseInt(record[2])),
-					Quantity:  parseInt(record[3]),
-					Price:     models.Price(parseFloat(record[4])),
-				}
-				if err := tx.Create(&orderItem).Error; err != nil {
-					tx.Rollback()
-					h.logger.Printf("导入订单项数据失败: %v", err)
-					errorResponse(c, http.StatusInternalServerError, "导入失败")
-					return
-				}
+		// 根据文件名处理不同的数据
+		switch filepath.Base(zipFile.Name) {
+		case "users.csv":
+			if err := importUserRecord(tx, record); err != nil {
+				return err
 			}
+		case "products.csv":
+			if err := importProductRecord(tx, record); err != nil {
+				return err
+			}
+		case "orders.csv":
+			if err := importOrderRecord(tx, record); err != nil {
+				return err
+			}
+		case "order_items.csv":
+			if err := importOrderItemRecord(tx, record); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("未知的CSV文件: %s", zipFile.Name)
 		}
 	}
 
-	tx.Commit()
-	successResponse(c, gin.H{"message": "数据导入成功"})
+	return nil
+}
+
+// 辅助函数：导入用户记录
+func importUserRecord(tx *gorm.DB, record []string) error {
+	user := models.User{
+		Name:    record[1],
+		Phone:   record[2],
+		Address: record[3],
+		Type:    record[4],
+	}
+	return tx.Create(&user).Error
+}
+
+// 辅助函数：导入商品记录
+func importProductRecord(tx *gorm.DB, record []string) error {
+	product := models.Product{
+		Name:        record[1],
+		Description: record[2],
+		Price:       parseFloat(record[3]),
+		Stock:       parseInt(record[4]),
+		ImageURL:    record[5],
+	}
+	return tx.Create(&product).Error
+}
+
+// 辅助函数：导入订单记录
+func importOrderRecord(tx *gorm.DB, record []string) error {
+	order := models.Order{
+		UserID:     uint(parseInt(record[1])),
+		TotalPrice: models.Price(parseFloat(record[2])),
+		Status:     record[3],
+		Remark:     record[4],
+	}
+	return tx.Create(&order).Error
+}
+
+// 辅助函数：导入订单项记录
+func importOrderItemRecord(tx *gorm.DB, record []string) error {
+	orderItem := models.OrderItem{
+		OrderID:   uint(parseInt(record[1])),
+		ProductID: uint(parseInt(record[2])),
+		Quantity:  parseInt(record[3]),
+		Price:     models.Price(parseFloat(record[4])),
+	}
+	return tx.Create(&orderItem).Error
 }
 
 // 辅助函数：解析浮点数
