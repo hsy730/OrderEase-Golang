@@ -16,7 +16,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 1. 创建商品
 - **接口**: POST `/product/create`
 - **描述**: 新增一条商品信息
-- **请求体**:
+- **请求参数 (Body)**:
 ```json
 {
     "name": "商品名称",
@@ -43,7 +43,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 2. 获取商品列表
 - **接口**: GET `/product/list`
 - **描述**: 分页查询商品列表
-- **参数**:
+- **请求参数 (Query)**:
   - page: 页码（默认1）
   - pageSize: 每页数量（默认10）
 - **响应**:
@@ -64,7 +64,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 3. 获取商品详情
 - **接口**: GET `/product/detail`
 - **描述**: 获取单个商品的详细信息
-- **参数**:
+- **请求参数 (Query)**:
   - id: 商品ID
 - **响应**:
 ```json
@@ -82,9 +82,9 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 4. 更新商品
 - **接口**: PUT `/product/update`
 - **描述**: 更新商品信息
-- **参数**:
+- **请求参数 (Query)**:
   - id: 商品ID
-- **请求体**:
+- **请求参数 (Body)**:
 ```json
 {
     "name": "新商品名称",
@@ -98,7 +98,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 5. 删除商品
 - **接口**: DELETE `/product/delete`
 - **描述**: 删除指定商品
-- **参数**:
+- **请求参数 (Query)**:
   - id: 商品ID
 - **响应**:
 ```json
@@ -110,9 +110,9 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 6. 上传商品图片
 - **接口**: POST `/product/upload-image`
 - **描述**: 上传或更新商品图片
-- **参数**:
+- **请求参数 (Query)**:
   - id: 商品ID
-- **请求体**: multipart/form-data
+- **请求参数 (Form-data)**:
   - image: 图片文件（支持 jpg、png、gif 格式）
 - **响应**:
 ```json
@@ -130,7 +130,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 7. 获取商品图片
 - **接口**: GET `/product/image`
 - **描述**: 获取商品图片
-- **参数**:
+- **请求参数 (Query)**:
   - path: 图片路径（不包含/uploads/前缀）
 - **响应**: 图片文件
 
@@ -139,7 +139,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 1. 创建订单
 - **接口**: POST `/order/create`
 - **描述**: 创建新订单
-- **请求体**:
+- **请求参数 (Body)**:
 ```json
 {
     "user_id": 1,
@@ -172,9 +172,9 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 2. 更新订单
 - **接口**: PUT `/order/update`
 - **描述**: 更新订单信息
-- **参数**:
+- **请求参数 (Query)**:
   - id: 订单ID
-- **请求体**:
+- **请求参数 (Body)**:
 ```json
 {
     "status": "completed",
@@ -187,7 +187,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 3. 获取订单列表
 - **接口**: GET `/order/list`
 - **描述**: 分页查询订单列表
-- **参数**:
+- **请求参数 (Query)**:
   - page: 页码（默认1）
   - pageSize: 每页数量（默认10）
 - **响应**:
@@ -216,14 +216,14 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 4. 获取订单详情
 - **接口**: GET `/order/detail`
 - **描述**: 获取单个订单的详细信息
-- **参数**:
+- **请求参数 (Query)**:
   - id: 订单ID
 - **响应**: 返回订单详细信息，包含订单项
 
 ### 5. 删除订单
 - **接口**: DELETE `/order/delete`
 - **描述**: 删除指定订单
-- **参数**:
+- **请求参数 (Query)**:
   - id: 订单ID
 - **响应**:
 ```json
@@ -235,7 +235,7 @@ https://gkbdewdnxhwz.sealoshzh.site/api/v1/product/create
 ### 6. 翻转订单状态
 - **接口**: PUT `/order/toggle-status`
 - **描述**: 将订单状态转换为下一个状态
-- **参数**:
+- **请求参数 (Query)**:
   - id: 订单ID
 - **请求示例**:
 ```bash

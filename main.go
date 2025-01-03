@@ -8,33 +8,30 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
-// 添加日志中间件
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 日志中间件
+func LoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
 		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
 
-		// 记录请求信息
-		utils.Logger.Printf("开始处理请求: %s %s", r.Method, r.URL.Path)
-		utils.Logger.Printf("请求头: %v", r.Header)
+		utils.Logger.Printf("开始处理请求: %s %s", c.Request.Method, path)
+		utils.Logger.Printf("请求头: %v", c.Request.Header)
 
-		// 捕获panic
-		defer func() {
-			if err := recover(); err != nil {
-				utils.Logger.Printf("请求处理panic: %v\n堆栈: %s", err, debug.Stack())
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
-		}()
+		// 处理请求
+		c.Next()
 
-		next.ServeHTTP(w, r)
+		// 计算延迟
+		latency := time.Since(start)
 
-		// 记录响应时间
-		utils.Logger.Printf("请求处理完成: %s %s 耗时: %v",
-			r.Method, r.URL.Path, time.Since(start))
-	})
+		utils.Logger.Printf("请求处理完成: %s %s?%s 耗时: %v",
+			c.Request.Method, path, raw, latency)
+	}
 }
 
 func main() {
@@ -48,6 +45,31 @@ func main() {
 	}
 	utils.Logger.Println("配置加载成功")
 
+	// 设置 Gin 模式
+	gin.SetMode(gin.ReleaseMode)
+
+	// 创建 Gin 引擎
+	r := gin.New()
+
+	// 使用中间件
+	r.Use(gin.Recovery())
+	r.Use(LoggerMiddleware())
+
+	// CORS 中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusOK)
+			return
+		}
+
+		c.Next()
+	})
+
+	// 连接数据库
 	db, err := config.InitDB()
 	if err != nil {
 		utils.Logger.Fatal("数据库连接失败:", err)
@@ -71,52 +93,38 @@ func main() {
 
 	utils.Logger.Println("所有数据库表迁移完成")
 
-	h := &handlers.Handler{DB: db}
+	// 创建处理器
+	h := handlers.NewHandler(db)
 
-	// 创建路由基础路径
-	basePath := config.AppConfig.Server.BasePath
+	// 创建路由组
+	api := r.Group(config.AppConfig.Server.BasePath)
+	{
+		// 商品相关路由
+		product := api.Group("/product")
+		{
+			product.POST("/create", h.CreateProduct)
+			product.GET("/list", h.GetProducts)
+			product.GET("/detail", h.GetProduct)
+			product.PUT("/update", h.UpdateProduct)
+			product.DELETE("/delete", h.DeleteProduct)
+			product.POST("/upload-image", h.UploadProductImage)
+			product.GET("/image", h.GetProductImage)
+		}
 
-	// 添加CORS中间件
-	corsMiddleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// 设置CORS头
-			w.Header().Set("Access-Control-Allow-Origin", "*") // 在生产环境中应该设置为具体的域名
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-			// 处理预检请求
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
+		// 订单相关路由
+		order := api.Group("/order")
+		{
+			order.POST("/create", h.CreateOrder)
+			order.PUT("/update", h.UpdateOrder)
+			order.GET("/list", h.GetOrders)
+			order.GET("/detail", h.GetOrder)
+			order.DELETE("/delete", h.DeleteOrder)
+			order.PUT("/toggle-status", h.ToggleOrderStatus)
+		}
 	}
 
-	// 创建路由器
-	mux := http.NewServeMux()
-
-	// 注册路由
-	// 商品相关路由
-	mux.HandleFunc(fmt.Sprintf("%s/product/create", basePath), h.CreateProduct)
-	mux.HandleFunc(fmt.Sprintf("%s/product/list", basePath), h.GetProducts)
-	mux.HandleFunc(fmt.Sprintf("%s/product/detail", basePath), h.GetProduct)
-	mux.HandleFunc(fmt.Sprintf("%s/product/update", basePath), h.UpdateProduct)
-	mux.HandleFunc(fmt.Sprintf("%s/product/delete", basePath), h.DeleteProduct)
-	mux.HandleFunc(fmt.Sprintf("%s/product/upload-image", basePath), h.UploadProductImage)
-	mux.HandleFunc(fmt.Sprintf("%s/product/image", basePath), h.GetProductImage)
-
-	// 订单相关路由
-	mux.HandleFunc(fmt.Sprintf("%s/order/create", basePath), h.CreateOrder)
-	mux.HandleFunc(fmt.Sprintf("%s/order/update", basePath), h.UpdateOrder)
-	mux.HandleFunc(fmt.Sprintf("%s/order/list", basePath), h.GetOrders)
-	mux.HandleFunc(fmt.Sprintf("%s/order/detail", basePath), h.GetOrder)
-	mux.HandleFunc(fmt.Sprintf("%s/order/delete", basePath), h.DeleteOrder)
-	mux.HandleFunc(fmt.Sprintf("%s/order/toggle-status", basePath), h.ToggleOrderStatus)
-
-	// 添加静态文件服务
-	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	// 静态文件服务
+	r.Static("/uploads", "./uploads")
 
 	// 确保上传目录存在
 	if err := os.MkdirAll("./uploads/products", 0755); err != nil {
@@ -124,11 +132,8 @@ func main() {
 	}
 	utils.Logger.Println("上传目录创建成功")
 
-	// 添加中间件链
-	handler := loggingMiddleware(corsMiddleware(mux))
-
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
 	utils.Logger.Printf("服务器启动在 %s", serverAddr)
-	utils.Logger.Fatal(http.ListenAndServe(serverAddr, handler))
+	utils.Logger.Fatal(r.Run(serverAddr))
 }

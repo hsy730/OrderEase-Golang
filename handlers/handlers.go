@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"OrderEase/models"
-	"encoding/json"
+	"OrderEase/utils"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,317 +12,216 @@ import (
 	"strings"
 	"time"
 
-	"OrderEase/utils"
-
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+const (
+	maxFileSize = 32 << 20 // 32MB
+)
+
 type Handler struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	logger *log.Logger
+}
+
+// 创建处理器实例
+func NewHandler(db *gorm.DB) *Handler {
+	return &Handler{
+		DB:     db,
+		logger: utils.Logger,
+	}
 }
 
 // 创建商品
-func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateProduct(c *gin.Context) {
 	var product models.Product
-	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&product); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的商品数据: "+err.Error())
 		return
 	}
 
-	// 清理输入数据
 	utils.SanitizeProduct(&product)
 
 	if err := h.DB.Create(&product).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Printf("创建商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
 		return
 	}
 
-	json.NewEncoder(w).Encode(product)
+	successResponse(c, product)
 }
 
 // 获取商品列表
-func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetProducts(c *gin.Context) {
 	var products []models.Product
 
-	// 支持分页
-	pageStr := r.URL.Query().Get("page")
-	pageSizeStr := r.URL.Query().Get("pageSize")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	page := 1
-	pageSize := 10
-
-	if pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-			page = p
-		}
+	if page < 1 {
+		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
+		return
 	}
 
-	if pageSizeStr != "" {
-		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
-			pageSize = ps
-		}
+	if pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+		return
 	}
 
 	offset := (page - 1) * pageSize
 
-	if err := h.DB.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	var total int64
+	if err := h.DB.Model(&models.Product{}).Count(&total).Error; err != nil {
+		h.logger.Printf("获取商品总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
 	}
 
-	json.NewEncoder(w).Encode(products)
+	if err := h.DB.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+		h.logger.Printf("查询商品列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     products,
+	})
 }
 
 // 获取单个商品详情
-func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
-	productID := r.URL.Query().Get("id")
-	var product models.Product
-
-	if err := h.DB.First(&product, productID).Error; err != nil {
-		http.Error(w, "商品未找到", http.StatusNotFound)
+func (h *Handler) GetProduct(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
 
-	json.NewEncoder(w).Encode(product)
+	var product models.Product
+	if err := h.DB.First(&product, id).Error; err != nil {
+		h.logger.Printf("查询商品失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "商品未找到")
+		return
+	}
+
+	successResponse(c, product)
 }
 
 // 更新商品信息
-func (h *Handler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	productID := r.URL.Query().Get("id")
+func (h *Handler) UpdateProduct(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
+		return
+	}
+
 	var product models.Product
-
-	// 先检查商品是否存在
-	if err := h.DB.First(&product, productID).Error; err != nil {
-		http.Error(w, "商品未找到", http.StatusNotFound)
+	if err := h.DB.First(&product, id).Error; err != nil {
+		h.logger.Printf("更新商品失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "商品未找到")
 		return
 	}
 
-	// 解析更新数据
 	var updateData models.Product
-	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
 		return
 	}
 
-	// 清理更新数据
 	utils.SanitizeProduct(&updateData)
 
-	// 更新商品信息
 	if err := h.DB.Model(&product).Updates(updateData).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Printf("更新商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新商品失败")
 		return
 	}
 
-	json.NewEncoder(w).Encode(product)
+	// 重新获取更新后的商品信息
+	if err := h.DB.First(&product, id).Error; err != nil {
+		h.logger.Printf("获取更新后的商品信息失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取更新后的商品信息失败")
+		return
+	}
+
+	successResponse(c, product)
 }
 
 // 删除商品
-func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	productID := r.URL.Query().Get("id")
+func (h *Handler) DeleteProduct(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
+		return
+	}
 
-	// 先获取商品信息
 	var product models.Product
-	if err := h.DB.First(&product, productID).Error; err != nil {
-		http.Error(w, "商品不存在", http.StatusNotFound)
+	if err := h.DB.First(&product, id).Error; err != nil {
+		h.logger.Printf("删除商品失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "商品不存在")
 		return
 	}
-
-	// 如果有图片，删除图片文件
-	if product.ImageURL != "" {
-		imagePath := strings.TrimPrefix(product.ImageURL, "/")
-		if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
-			log.Printf("删除商品图片失败: %v", err)
-		}
-	}
-
-	// 删除商品记录
-	if err := h.DB.Delete(&product).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "商品删除成功"})
-}
-
-// 创建订单
-func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-	var order models.Order
-	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// 清理订单数据
-	utils.SanitizeOrder(&order)
 
 	// 开启事务
 	tx := h.DB.Begin()
 
-	if err := tx.Create(&order).Error; err != nil {
-		tx.Rollback()
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// 删除商品图片
+	if product.ImageURL != "" {
+		imagePath := strings.TrimPrefix(product.ImageURL, "/")
+		if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
+			h.logger.Printf("删除商品图片失败: %v", err)
+		}
 	}
 
-	// 更新商品库存
-	for _, item := range order.Items {
-		var product models.Product
-		if err := tx.First(&product, item.ProductID).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, "商品不存在", http.StatusBadRequest)
-			return
-		}
-
-		if product.Stock < item.Quantity {
-			tx.Rollback()
-			http.Error(w, "库存不足", http.StatusBadRequest)
-			return
-		}
-
-		product.Stock -= item.Quantity
-		if err := tx.Save(&product).Error; err != nil {
-			tx.Rollback()
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	// 删除商品记录
+	if err := tx.Delete(&product).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("删除商品记录失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		return
 	}
 
 	tx.Commit()
-	json.NewEncoder(w).Encode(order)
-}
-
-// 更新订单
-func (h *Handler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
-	orderID := r.URL.Query().Get("id")
-	var order models.Order
-
-	if err := h.DB.First(&order, orderID).Error; err != nil {
-		http.Error(w, "订单未找到", http.StatusNotFound)
-		return
-	}
-
-	var updateData models.Order
-	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := h.DB.Model(&order).Updates(updateData).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(order)
-}
-
-// 获取订单列表
-func (h *Handler) GetOrders(w http.ResponseWriter, r *http.Request) {
-	var orders []models.Order
-
-	// 支持分页
-	pageStr := r.URL.Query().Get("page")
-	pageSizeStr := r.URL.Query().Get("pageSize")
-
-	page := 1
-	pageSize := 10
-
-	if pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-			page = p
-		}
-	}
-
-	if pageSizeStr != "" {
-		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
-			pageSize = ps
-		}
-	}
-
-	offset := (page - 1) * pageSize
-
-	if err := h.DB.Offset(offset).Limit(pageSize).
-		Preload("Items").
-		Preload("Items.Product").
-		Find(&orders).Error; err != nil {
-		utils.Logger.Printf("获取订单列表失败: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(orders)
-}
-
-// 获取单个订单详情
-func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
-	orderID := r.URL.Query().Get("id")
-	var order models.Order
-
-	if err := h.DB.Preload("Items").
-		Preload("Items.Product").
-		First(&order, orderID).Error; err != nil {
-		utils.Logger.Printf("获取订单详情失败, ID: %s, 错误: %v", orderID, err)
-		http.Error(w, "订单未找到", http.StatusNotFound)
-		return
-	}
-
-	json.NewEncoder(w).Encode(order)
-}
-
-// 删除订单
-func (h *Handler) DeleteOrder(w http.ResponseWriter, r *http.Request) {
-	orderID := r.URL.Query().Get("id")
-
-	if err := h.DB.Delete(&models.Order{}, orderID).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "订单删除成功"})
+	successResponse(c, gin.H{"message": "商品删除成功"})
 }
 
 // 上传商品图片
-func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
-	productID := r.URL.Query().Get("id")
-	if productID == "" {
-		utils.Logger.Printf("上传图片失败: 缺少商品ID")
-		http.Error(w, "缺少商品ID", http.StatusBadRequest)
+func (h *Handler) UploadProductImage(c *gin.Context) {
+	// 限制文件大小
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
+
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
 
 	var product models.Product
-	if err := h.DB.First(&product, productID).Error; err != nil {
-		utils.Logger.Printf("上传图片失败: 商品不存在, ID: %s, 错误: %v", productID, err)
-		http.Error(w, "商品不存在", http.StatusNotFound)
+	if err := h.DB.First(&product, id).Error; err != nil {
+		utils.Logger.Printf("商品不存在, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "商品不存在")
 		return
 	}
 
-	// 解析多部分表单，32 << 20 指定最大文件大小为32MB
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// 获取上传的文件
-	file, handler, err := r.FormFile("image")
+	file, err := c.FormFile("image")
 	if err != nil {
-		http.Error(w, "获取上传文件失败", http.StatusBadRequest)
+		utils.Logger.Printf("获取上传文件失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "获取上传文件失败")
 		return
 	}
-	defer file.Close()
 
 	// 检查文件类型
-	if !isValidImageType(handler.Header.Get("Content-Type")) {
-		http.Error(w, "不支持的文件类型", http.StatusBadRequest)
+	if !isValidImageType(file.Header.Get("Content-Type")) {
+		errorResponse(c, http.StatusBadRequest, "不支持的文件类型")
 		return
 	}
 
-	// 创建上传目录
 	uploadDir := "./uploads/products"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		utils.Logger.Printf("创建上传目录失败: %v", err)
-		http.Error(w, "创建上传目录失败", http.StatusInternalServerError)
+		h.logger.Printf("创建上传目录失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建上传目录失败")
 		return
 	}
 
@@ -331,54 +229,36 @@ func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 	if product.ImageURL != "" {
 		oldImagePath := strings.TrimPrefix(product.ImageURL, "/")
 		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
-			log.Printf("删除旧图片失败: %v", err)
+			utils.Logger.Printf("删除旧图片失败: %v", err)
 		}
 	}
 
-	// 生成文件名和路径
-	filename := fmt.Sprintf("product_%d_%d%s",
-		product.ID,
+	filename := fmt.Sprintf("product_%s_%d%s",
+		id,
 		time.Now().Unix(),
-		filepath.Ext(handler.Filename))
+		filepath.Ext(file.Filename))
 
-	// 数据库中存储的URL（相对路径）
 	imageURL := fmt.Sprintf("/uploads/products/%s", filename)
+	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
 
-	// 实际文件系统路径
-	filePath := fmt.Sprintf("./uploads/products/%s", filename)
-
-	// 创建目标文件
-	dst, err := os.Create(filePath)
-	if err != nil {
-		utils.Logger.Printf("创建文件失败: %v", err)
-		http.Error(w, "创建文件失败", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-
-	// 复制文件内容
-	if _, err = io.Copy(dst, file); err != nil {
-		utils.Logger.Printf("保存文件失败: %v", err)
-		http.Error(w, "保存文件失败", http.StatusInternalServerError)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		h.logger.Printf("保存文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return
 	}
 
-	// 生成图片URL并验证
-	imageURL = fmt.Sprintf("/uploads/products/%s", filename)
 	if err := utils.ValidateImageURL(imageURL); err != nil {
-		utils.Logger.Printf("图片URL验证失败: %v", err)
-		http.Error(w, "无效的图片格式", http.StatusBadRequest)
+		h.logger.Printf("图片URL验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
 		return
 	}
 
-	// 更新商品的图片URL（存储相对路径）
 	if err := h.DB.Model(&product).Update("image_url", imageURL).Error; err != nil {
-		utils.Logger.Printf("更新商品图片URL失败: %v", err)
-		http.Error(w, "更新商品图片失败", http.StatusInternalServerError)
+		h.logger.Printf("更新商品图片失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新商品图片失败")
 		return
 	}
 
-	// 根据是新增还是更新返回不同的消息
 	message := "图片更新成功"
 	if product.ImageURL == "" {
 		message = "图片上传成功"
@@ -389,29 +269,18 @@ func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 		operationType = "create"
 	}
 
-	// 响应中返回相对路径
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"message": message,
-		"url":     imageURL, // 返回相对路径
+		"url":     imageURL,
 		"type":    operationType,
 	})
 }
 
-// 检查文件类型是否为图片
-func isValidImageType(contentType string) bool {
-	validTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/gif":  true,
-	}
-	return validTypes[contentType]
-}
-
 // 获取商品图片
-func (h *Handler) GetProductImage(w http.ResponseWriter, r *http.Request) {
-	imagePath := r.URL.Query().Get("path")
+func (h *Handler) GetProductImage(c *gin.Context) {
+	imagePath := c.Query("path")
 	if imagePath == "" {
-		http.Error(w, "缺少图片路径", http.StatusBadRequest)
+		errorResponse(c, http.StatusBadRequest, "缺少图片路径")
 		return
 	}
 
@@ -419,53 +288,269 @@ func (h *Handler) GetProductImage(w http.ResponseWriter, r *http.Request) {
 		imagePath = "/" + imagePath
 	}
 
-	// 验证图片路径
 	if err := utils.ValidateImageURL(imagePath); err != nil {
-		utils.Logger.Printf("无效的图片路径请求: %v", err)
-		http.Error(w, "无效的图片路径", http.StatusBadRequest)
+		h.logger.Printf("图片路径验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
 		return
 	}
 
-	// 确保路径以 /uploads/ 开头
-	if !strings.HasPrefix(imagePath, "/uploads/") {
-		imagePath = "/uploads/" + imagePath
-	}
-
-	// 移除开头的斜杠，因为我们要从当前目录访问
 	imagePath = "." + imagePath
 
-	// 检查文件是否存在
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-		http.Error(w, "图片不存在", http.StatusNotFound)
+		h.logger.Printf("图片文件不存在: %s", imagePath)
+		errorResponse(c, http.StatusNotFound, "图片不存在")
 		return
 	}
 
-	// 设置正确的 Content-Type
-	contentType := "image/jpeg"
-	if strings.HasSuffix(imagePath, ".png") {
-		contentType = "image/png"
-	} else if strings.HasSuffix(imagePath, ".gif") {
-		contentType = "image/gif"
-	}
-	w.Header().Set("Content-Type", contentType)
-
-	// 提供文件
-	http.ServeFile(w, r, imagePath)
+	c.File(imagePath)
 }
 
-// 翻转订单状态
-func (h *Handler) ToggleOrderStatus(w http.ResponseWriter, r *http.Request) {
-	orderID := r.URL.Query().Get("id")
-	if orderID == "" {
-		utils.Logger.Printf("翻转订单状态失败: 缺少订单ID")
-		http.Error(w, "缺少订单ID", http.StatusBadRequest)
+// 创建订单
+func (h *Handler) CreateOrder(c *gin.Context) {
+	var order models.Order
+	if err := c.ShouldBindJSON(&order); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
+		return
+	}
+
+	utils.SanitizeOrder(&order)
+
+	// 验证订单数据
+	if err := validateOrder(&order); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	tx := h.DB.Begin()
+
+	if err := tx.Create(&order).Error; err != nil {
+		tx.Rollback()
+		utils.Logger.Printf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+		return
+	}
+
+	// 更新商品库存
+	for _, item := range order.Items {
+		var product models.Product
+		if err := tx.First(&product, item.ProductID).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("商品不存在, ID: %d, 错误: %v", item.ProductID, err)
+			errorResponse(c, http.StatusBadRequest, "商品不存在")
+			return
+		}
+
+		if product.Stock < item.Quantity {
+			tx.Rollback()
+			h.logger.Printf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
+				item.ProductID, product.Stock, item.Quantity)
+			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("商品 %s 库存不足", product.Name))
+			return
+		}
+
+		product.Stock -= item.Quantity
+		if err := tx.Save(&product).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("更新商品库存失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新商品库存失败")
+			return
+		}
+	}
+
+	tx.Commit()
+	successResponse(c, order)
+}
+
+// 添加订单验证函数
+func validateOrder(order *models.Order) error {
+	if order.UserID == 0 {
+		return fmt.Errorf("用户ID不能为空")
+	}
+	if len(order.Items) == 0 {
+		return fmt.Errorf("订单项不能为空")
+	}
+	for _, item := range order.Items {
+		if item.ProductID == 0 {
+			return fmt.Errorf("商品ID不能为空")
+		}
+		if item.Quantity <= 0 {
+			return fmt.Errorf("商品数量必须大于0")
+		}
+	}
+	return nil
+}
+
+// 更新订单
+func (h *Handler) UpdateOrder(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
 		return
 	}
 
 	var order models.Order
-	if err := h.DB.First(&order, orderID).Error; err != nil {
-		utils.Logger.Printf("翻转订单状态失败: 订单不存在, ID: %s, 错误: %v", orderID, err)
-		http.Error(w, "订单不存在", http.StatusNotFound)
+	if err := h.DB.First(&order, id).Error; err != nil {
+		h.logger.Printf("更新订单失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "订单未找到")
+		return
+	}
+
+	var updateData models.Order
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
+		return
+	}
+
+	utils.SanitizeOrder(&updateData)
+
+	// 开启事务
+	tx := h.DB.Begin()
+
+	if err := tx.Model(&order).Updates(updateData).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("更新订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
+		return
+	}
+
+	// 重新获取更新后的订单信息，包括关联数据
+	if err := tx.Preload("Items").Preload("Items.Product").First(&order, id).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("获取更新后的订单信息失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
+		return
+	}
+
+	tx.Commit()
+	successResponse(c, order)
+}
+
+// 获取订单列表
+func (h *Handler) GetOrders(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
+		return
+	}
+
+	if pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+		return
+	}
+
+	offset := (page - 1) * pageSize
+
+	var total int64
+	if err := h.DB.Model(&models.Order{}).Count(&total).Error; err != nil {
+		h.logger.Printf("获取订单总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	var orders []models.Order
+	if err := h.DB.Offset(offset).Limit(pageSize).
+		Preload("Items").
+		Preload("Items.Product").
+		Find(&orders).Error; err != nil {
+		h.logger.Printf("查询订单列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     orders,
+	})
+}
+
+// 获取订单详情
+func (h *Handler) GetOrder(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+		return
+	}
+
+	var order models.Order
+	if err := h.DB.Preload("Items").
+		Preload("Items.Product").
+		First(&order, id).Error; err != nil {
+		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "订单未找到")
+		return
+	}
+
+	successResponse(c, order)
+}
+
+// 删除订单
+func (h *Handler) DeleteOrder(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+		return
+	}
+
+	var order models.Order
+	if err := h.DB.First(&order, id).Error; err != nil {
+		h.logger.Printf("删除订单失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "订单不存在")
+		return
+	}
+
+	// 开启事务
+	tx := h.DB.Begin()
+
+	// 删除订单项
+	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("删除订单项失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
+		return
+	}
+
+	// 删除订单状态日志
+	if err := tx.Where("order_id = ?", id).Delete(&models.OrderStatusLog{}).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("删除订单状态日志失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
+		return
+	}
+
+	// 删除订单
+	if err := tx.Delete(&order).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("删除订单记录失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
+		return
+	}
+
+	tx.Commit()
+	successResponse(c, gin.H{"message": "订单删除成功"})
+}
+
+// 翻转订单状态
+func (h *Handler) ToggleOrderStatus(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+		return
+	}
+
+	var order models.Order
+	if err := h.DB.First(&order, id).Error; err != nil {
+		utils.Logger.Printf("订单不存在, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "订单不存在")
+		return
+	}
+
+	// 检查当前状态是否允许转换
+	if !isValidStatusTransition(order.Status) {
+		errorResponse(c, http.StatusBadRequest, "当前状态不允许转换")
 		return
 	}
 
@@ -481,8 +566,8 @@ func (h *Handler) ToggleOrderStatus(w http.ResponseWriter, r *http.Request) {
 	// 更新订单状态
 	if err := tx.Model(&order).Update("status", nextStatus).Error; err != nil {
 		tx.Rollback()
-		utils.Logger.Printf("更新订单状态失败: %v", err)
-		http.Error(w, "更新订单状态失败", http.StatusInternalServerError)
+		h.logger.Printf("更新订单状态失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新订单状态失败")
 		return
 	}
 
@@ -494,8 +579,8 @@ func (h *Handler) ToggleOrderStatus(w http.ResponseWriter, r *http.Request) {
 		ChangedTime: time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
-		utils.Logger.Printf("记录状态变更失败: %v", err)
-		http.Error(w, "记录状态变更失败", http.StatusInternalServerError)
+		h.logger.Printf("记录状态变更失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "记录状态变更失败")
 		return
 	}
 
@@ -503,10 +588,37 @@ func (h *Handler) ToggleOrderStatus(w http.ResponseWriter, r *http.Request) {
 
 	// 返回更新后的订单信息
 	order.Status = nextStatus
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	successResponse(c, gin.H{
 		"message":    "订单状态更新成功",
 		"old_status": order.Status,
 		"new_status": nextStatus,
 		"order":      order,
 	})
+}
+
+// 添加状态转换验证函数
+func isValidStatusTransition(currentStatus string) bool {
+	_, exists := models.OrderStatusTransitions[currentStatus]
+	return exists
+}
+
+// 检查文件类型是否为图片
+func isValidImageType(contentType string) bool {
+	validTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
+	}
+	return validTypes[contentType]
+}
+
+// 添加错误响应辅助函数
+func errorResponse(c *gin.Context, code int, message string) {
+	utils.Logger.Printf("错误响应: %d - %s", code, message)
+	c.JSON(code, gin.H{"error": message})
+}
+
+// 添加成功响应辅助函数
+func successResponse(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusOK, data)
 }
