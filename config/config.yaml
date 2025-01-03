@@ -2,17 +2,17 @@ server:
   port: 8080
   basePath: "/api/v1"
   host: "0.0.0.0"
-  domain: "gkbdewdnxhwz.sealoshzh.site"
+  domain: "xhgscdzdvzsl.sealoshzh.site"
   allowedOrigins:
-    - "https://gkbdewdnxhwz.sealoshzh.site"
-    - "http://gkbdewdnxhwz.sealoshzh.site"
+    - "https://xhgscdzdvzsl.sealoshzh.site"
+    - "https://xhgscdzdvzsl.sealoshzh.site"
 
 database:
   driver: mysql
   host: test-db-mysql.ns-ojjsi3o6.svc
   port: 3306
   username: root
-  password: rfpfz2fd
+  password: p9q8xdnv
   dbname: mysql
   charset: utf8mb4
   parseTime: true

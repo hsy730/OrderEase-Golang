@@ -1,14 +1,17 @@
 package main
 
 import (
-	"OrderEase/config"
-	"OrderEase/handlers"
-	"OrderEase/models"
-	"OrderEase/utils"
 	"fmt"
 	"net/http"
+	"orderease/config"
+	"orderease/handlers"
+	"orderease/models"
+	"orderease/utils"
 	"os"
 	"time"
+
+	"orderease/database"
+	"orderease/routes"
 
 	"github.com/gin-gonic/gin"
 )
@@ -70,10 +73,7 @@ func main() {
 	})
 
 	// 连接数据库
-	db, err := config.InitDB()
-	if err != nil {
-		utils.Logger.Fatal("数据库连接失败:", err)
-	}
+	db := database.GetDB()
 	utils.Logger.Println("数据库连接成功")
 
 	// 数据库迁移
@@ -82,6 +82,7 @@ func main() {
 		&models.Order{},
 		&models.OrderItem{},
 		&models.OrderStatusLog{},
+		&models.User{},
 	}
 
 	for _, table := range tables {
@@ -96,32 +97,8 @@ func main() {
 	// 创建处理器
 	h := handlers.NewHandler(db)
 
-	// 创建路由组
-	api := r.Group(config.AppConfig.Server.BasePath)
-	{
-		// 商品相关路由
-		product := api.Group("/product")
-		{
-			product.POST("/create", h.CreateProduct)
-			product.GET("/list", h.GetProducts)
-			product.GET("/detail", h.GetProduct)
-			product.PUT("/update", h.UpdateProduct)
-			product.DELETE("/delete", h.DeleteProduct)
-			product.POST("/upload-image", h.UploadProductImage)
-			product.GET("/image", h.GetProductImage)
-		}
-
-		// 订单相关路由
-		order := api.Group("/order")
-		{
-			order.POST("/create", h.CreateOrder)
-			order.PUT("/update", h.UpdateOrder)
-			order.GET("/list", h.GetOrders)
-			order.GET("/detail", h.GetOrder)
-			order.DELETE("/delete", h.DeleteOrder)
-			order.PUT("/toggle-status", h.ToggleOrderStatus)
-		}
-	}
+	// 设置路由
+	routes.SetupRoutes(r, h)
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")

@@ -42,17 +42,6 @@ func (p *Price) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Order struct {
-	ID         uint        `gorm:"primarykey" json:"id"`
-	UserID     uint        `json:"user_id"`
-	TotalPrice Price       `json:"total_price"`
-	Status     string      `json:"status"`
-	Remark     string      `json:"remark"`
-	Items      []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
-	CreatedAt  time.Time   `json:"created_at"`
-	UpdatedAt  time.Time   `json:"updated_at"`
-}
-
 type OrderItem struct {
 	ID        uint    `gorm:"primarykey" json:"id"`
 	OrderID   uint    `json:"order_id"`

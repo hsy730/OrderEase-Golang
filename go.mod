@@ -1,4 +1,4 @@
-module OrderEase
+module orderease
 
 go 1.21
 

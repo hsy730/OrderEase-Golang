@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"OrderEase/models"
 	"fmt"
 	"html"
+	"orderease/models"
 	"path/filepath"
 	"regexp"
 	"strings"

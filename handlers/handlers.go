@@ -1,16 +1,19 @@
 package handlers
 
 import (
-	"OrderEase/models"
-	"OrderEase/utils"
 	"fmt"
 	"log"
 	"net/http"
+	"orderease/models"
+	"orderease/utils"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"encoding/csv"
+	"io"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -621,4 +624,231 @@ func errorResponse(c *gin.Context, code int, message string) {
 // 添加成功响应辅助函数
 func successResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, data)
+}
+
+// 导出数据
+func (h *Handler) ExportData(c *gin.Context) {
+	// 设置响应头为CSV
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", "attachment;filename=export.csv")
+
+	// 创建CSV writer
+	writer := csv.NewWriter(c.Writer)
+	defer writer.Flush()
+
+	// 写入商品表头
+	productHeaders := []string{"id", "name", "description", "price", "stock", "image_url", "created_at", "updated_at"}
+	if err := writer.Write(productHeaders); err != nil {
+		h.logger.Printf("写入商品表头失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出商品数据
+	var products []models.Product
+	if err := h.DB.Find(&products).Error; err != nil {
+		h.logger.Printf("查询商品数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	for _, p := range products {
+		row := []string{
+			strconv.FormatUint(uint64(p.ID), 10),
+			p.Name,
+			p.Description,
+			strconv.FormatFloat(p.Price, 'f', 2, 64),
+			strconv.Itoa(p.Stock),
+			p.ImageURL,
+			p.CreatedAt.Format(time.RFC3339),
+			p.UpdatedAt.Format(time.RFC3339),
+		}
+		if err := writer.Write(row); err != nil {
+			h.logger.Printf("写入商品数据失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "导出失败")
+			return
+		}
+	}
+
+	// 写入空行作为分隔
+	writer.Write([]string{})
+
+	// 写入订单表头
+	orderHeaders := []string{"id", "user_id", "total_price", "status", "remark", "created_at", "updated_at"}
+	if err := writer.Write(orderHeaders); err != nil {
+		h.logger.Printf("写入订单表头失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出订单数据
+	var orders []models.Order
+	if err := h.DB.Find(&orders).Error; err != nil {
+		h.logger.Printf("查询订单数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	for _, o := range orders {
+		row := []string{
+			strconv.FormatUint(uint64(o.ID), 10),
+			strconv.FormatUint(uint64(o.UserID), 10),
+			strconv.FormatFloat(float64(o.TotalPrice), 'f', 2, 64),
+			o.Status,
+			o.Remark,
+			o.CreatedAt.Format(time.RFC3339),
+			o.UpdatedAt.Format(time.RFC3339),
+		}
+		if err := writer.Write(row); err != nil {
+			h.logger.Printf("写入订单数据失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "导出失败")
+			return
+		}
+	}
+
+	// 写入空行作为分隔
+	writer.Write([]string{})
+
+	// 写入订单项表头
+	orderItemHeaders := []string{"id", "order_id", "product_id", "quantity", "price"}
+	if err := writer.Write(orderItemHeaders); err != nil {
+		h.logger.Printf("写入订单项表头失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出订单项数据
+	var orderItems []models.OrderItem
+	if err := h.DB.Find(&orderItems).Error; err != nil {
+		h.logger.Printf("查询订单项数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	for _, item := range orderItems {
+		row := []string{
+			strconv.FormatUint(uint64(item.ID), 10),
+			strconv.FormatUint(uint64(item.OrderID), 10),
+			strconv.FormatUint(uint64(item.ProductID), 10),
+			strconv.Itoa(item.Quantity),
+			strconv.FormatFloat(float64(item.Price), 'f', 2, 64),
+		}
+		if err := writer.Write(row); err != nil {
+			h.logger.Printf("写入订单项数据失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "导出失败")
+			return
+		}
+	}
+}
+
+// 导入数据
+func (h *Handler) ImportData(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "请上传CSV文件")
+		return
+	}
+
+	if !strings.HasSuffix(file.Filename, ".csv") {
+		errorResponse(c, http.StatusBadRequest, "只支持CSV文件")
+		return
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		h.logger.Printf("打开上传文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "文件处理失败")
+		return
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(f)
+	tx := h.DB.Begin()
+
+	// 读取并导入商品数据
+	productHeaders, err := reader.Read()
+	if err != nil {
+		tx.Rollback()
+		errorResponse(c, http.StatusBadRequest, "无效的CSV格式")
+		return
+	}
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue // 跳过空行
+		}
+		if len(record) != len(productHeaders) {
+			continue // 跳过格式不匹配的行
+		}
+
+		// 根据不同的表头处理不同的数据
+		switch record[0] {
+		case "id": // 跳过表头行
+			continue
+		case "": // 跳过空行
+			continue
+		default:
+			// 处理数据行
+			if len(record) == 8 { // 商品数据
+				product := models.Product{
+					Name:        record[1],
+					Description: record[2],
+					Price:       parseFloat(record[3]),
+					Stock:       parseInt(record[4]),
+					ImageURL:    record[5],
+				}
+				if err := tx.Create(&product).Error; err != nil {
+					tx.Rollback()
+					h.logger.Printf("导入商品数据失败: %v", err)
+					errorResponse(c, http.StatusInternalServerError, "导入失败")
+					return
+				}
+			} else if len(record) == 7 { // 订单数据
+				order := models.Order{
+					UserID:     uint(parseInt(record[1])),
+					TotalPrice: models.Price(parseFloat(record[2])),
+					Status:     record[3],
+					Remark:     record[4],
+				}
+				if err := tx.Create(&order).Error; err != nil {
+					tx.Rollback()
+					h.logger.Printf("导入订单数据失败: %v", err)
+					errorResponse(c, http.StatusInternalServerError, "导入失败")
+					return
+				}
+			} else if len(record) == 5 { // 订单项数据
+				orderItem := models.OrderItem{
+					OrderID:   uint(parseInt(record[1])),
+					ProductID: uint(parseInt(record[2])),
+					Quantity:  parseInt(record[3]),
+					Price:     models.Price(parseFloat(record[4])),
+				}
+				if err := tx.Create(&orderItem).Error; err != nil {
+					tx.Rollback()
+					h.logger.Printf("导入订单项数据失败: %v", err)
+					errorResponse(c, http.StatusInternalServerError, "导入失败")
+					return
+				}
+			}
+		}
+	}
+
+	tx.Commit()
+	successResponse(c, gin.H{"message": "数据导入成功"})
+}
+
+// 辅助函数：解析浮点数
+func parseFloat(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
+// 辅助函数：解析整数
+func parseInt(s string) int {
+	i, _ := strconv.Atoi(s)
+	return i
 }

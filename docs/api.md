@@ -265,17 +265,142 @@ curl -X PUT "https://gkbdewdnxhwz.sealoshzh.site/api/v1/order/toggle-status?id=1
 }
 ```
 
-## 错误响应
-所有接口在发生错误时会返回相应的HTTP状态码和错误信息：
+## 用户接口
 
-- 400 Bad Request: 请求参数错误
-- 404 Not Found: 资源未找到
-- 500 Internal Server Error: 服务器内部错误
-
-错误响应格式：
+### 1. 创建用户
+- **接口**: POST `/api/v1/user/create`
+- **描述**: 创建新用户
+- **请求参数 (Body)**:
 ```json
 {
-    "error": "错误信息描述"
+    "name": "张三",
+    "phone": "13800138000",
+    "address": "北京市朝阳区xxx街道",
+    "type": "delivery"  // delivery: 邮寄, pickup: 自提
+}
+```
+- **响应**:
+```json
+{
+    "id": 1,
+    "name": "张三",
+    "phone": "13800138000",
+    "address": "北京市朝阳区xxx街道",
+    "type": "delivery",
+    "created_at": "2024-03-14T12:00:00Z",
+    "updated_at": "2024-03-14T12:00:00Z"
 }
 ```
 
+### 2. 获取用户列表
+- **接口**: GET `/api/v1/user/list`
+- **描述**: 分页查询用户列表
+- **请求参数 (Query)**:
+  - page: 页码（默认1）
+  - pageSize: 每页数量（默认10）
+- **请求示例**:
+```bash
+# 基本查询（使用默认分页）
+curl -X GET "http://devbox.ns-ojjsi3o6.svc.cluster.local:8080/api/v1/user/list"
+
+# 带分页参数的查询
+curl -X GET "http://devbox.ns-ojjsi3o6.svc.cluster.local:8080/api/v1/user/list?page=1&pageSize=20"
+```
+- **响应**:
+```json
+{
+    "total": 100,
+    "page": 1,
+    "pageSize": 10,
+    "data": [
+        {
+            "id": 1,
+            "name": "张三",
+            "phone": "13800138000",
+            "address": "北京市朝阳区xxx街道",
+            "type": "delivery",
+            "created_at": "2024-03-14T12:00:00Z",
+            "updated_at": "2024-03-14T12:00:00Z"
+        }
+    ]
+}
+```
+
+### 3. 获取用户详情
+- **接口**: GET `/api/v1/user/detail`
+- **描述**: 获取单个用户的详细信息
+- **请求参数 (Query)**:
+  - id: 用户ID
+- **响应**:
+```json
+{
+    "id": 1,
+    "name": "张三",
+    "phone": "13800138000",
+    "address": "北京市朝阳区xxx街道",
+    "type": "delivery",
+    "created_at": "2024-03-14T12:00:00Z",
+    "updated_at": "2024-03-14T12:00:00Z"
+}
+```
+
+### 4. 更新用户信息
+- **接口**: PUT `/api/v1/user/update`
+- **描述**: 更新用户信息
+- **请求参数 (Query)**:
+  - id: 用户ID
+- **请求参数 (Body)**:
+```json
+{
+    "name": "张三",
+    "phone": "13800138000",
+    "address": "北京市朝阳区xxx街道",
+    "type": "pickup"
+}
+```
+- **响应**: 返回更新后的用户信息
+
+### 5. 删除用户
+- **接口**: DELETE `/api/v1/user/delete`
+- **描述**: 删除指定用户
+- **请求参数 (Query)**:
+  - id: 用户ID
+- **响应**:
+```json
+{
+    "message": "用户删除成功"
+}
+```
+
+### 用户类型说明
+- delivery: 邮寄配送
+- pickup: 自提
+
+### 注意事项
+1. 手机号必须是11位数字，以1开头
+2. 用户类型只能是 delivery 或 pickup
+3. 删除用户前请确保该用户没有关联的订单
+4. 创建和更新用户时，name 和 phone 为必填字段
+5. 如果用户类型为 delivery，address 为必填字段
+
+### 6. 获取简单用户列表
+- **接口**: GET `/api/v1/user/simple-list`
+- **描述**: 获取用户ID和名称列表
+- **响应**:
+```json
+[
+    {
+        "id": 1,
+        "name": "张三"
+    },
+    {
+        "id": 2,
+        "name": "李四"
+    }
+]
+```
+
+### 使用示例
+```bash
+curl -X GET "http://devbox.ns-ojjsi3o6.svc.cluster.local:8080/api/v1/user/simple-list"
+```
