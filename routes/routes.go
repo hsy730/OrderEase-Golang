@@ -51,5 +51,12 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			user.PUT("/update", h.UpdateUser)
 			user.DELETE("/delete", h.DeleteUser)
 		}
+
+		// 管理员相关路由
+		admin := api.Group("/admin")
+		{
+			admin.POST("/login", h.AdminLogin)
+			admin.PUT("/change-password", h.ChangeAdminPassword)
+		}
 	}
 }

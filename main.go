@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"orderease/config"
 	"orderease/handlers"
@@ -73,7 +74,10 @@ func main() {
 	})
 
 	// 连接数据库
-	db := database.GetDB()
+	db, err := database.Init()
+	if err != nil {
+		log.Fatalf("数据库初始化失败: %v", err)
+	}
 	utils.Logger.Println("数据库连接成功")
 
 	// 数据库迁移
@@ -83,6 +87,7 @@ func main() {
 		&models.OrderItem{},
 		&models.OrderStatusLog{},
 		&models.User{},
+		&models.Admin{},
 	}
 
 	for _, table := range tables {
