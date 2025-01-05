@@ -7,6 +7,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/spf13/viper v1.19.0
 	golang.org/x/crypto v0.21.0
+	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.5.4
 	gorm.io/gorm v1.25.7

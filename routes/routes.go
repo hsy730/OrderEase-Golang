@@ -9,6 +9,9 @@ import (
 
 // SetupRoutes 配置所有路由
 func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
+	// 应用限流中间件到所有管理员接口
+	r.Use(middleware.RateLimitMiddleware())
+
 	// 公开路由组 - 不需要认证
 	public := r.Group("/api/v1/admin")
 	{
