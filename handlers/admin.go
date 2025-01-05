@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"orderease/models"
 	"orderease/utils"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -104,4 +105,38 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{"message": "密码修改成功"})
+}
+
+// RefreshToken 刷新token
+func (h *Handler) RefreshToken(c *gin.Context) {
+	// 从请求头获取旧token
+	oldToken := c.GetHeader("Authorization")
+	if oldToken == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少token")
+		return
+	}
+
+	// 去掉Bearer前缀
+	oldToken = strings.TrimPrefix(oldToken, "Bearer ")
+
+	// 验证旧token
+	claims, err := utils.ParseToken(oldToken)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "无效的token")
+		return
+	}
+
+	// 生成新token
+	newToken, expiredAt, err := utils.GenerateToken(claims.UserID, claims.Username)
+	if err != nil {
+		utils.Logger.Printf("生成新token失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "刷新token失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message":   "token刷新成功",
+		"token":     newToken,
+		"expiredAt": expiredAt.Unix(),
+	})
 }

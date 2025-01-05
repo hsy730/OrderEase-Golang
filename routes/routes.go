@@ -13,6 +13,7 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 	public := r.Group("/api/v1/admin")
 	{
 		public.POST("/login", h.AdminLogin)             // 登录接口不需要认证
+		public.POST("/refresh-token", h.RefreshToken)   // 添加刷新token接口
 		public.GET("/product/image", h.GetProductImage) // 查看图片不认值，方便前端获取图片
 	}
 

@@ -65,6 +65,21 @@
 }
 ```
 
+#### 3. 刷新Token
+- **接口**: POST `/refresh-token`
+- **描述**: 使用旧token获取新token
+- **认证**: 需要旧token
+- **请求头**:
+  - Authorization: Bearer <old-token>
+- **响应**:
+```json
+{
+    "message": "token刷新成功",
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "expiredAt": 1679904000  // 新token的过期时间戳
+}
+```
+
 ### 商品管理接口
 #### 1. 创建商品
 - **接口**: POST `/product/create`
