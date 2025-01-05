@@ -42,7 +42,8 @@
         "id": 1,
         "username": "admin"
     },
-    "token": "eyJhbGciOiJIUzI1NiIs..."
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "expiredAt": 1679904000  // token过期时间的Unix时间戳
 }
 ```
 

@@ -19,7 +19,7 @@ type Claims struct {
 }
 
 // GenerateToken 生成JWT token
-func GenerateToken(userID uint, username string) (string, error) {
+func GenerateToken(userID uint, username string) (string, time.Time, error) {
 	// 从配置文件获取过期时间
 	expirationSeconds := viper.GetInt("jwt.expiration")
 	expirationTime := time.Now().Add(time.Duration(expirationSeconds) * time.Second)
@@ -34,7 +34,12 @@ func GenerateToken(userID uint, username string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(getJWTSecret())
+	tokenString, err := token.SignedString(getJWTSecret())
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	return tokenString, expirationTime, nil
 }
 
 // ParseToken 解析JWT token
