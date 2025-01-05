@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			product.PUT("/update", h.UpdateProduct)
 			product.DELETE("/delete", h.DeleteProduct)
 			product.POST("/upload-image", h.UploadProductImage)
+			product.PUT("/toggle-status", h.ToggleProductStatus)
 		}
 
 		// 用户管理接口
