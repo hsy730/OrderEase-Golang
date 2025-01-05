@@ -10,9 +10,10 @@ import (
 // SetupRoutes 配置所有路由
 func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 公开路由组 - 不需要认证
-	public := r.Group("/api/v1")
+	public := r.Group("/api/v1/admin")
 	{
-		public.POST("/admin/login", h.AdminLogin) // 登录接口不需要认证
+		public.POST("/login", h.AdminLogin)             // 登录接口不需要认证
+		public.GET("/product/image", h.GetProductImage) // 查看图片不认值，方便前端获取图片
 	}
 
 	// 需要认证的路由组
@@ -31,7 +32,6 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			product.PUT("/update", h.UpdateProduct)
 			product.DELETE("/delete", h.DeleteProduct)
 			product.POST("/upload-image", h.UploadProductImage)
-			product.GET("/image", h.GetProductImage)
 		}
 
 		// 用户管理接口
