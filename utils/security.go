@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"unicode"
 )
 
 // 防止XSS的字符串清理函数
@@ -73,46 +72,4 @@ func SanitizeProduct(product *models.Product) {
 		product.ImageURL = "" // 如果图片URL无效，清空它
 		Logger.Printf("Invalid image URL detected: %v", err)
 	}
-}
-
-// 验证密码强度
-func ValidatePassword(password string) error {
-	if len(password) < 12 { // 管理员密码要求更长
-		return fmt.Errorf("密码长度必须至少为12位")
-	}
-
-	var (
-		hasNumber  bool
-		hasLower   bool
-		hasUpper   bool
-		hasSpecial bool
-	)
-
-	for _, char := range password {
-		switch {
-		case unicode.IsNumber(char):
-			hasNumber = true
-		case unicode.IsLower(char):
-			hasLower = true
-		case unicode.IsUpper(char):
-			hasUpper = true
-		case unicode.IsPunct(char) || unicode.IsSymbol(char):
-			hasSpecial = true
-		}
-	}
-
-	if !hasNumber {
-		return fmt.Errorf("密码必须包含数字")
-	}
-	if !hasLower {
-		return fmt.Errorf("密码必须包含小写字母")
-	}
-	if !hasUpper {
-		return fmt.Errorf("密码必须包含大写字母")
-	}
-	if !hasSpecial {
-		return fmt.Errorf("密码必须包含特殊字符")
-	}
-
-	return nil
 }

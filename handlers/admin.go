@@ -56,6 +56,8 @@ func (h *Handler) AdminLogin(c *gin.Context) {
 
 // 修改管理员密码
 func (h *Handler) ChangeAdminPassword(c *gin.Context) {
+	utils.Logger.Printf("开始处理管理员修改密码请求")
+
 	var passwordData struct {
 		OldPassword string `json:"old_password"`
 		NewPassword string `json:"new_password"`
