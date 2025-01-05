@@ -78,14 +78,19 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
+	// 只查询未下架的商品（待上架和已上架）
+	query := h.DB.Where("status != ?", models.ProductStatusOffline)
+
+	// 获取总数
 	var total int64
-	if err := h.DB.Model(&models.Product{}).Count(&total).Error; err != nil {
+	if err := query.Model(&models.Product{}).Count(&total).Error; err != nil {
 		h.logger.Printf("获取商品总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
 	}
 
-	if err := h.DB.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+	// 获取分页数据
+	if err := query.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
 		h.logger.Printf("查询商品列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
@@ -164,10 +169,28 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
+	// 获取商品信息
 	var product models.Product
 	if err := h.DB.First(&product, id).Error; err != nil {
 		h.logger.Printf("删除商品失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "商品不存在")
+		return
+	}
+
+	// 检查是否存在关联订单
+	var orderCount int64
+	if err := h.DB.Model(&models.OrderItem{}).
+		Where("product_id = ?", id).
+		Count(&orderCount).Error; err != nil {
+		h.logger.Printf("检查商品订单关联失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "系统错误")
+		return
+	}
+
+	// 如果存在关联订单，不允许删除
+	if orderCount > 0 {
+		errorResponse(c, http.StatusBadRequest,
+			fmt.Sprintf("该商品有 %d 个关联订单，不能删除。建议将商品下架而不是删除", orderCount))
 		return
 	}
 

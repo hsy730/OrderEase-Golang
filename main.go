@@ -13,6 +13,7 @@ import (
 
 	"orderease/database"
 	"orderease/routes"
+	"orderease/tasks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -130,6 +131,10 @@ func main() {
 		utils.Logger.Fatal("创建上传目录失败:", err)
 	}
 	utils.Logger.Println("上传目录创建成功")
+
+	// 初始化清理任务
+	cleanupTask := tasks.NewCleanupTask(db)
+	cleanupTask.StartCleanupTask()
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
