@@ -15,6 +15,7 @@ import (
 	"orderease/routes"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 // 日志中间件
@@ -35,6 +36,22 @@ func LoggerMiddleware() gin.HandlerFunc {
 
 		utils.Logger.Printf("请求处理完成: %s %s?%s 耗时: %v",
 			c.Request.Method, path, raw, latency)
+	}
+}
+
+func init() {
+	// 设置配置文件路径
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("./config")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %v", err)
+	}
+
+	// 验证必要的配置项
+	if viper.GetString("jwt.secret") == "" {
+		log.Fatal("JWT secret 未配置")
 	}
 }
 

@@ -2,17 +2,28 @@ package routes
 
 import (
 	"orderease/handlers"
+	"orderease/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupRoutes 配置所有路由
 func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
-	// 创建路由组
-	api := r.Group("/api/v1")
+	// 公开路由组 - 不需要认证
+	public := r.Group("/api/v1")
 	{
-		// 商品相关路由
-		product := api.Group("/product")
+		public.POST("/admin/login", h.AdminLogin) // 登录接口不需要认证
+	}
+
+	// 需要认证的路由组
+	admin := r.Group("/api/v1/admin")
+	admin.Use(middleware.AuthMiddleware())
+	{
+		// 管理员基础接口
+		admin.POST("/change-password", h.ChangeAdminPassword)
+
+		// 商品管理接口
+		product := admin.Group("/product")
 		{
 			product.POST("/create", h.CreateProduct)
 			product.GET("/list", h.GetProducts)
@@ -23,26 +34,8 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			product.GET("/image", h.GetProductImage)
 		}
 
-		// 订单相关路由
-		order := api.Group("/order")
-		{
-			order.POST("/create", h.CreateOrder)
-			order.PUT("/update", h.UpdateOrder)
-			order.GET("/list", h.GetOrders)
-			order.GET("/detail", h.GetOrder)
-			order.DELETE("/delete", h.DeleteOrder)
-			order.PUT("/toggle-status", h.ToggleOrderStatus)
-		}
-
-		// 数据管理相关路由
-		data := api.Group("/data")
-		{
-			data.GET("/export", h.ExportData)
-			data.POST("/import", h.ImportData)
-		}
-
-		// 用户相关路由
-		user := api.Group("/user")
+		// 用户管理接口
+		user := admin.Group("/user")
 		{
 			user.POST("/create", h.CreateUser)
 			user.GET("/list", h.GetUsers)
@@ -52,11 +45,22 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			user.DELETE("/delete", h.DeleteUser)
 		}
 
-		// 管理员相关路由
-		admin := api.Group("/admin")
+		// 订单管理接口
+		order := admin.Group("/order")
 		{
-			admin.POST("/login", h.AdminLogin)
-			admin.PUT("/change-password", h.ChangeAdminPassword)
+			order.POST("/create", h.CreateOrder)
+			order.GET("/list", h.GetOrders)
+			order.GET("/detail", h.GetOrder)
+			order.PUT("/update", h.UpdateOrder)
+			order.DELETE("/delete", h.DeleteOrder)
+			order.PUT("/toggle-status", h.ToggleOrderStatus)
+		}
+
+		// 数据管理接口
+		data := admin.Group("/data")
+		{
+			data.GET("/export", h.ExportData)
+			data.POST("/import", h.ImportData)
 		}
 	}
 }

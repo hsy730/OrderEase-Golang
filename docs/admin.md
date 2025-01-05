@@ -15,12 +15,19 @@
 4. 必须包含小写字母
 5. 必须包含特殊字符（如：@#$%^&*等）
 
-## 接口说明
+## 基础说明
+- 基础路径: `/api/v1/admin`
+- 认证方式: Bearer Token
+- 请求头: 需要认证的接口必须包含 `Authorization: Bearer <your-token>`
 
-### 1. 管理员登录
-- **接口**: POST `/api/v1/admin/login`
+## 接口列表
+
+### 管理员基础接口
+#### 1. 管理员登录
+- **接口**: POST `/login`
 - **描述**: 管理员账户登录
-- **请求参数 (Body)**:
+- **认证**: 不需要
+- **请求参数**:
 ```json
 {
     "username": "admin",
@@ -34,14 +41,16 @@
     "admin": {
         "id": 1,
         "username": "admin"
-    }
+    },
+    "token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
 
-### 2. 修改密码
-- **接口**: PUT `/api/v1/admin/change-password`
+#### 2. 修改管理员密码
+- **接口**: POST `/change-password`
 - **描述**: 修改管理员密码
-- **请求参数 (Body)**:
+- **认证**: 需要
+- **请求参数**:
 ```json
 {
     "old_password": "当前密码",
@@ -55,45 +64,190 @@
 }
 ```
 
-### 使用示例
-
-1. 登录管理员账户：
-```bash
-curl -X POST "http://your-domain/api/v1/admin/login" \
--H "Content-Type: application/json" \
--d '{
-    "username": "admin",
-    "password": "Admin@123456"
-}'
+### 商品管理接口
+#### 1. 创建商品
+- **接口**: POST `/product/create`
+- **描述**: 创建新商品
+- **认证**: 需要
+- **请求参数**:
+```json
+{
+    "name": "商品名称",
+    "description": "商品描述",
+    "price": 99.99,
+    "stock": 100
+}
 ```
 
-2. 修改管理员密码：
-```bash
-curl -X PUT "http://your-domain/api/v1/admin/change-password" \
--H "Content-Type: application/json" \
--d '{
-    "old_password": "Admin@123456",
-    "new_password": "NewPassword@2024"
-}'
+#### 2. 获取商品列表
+- **接口**: GET `/product/list`
+- **描述**: 获取商品列表
+- **认证**: 需要
+- **查询参数**:
+  - page: 页码（可选）
+  - limit: 每页数量（可选）
+
+#### 3. 获取商品详情
+- **接口**: GET `/product/detail`
+- **描述**: 获取单个商品详情
+- **认证**: 需要
+- **查询参数**:
+  - id: 商品ID
+
+#### 4. 更新商品
+- **接口**: PUT `/product/update`
+- **描述**: 更新商品信息
+- **认证**: 需要
+- **请求参数**:
+```json
+{
+    "id": 1,
+    "name": "更新后的商品名称",
+    "description": "更新后的描述",
+    "price": 88.88,
+    "stock": 50
+}
 ```
 
-### 错误响应
-- 400 Bad Request: 请求参数错误或密码不符合要求
-- 401 Unauthorized: 用户名或密码错误
-- 404 Not Found: 管理员账户不存在
-- 500 Internal Server Error: 服务器内部错误
+#### 5. 删除商品
+- **接口**: DELETE `/product/delete`
+- **描述**: 删除商品
+- **认证**: 需要
+- **查询参数**:
+  - id: 商品ID
 
-错误响应格式：
+#### 6. 上传商品图片
+- **接口**: POST `/product/upload-image`
+- **描述**: 上传商品图片
+- **认证**: 需要
+- **请求体**: multipart/form-data
+  - image: 图片文件
+  - product_id: 商品ID
+
+#### 7. 获取商品图片
+- **接口**: GET `/product/image`
+- **描述**: 获取商品图片
+- **认证**: 需要
+- **查询参数**:
+  - id: 商品ID
+
+### 用户管理接口
+#### 1. 创建用户
+- **接口**: POST `/user/create`
+- **描述**: 创建新用户
+- **认证**: 需要
+
+#### 2. 获取用户列表
+- **接口**: GET `/user/list`
+- **描述**: 获取用户列表
+- **认证**: 需要
+- **查询参数**:
+  - page: 页码（可选）
+  - limit: 每页数量（可选）
+
+#### 3. 获取简单用户列表
+- **接口**: GET `/user/simple-list`
+- **描述**: 获取简化的用户列表
+- **认证**: 需要
+
+#### 4. 获取用户详情
+- **接口**: GET `/user/detail`
+- **描述**: 获取单个用户详情
+- **认证**: 需要
+- **查询参数**:
+  - id: 用户ID
+
+#### 5. 更新用户
+- **接口**: PUT `/user/update`
+- **描述**: 更新用户信息
+- **认证**: 需要
+
+#### 6. 删除用户
+- **接口**: DELETE `/user/delete`
+- **描述**: 删除用户
+- **认证**: 需要
+- **查询参数**:
+  - id: 用户ID
+
+### 订单管理接口
+#### 1. 创建订单
+- **接口**: POST `/order/create`
+- **描述**: 创建新订单
+- **认证**: 需要
+
+#### 2. 更新订单
+- **接口**: PUT `/order/update`
+- **描述**: 更新订单信息
+- **认证**: 需要
+
+#### 3. 获取订单列表
+- **接口**: GET `/order/list`
+- **描述**: 获取订单列表
+- **认证**: 需要
+- **查询参数**:
+  - page: 页码（可选）
+  - limit: 每页数量（可选）
+
+#### 4. 获取订单详情
+- **接口**: GET `/order/detail`
+- **描述**: 获取单个订单详情
+- **认证**: 需要
+- **查询参数**:
+  - id: 订单ID
+
+#### 5. 删除订单
+- **接口**: DELETE `/order/delete`
+- **描述**: 删除订单
+- **认证**: 需要
+- **查询参数**:
+  - id: 订单ID
+
+#### 6. 切换订单状态
+- **接口**: PUT `/order/toggle-status`
+- **描述**: 更改订单状态
+- **认证**: 需要
+- **请求参数**:
+```json
+{
+    "id": 1,
+    "status": "processing"
+}
+```
+
+### 数据管理接口
+#### 1. 导出数据
+- **接口**: GET `/data/export`
+- **描述**: 导出系统数据
+- **认证**: 需要
+
+#### 2. 导入数据
+- **接口**: POST `/data/import`
+- **描述**: 导入系统数据
+- **认证**: 需要
+- **请求体**: multipart/form-data
+  - file: 数据文件
+
+## 错误响应
+所有接口的错误响应格式统一为：
 ```json
 {
     "error": "错误信息描述"
 }
 ```
 
-### 注意事项
-1. 首次使用系统时请立即修改默认密码
-2. 密码不要使用常见组合（如：123456）
-3. 不要在不安全的环境下保存密码
-4. 定期更换密码以提高安全性
-5. 密码修改后需要重新登录
-6. 如果忘记密码，需要联系系统管理员重置
+常见错误码：
+- 400 Bad Request: 请求参数错误
+- 401 Unauthorized: 未认证或认证失败
+- 403 Forbidden: 权限不足
+- 404 Not Found: 资源不存在
+- 500 Internal Server Error: 服务器内部错误
+
+## 注意事项
+1. 所有需要认证的接口必须在请求头中携带有效的 token
+2. Token 格式：`Authorization: Bearer <your-token>`
+3. Token 有效期为 2 小时
+4. 2 小时内没有任何请求，token 将自动失效
+5. Token 失效后需要重新登录获取新的 token
+6. 文件上传接口需要使用 multipart/form-data 格式
+7. 分页接口默认每页 20 条数据
+8. 请妥善保管 token，不要泄露给他人

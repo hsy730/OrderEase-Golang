@@ -36,12 +36,21 @@ func (h *Handler) AdminLogin(c *gin.Context) {
 		return
 	}
 
+	// 生成JWT token
+	token, err := utils.GenerateToken(admin.ID, admin.Username)
+	if err != nil {
+		utils.Logger.Printf("生成token失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "登录失败")
+		return
+	}
+
 	successResponse(c, gin.H{
 		"message": "登录成功",
 		"admin": gin.H{
 			"id":       admin.ID,
 			"username": admin.Username,
 		},
+		"token": token,
 	})
 }
 
