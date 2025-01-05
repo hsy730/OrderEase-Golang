@@ -80,6 +80,19 @@
 }
 ```
 
+#### 4. 退出登录
+- **接口**: POST `/logout`
+- **描述**: 注销当前token
+- **认证**: 需要
+- **请求头**:
+  - Authorization: Bearer <token>
+- **响应**:
+```json
+{
+    "message": "登出成功"
+}
+```
+
 ### 商品管理接口
 #### 1. 创建商品
 - **接口**: POST `/product/create`

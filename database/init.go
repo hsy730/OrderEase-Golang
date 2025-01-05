@@ -39,13 +39,25 @@ func Init() (*gorm.DB, error) {
 	// 获取数据库连接
 	db := GetDB()
 
-	// 自动迁移数据库表结构
-	if err := db.AutoMigrate(
+	// 数据库迁移
+	tables := []interface{}{
+		&models.Product{},
+		&models.Order{},
+		&models.OrderItem{},
+		&models.OrderStatusLog{},
+		&models.User{},
 		&models.Admin{},
-		// ... 其他模型
-	); err != nil {
-		return nil, fmt.Errorf("数据库迁移失败: %v", err)
+		&models.BlacklistedToken{},
 	}
+	// 自动迁移数据库表结构
+	for _, table := range tables {
+		if err := db.AutoMigrate(table); err != nil {
+			utils.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
+		}
+		utils.Logger.Printf("表 %T 迁移成功", table)
+	}
+
+	utils.Logger.Println("所有数据库表迁移完成")
 
 	// 初始化管理员账户
 	if err := InitAdminAccount(db); err != nil {

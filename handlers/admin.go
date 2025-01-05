@@ -5,6 +5,7 @@ import (
 	"orderease/models"
 	"orderease/utils"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -138,5 +139,42 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		"message":   "token刷新成功",
 		"token":     newToken,
 		"expiredAt": expiredAt.Unix(),
+	})
+}
+
+// Logout 管理员登出
+func (h *Handler) Logout(c *gin.Context) {
+	// 从请求头获取token
+	token := c.GetHeader("Authorization")
+	if token == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少token")
+		return
+	}
+
+	// 去掉Bearer前缀
+	token = strings.TrimPrefix(token, "Bearer ")
+
+	// 验证token
+	claims, err := utils.ParseToken(token)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "无效的token")
+		return
+	}
+
+	// 将token加入黑名单
+	blacklistedToken := models.BlacklistedToken{
+		Token:     token,
+		ExpiredAt: time.Unix(claims.ExpiresAt.Unix(), 0),
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.DB.Create(&blacklistedToken).Error; err != nil {
+		utils.Logger.Printf("添加token到黑名单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "登出失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message": "登出成功",
 	})
 }

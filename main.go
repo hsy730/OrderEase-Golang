@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"orderease/config"
 	"orderease/handlers"
-	"orderease/models"
 	"orderease/utils"
 	"os"
 	"time"
@@ -97,25 +96,6 @@ func main() {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
 	utils.Logger.Println("数据库连接成功")
-
-	// 数据库迁移
-	tables := []interface{}{
-		&models.Product{},
-		&models.Order{},
-		&models.OrderItem{},
-		&models.OrderStatusLog{},
-		&models.User{},
-		&models.Admin{},
-	}
-
-	for _, table := range tables {
-		if err := db.AutoMigrate(table); err != nil {
-			utils.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
-		}
-		utils.Logger.Printf("表 %T 迁移成功", table)
-	}
-
-	utils.Logger.Println("所有数据库表迁移完成")
 
 	// 创建处理器
 	h := handlers.NewHandler(db)

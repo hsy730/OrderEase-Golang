@@ -21,6 +21,7 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 	admin := r.Group("/api/v1/admin")
 	admin.Use(middleware.AuthMiddleware())
 	{
+		admin.POST("/logout", h.Logout) // 添加登出接口
 		// 管理员基础接口
 		admin.POST("/change-password", h.ChangeAdminPassword)
 
