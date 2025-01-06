@@ -44,10 +44,12 @@ func Init() (*gorm.DB, error) {
 		&models.Product{},
 		&models.Order{},
 		&models.OrderItem{},
-		&models.OrderStatusLog{},
 		&models.User{},
-		&models.Admin{},
-		&models.BlacklistedToken{},
+		&models.Tag{},
+		&models.ProductTag{},
+		&models.OrderStatusLog{},   // 不需要迁移数据
+		&models.Admin{},            // 不需要迁移数据
+		&models.BlacklistedToken{}, // 不需要迁移数据
 	}
 	// 自动迁移数据库表结构
 	for _, table := range tables {

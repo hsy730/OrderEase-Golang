@@ -12,7 +12,7 @@ database:
   host: test-db-mysql.ns-ojjsi3o6.svc
   port: 3306
   username: root
-  password: 6js2wdp5
+  password: x6695q6z
   dbname: mysql
   charset: utf8mb4
   parseTime: true

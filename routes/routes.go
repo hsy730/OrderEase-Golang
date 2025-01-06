@@ -62,6 +62,16 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 			order.PUT("/toggle-status", h.ToggleOrderStatus)
 		}
 
+		// 标签管理接口
+		tag := admin.Group("/tag")
+		{
+			tag.POST("/create", h.CreateTag)
+			tag.GET("/list", h.GetTags)
+			tag.GET("/detail", h.GetTag)
+			tag.PUT("/update", h.UpdateTag)
+			tag.DELETE("/delete", h.DeleteTag)
+		}
+
 		// 数据管理接口
 		data := admin.Group("/data")
 		{
