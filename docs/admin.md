@@ -193,8 +193,57 @@
 - **描述**: 获取商品列表
 - **认证**: 需要
 - **查询参数**:
-  - page: 页码（可选）
-  - limit: 每页数量（可选）
+  - page: 页码（可选，默认1）
+  - limit: 每页数量（可选，默认20）
+  - status: 商品状态（可选，pending/online/offline）
+- **响应示例**:
+```json
+{
+    "total": 100,
+    "page": 1,
+    "limit": 20,
+    "products": [
+        {
+            "id": 1,
+            "name": "商品名称1",
+            "description": "商品描述1",
+            "price": 99.99,
+            "stock": 100,
+            "status": "online",
+            "image_url": "/uploads/products/1.jpg",
+            "tags": [
+                {
+                    "id": 1,
+                    "name": "新品"
+                },
+                {
+                    "id": 2,
+                    "name": "热销"
+                }
+            ],
+            "created_at": "2024-01-05T10:00:00Z",
+            "updated_at": "2024-01-05T10:00:00Z"
+        },
+        {
+            "id": 2,
+            "name": "商品名称2",
+            "description": "商品描述2",
+            "price": 199.99,
+            "stock": 50,
+            "status": "pending",
+            "image_url": "/uploads/products/2.jpg",
+            "tags": [
+                {
+                    "id": 3,
+                    "name": "限时"
+                }
+            ],
+            "created_at": "2024-01-05T11:00:00Z",
+            "updated_at": "2024-01-05T11:00:00Z"
+        }
+    ]
+}
+```
 
 #### 5. 获取商品详情
 - **接口**: GET `/product/detail`
@@ -202,6 +251,53 @@
 - **认证**: 需要
 - **查询参数**:
   - id: 商品ID
+- **响应示例**:
+```json
+{
+    "id": 1,
+    "name": "商品名称",
+    "description": "商品详细描述信息",
+    "price": 99.99,
+    "stock": 100,
+    "status": "online",
+    "image_url": "/uploads/products/1.jpg",
+    "tags": [
+        {
+            "id": 1,
+            "name": "新品",
+            "description": "新上架商品"
+        },
+        {
+            "id": 2,
+            "name": "热销",
+            "description": "热门销售商品"
+        }
+    ],
+    "status_history": [
+        {
+            "status": "pending",
+            "created_at": "2024-01-05T10:00:00Z"
+        },
+        {
+            "status": "online",
+            "created_at": "2024-01-05T10:30:00Z"
+        }
+    ],
+    "created_at": "2024-01-05T10:00:00Z",
+    "updated_at": "2024-01-05T10:30:00Z"
+}
+```
+
+**商品状态说明**:
+- pending: 待上架（初始状态，可以修改所有信息）
+- online: 已上架（不可修改名称和价格，可以修改库存和描述）
+- offline: 已下架（商品不可见，不可购买）
+
+**状态流转规则**:
+1. 新建商品默认为"待上架"状态
+2. "待上架"状态可以转为"已上架"
+3. "已上架"状态可以转为"已下架"
+4. "已下架"状态不可再次上架，需要创建新商品
 
 #### 6. 删除商品
 - **接口**: DELETE `/product/delete`
@@ -369,6 +465,113 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 - **认证**: 需要
 - **查询参数**:
   - id: 订单ID
+- **响应示例**:
+```json
+{
+    "id": 1,
+    "order_no": "202401051234567890",
+    "user": {
+        "id": 1,
+        "name": "张三",
+        "phone": "13800138000",
+        "address": "北京市朝阳区xxx街道",
+        "type": "delivery"
+    },
+    "items": [
+        {
+            "id": 1,
+            "product": {
+                "id": 1,
+                "name": "商品1",
+                "image_url": "/uploads/products/1.jpg",
+                "price": 99.99
+            },
+            "quantity": 2,
+            "price": 99.99,
+            "subtotal": 199.98
+        },
+        {
+            "id": 2,
+            "product": {
+                "id": 2,
+                "name": "商品2",
+                "image_url": "/uploads/products/2.jpg",
+                "price": 199.99
+            },
+            "quantity": 1,
+            "price": 199.99,
+            "subtotal": 199.99
+        }
+    ],
+    "status": "processing",
+    "status_history": [
+        {
+            "status": "pending",
+            "remark": "订单创建",
+            "created_at": "2024-01-05T10:00:00Z"
+        },
+        {
+            "status": "paid",
+            "remark": "支付完成",
+            "created_at": "2024-01-05T10:05:00Z"
+        },
+        {
+            "status": "processing",
+            "remark": "开始处理",
+            "created_at": "2024-01-05T10:10:00Z"
+        }
+    ],
+    "payment": {
+        "method": "wechat",
+        "amount": 399.97,
+        "paid_at": "2024-01-05T10:05:00Z",
+        "transaction_id": "4200001234202401051234567890"
+    },
+    "delivery": {
+        "type": "delivery",
+        "address": "北京市朝阳区xxx街道",
+        "contact": "张三",
+        "phone": "13800138000",
+        "tracking_no": "SF1234567890123",
+        "carrier": "顺丰快递",
+        "estimated_delivery": "2024-01-07"
+    },
+    "remark": "请在工作日送货",
+    "total_quantity": 3,
+    "total_amount": 399.97,
+    "created_at": "2024-01-05T10:00:00Z",
+    "updated_at": "2024-01-05T10:10:00Z"
+}
+```
+
+**订单状态说明**:
+- pending: 待支付
+- paid: 已支付
+- processing: 处理中
+- shipping: 配送中
+- completed: 已完成
+- cancelled: 已取消
+- refunding: 退款中
+- refunded: 已退款
+
+**配送方式**:
+- delivery: 快递配送
+- pickup: 门店自提
+
+**支付方式**:
+- wechat: 微信支付
+- alipay: 支付宝
+- balance: 余额支付
+
+**状态流转规则**:
+1. 新建订单默认为"待支付"状态
+2. 支付完成后转为"已支付"状态
+3. 开始处理订单后转为"处理中"状态
+4. 发货后转为"配送中"状态
+5. 确认收货后转为"已完成"状态
+6. 任何状态都可以申请退款转为"退款中"
+7. 退款完成后转为"已退款"状态
+8. 支付前可以取消订单转为"已取消"状态
 
 #### 5. 删除订单
 - **接口**: DELETE `/order/delete`
@@ -414,6 +617,16 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
     "description": "标签描述"
 }
 ```
+- **响应**:
+```json
+{
+    "id": 1,
+    "name": "标签名称",
+    "description": "标签描述",
+    "created_at": "2024-01-05T14:30:00Z",
+    "updated_at": "2024-01-05T14:30:00Z"
+}
+```
 
 #### 2. 更新标签
 - **接口**: PUT `/tag/update`
@@ -427,6 +640,16 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
     "description": "新标签描述"
 }
 ```
+- **响应**:
+```json
+{
+    "id": 1,
+    "name": "新标签名称",
+    "description": "新标签描述",
+    "created_at": "2024-01-05T14:30:00Z",
+    "updated_at": "2024-01-05T14:35:00Z"
+}
+```
 
 #### 3. 删除标签
 - **接口**: DELETE `/tag/delete`
@@ -434,14 +657,50 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 - **认证**: 需要
 - **查询参数**:
   - id: 标签ID
+- **响应**:
+```json
+{
+    "message": "标签删除成功"
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "该标签已关联 5 个商品，请先解除关联后再删除"
+}
+```
 
 #### 4. 获取标签列表
 - **接口**: GET `/tag/list`
 - **描述**: 获取标签列表
 - **认证**: 需要
 - **查询参数**:
-  - page: 页码（可选）
-  - pageSize: 每页数量（可选）
+  - page: 页码（可选，默认1）
+  - pageSize: 每页数量（可选，默认10）
+- **响应**:
+```json
+{
+    "total": 100,
+    "page": 1,
+    "pageSize": 10,
+    "tags": [
+        {
+            "id": 1,
+            "name": "标签1",
+            "description": "描述1",
+            "created_at": "2024-01-05T14:30:00Z",
+            "updated_at": "2024-01-05T14:30:00Z"
+        },
+        {
+            "id": 2,
+            "name": "标签2",
+            "description": "描述2",
+            "created_at": "2024-01-05T14:31:00Z",
+            "updated_at": "2024-01-05T14:31:00Z"
+        }
+    ]
+}
+```
 
 #### 5. 获取标签详情
 - **接口**: GET `/tag/detail`
@@ -449,6 +708,36 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 - **认证**: 需要
 - **查询参数**:
   - id: 标签ID
+- **响应**:
+```json
+{
+    "id": 1,
+    "name": "标签名称",
+    "description": "标签描述",
+    "created_at": "2024-01-05T14:30:00Z",
+    "updated_at": "2024-01-05T14:30:00Z",
+    "products": [
+        {
+            "id": 1,
+            "name": "商品1",
+            "description": "商品描述1",
+            "price": 99.99,
+            "stock": 100,
+            "status": "online",
+            "image_url": "/uploads/products/1.jpg"
+        },
+        {
+            "id": 2,
+            "name": "商品2",
+            "description": "商品描述2",
+            "price": 199.99,
+            "stock": 50,
+            "status": "online",
+            "image_url": "/uploads/products/2.jpg"
+        }
+    ]
+}
+```
 
 ## 错误响应
 所有接口的错误响应格式统一为：

@@ -105,7 +105,7 @@ func (h *Handler) GetTags(c *gin.Context) {
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
-		"data":     tags,
+		"tags":     tags,
 	})
 }
 
