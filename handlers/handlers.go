@@ -860,13 +860,31 @@ func (h *Handler) ImportData(c *gin.Context) {
 
 	tx := h.DB.Begin()
 
-	// 逐个处理 CSV 文件
+	// 按照依赖关系顺序处理文件
+	fileOrder := []string{
+		"users.csv",       // 先导入用户
+		"products.csv",    // 再导入商品
+		"orders.csv",      // 然后是订单
+		"order_items.csv", // 最后是订单项
+	}
+
+	// 创建一个文件映射，方便查找
+	fileMap := make(map[string]*zip.File)
 	for _, zipFile := range zipReader.File {
-		if err := importCSVFile(tx, zipFile); err != nil {
-			tx.Rollback()
-			h.logger.Printf("导入数据失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "导入失败")
-			return
+		fileMap[zipFile.Name] = zipFile
+	}
+
+	// 按顺序导入文件
+	for _, fileName := range fileOrder {
+		if zipFile, ok := fileMap[fileName]; ok {
+			if err := importCSVFile(tx, zipFile); err != nil {
+				tx.Rollback()
+				h.logger.Printf("导入数据失败: %v", err)
+				errorResponse(c, http.StatusInternalServerError, fmt.Sprintf("导入 %s 失败: %v", fileName, err))
+				return
+			}
+		} else {
+			h.logger.Printf("警告: 未找到文件 %s", fileName)
 		}
 	}
 
@@ -874,11 +892,11 @@ func (h *Handler) ImportData(c *gin.Context) {
 	successResponse(c, gin.H{"message": "数据导入成功"})
 }
 
-// 辅助函数：导入 CSV 文件
+// 修改 importCSVFile 函数，添加错误处理和日志
 func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
 	f, err := zipFile.Open()
 	if err != nil {
-		return err
+		return fmt.Errorf("打开文件失败: %v", err)
 	}
 	defer f.Close()
 
@@ -891,38 +909,37 @@ func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
 	}
 
 	// 逐行读取并导入数据
+	lineNum := 1 // 从第一行开始计数（表头算第一行）
 	for {
+		lineNum++
 		record, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			continue // 跳过空行
+			return fmt.Errorf("第 %d 行读取失败: %v", lineNum, err)
 		}
 		if len(record) != len(headers) {
-			continue // 跳过格式不匹配的行
+			return fmt.Errorf("第 %d 行数据格式不正确: 期望 %d 列，实际 %d 列",
+				lineNum, len(headers), len(record))
 		}
 
-		// 根据文件名处理不同的数据
+		var importErr error
 		switch filepath.Base(zipFile.Name) {
 		case "users.csv":
-			if err := importUserRecord(tx, record); err != nil {
-				return err
-			}
+			importErr = importUserRecord(tx, record)
 		case "products.csv":
-			if err := importProductRecord(tx, record); err != nil {
-				return err
-			}
+			importErr = importProductRecord(tx, record)
 		case "orders.csv":
-			if err := importOrderRecord(tx, record); err != nil {
-				return err
-			}
+			importErr = importOrderRecord(tx, record)
 		case "order_items.csv":
-			if err := importOrderItemRecord(tx, record); err != nil {
-				return err
-			}
+			importErr = importOrderItemRecord(tx, record)
 		default:
 			return fmt.Errorf("未知的CSV文件: %s", zipFile.Name)
+		}
+
+		if importErr != nil {
+			return fmt.Errorf("第 %d 行导入失败: %v", lineNum, importErr)
 		}
 	}
 
@@ -932,6 +949,7 @@ func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
 // 辅助函数：导入用户记录
 func importUserRecord(tx *gorm.DB, record []string) error {
 	user := models.User{
+		ID:      uint(parseInt(record[0])),
 		Name:    record[1],
 		Phone:   record[2],
 		Address: record[3],
@@ -943,11 +961,13 @@ func importUserRecord(tx *gorm.DB, record []string) error {
 // 辅助函数：导入商品记录
 func importProductRecord(tx *gorm.DB, record []string) error {
 	product := models.Product{
+		ID:          uint(parseInt(record[0])),
 		Name:        record[1],
 		Description: record[2],
 		Price:       parseFloat(record[3]),
 		Stock:       parseInt(record[4]),
-		ImageURL:    record[5],
+
+		ImageURL: record[5],
 	}
 	return tx.Create(&product).Error
 }
@@ -955,6 +975,7 @@ func importProductRecord(tx *gorm.DB, record []string) error {
 // 辅助函数：导入订单记录
 func importOrderRecord(tx *gorm.DB, record []string) error {
 	order := models.Order{
+		ID:         uint(parseInt(record[0])),
 		UserID:     uint(parseInt(record[1])),
 		TotalPrice: models.Price(parseFloat(record[2])),
 		Status:     record[3],
@@ -966,6 +987,7 @@ func importOrderRecord(tx *gorm.DB, record []string) error {
 // 辅助函数：导入订单项记录
 func importOrderItemRecord(tx *gorm.DB, record []string) error {
 	orderItem := models.OrderItem{
+		ID:        uint(parseInt(record[0])),
 		OrderID:   uint(parseInt(record[1])),
 		ProductID: uint(parseInt(record[2])),
 		Quantity:  parseInt(record[3]),
