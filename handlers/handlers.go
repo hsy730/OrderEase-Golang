@@ -677,6 +677,20 @@ func (h *Handler) ExportData(c *gin.Context) {
 		return
 	}
 
+	// 导出标签数据
+	if err := exportTableToCSV(h.DB, zipWriter, "tags.csv", &[]models.Tag{}); err != nil {
+		h.logger.Printf("导出标签数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出产品标签关联数据
+	if err := exportTableToCSV(h.DB, zipWriter, "product_tags.csv", &[]models.ProductTag{}); err != nil {
+		h.logger.Printf("导出产品标签关联数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
 	// 导出订单数据
 	if err := exportTableToCSV(h.DB, zipWriter, "orders.csv", &[]models.Order{}); err != nil {
 		h.logger.Printf("导出订单数据失败: %v", err)
@@ -761,6 +775,10 @@ func getCSVHeaders(model interface{}) ([]string, error) {
 		return []string{"id", "user_id", "total_price", "status", "remark", "created_at", "updated_at"}, nil
 	case *[]models.OrderItem:
 		return []string{"id", "order_id", "product_id", "quantity", "price"}, nil
+	case *[]models.Tag:
+		return []string{"id", "name", "description", "created_at", "updated_at"}, nil
+	case *[]models.ProductTag:
+		return []string{"id", "product_id", "tag_id", "created_at", "updated_at"}, nil
 	default:
 		return nil, fmt.Errorf("unsupported model type")
 	}
@@ -822,6 +840,27 @@ func getCSVRecords(model interface{}) ([][]string, error) {
 			}
 			records = append(records, record)
 		}
+	case *[]models.Tag:
+		for _, t := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(t.ID), 10),
+				t.Name,
+				t.Description,
+				t.CreatedAt.Format(time.RFC3339),
+				t.UpdatedAt.Format(time.RFC3339),
+			}
+			records = append(records, record)
+		}
+	case *[]models.ProductTag:
+		for _, pt := range *v {
+			record := []string{
+				strconv.FormatUint(uint64(pt.ProductID), 10),
+				strconv.FormatUint(uint64(pt.TagID), 10),
+				pt.CreatedAt.Format(time.RFC3339),
+				pt.UpdatedAt.Format(time.RFC3339),
+			}
+			records = append(records, record)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported model type")
 	}
@@ -860,12 +899,34 @@ func (h *Handler) ImportData(c *gin.Context) {
 
 	tx := h.DB.Begin()
 
+	// 按照依赖关系的反序清空表（先清除依赖表，再清除主表）
+	tablesToClean := []interface{}{
+		&models.OrderItem{},  // 先清除订单项
+		&models.Order{},      // 再清除订单
+		&models.ProductTag{}, // 清除产品标签关联
+		&models.Tag{},        // 清除标签
+		&models.Product{},    // 清除商品
+		&models.User{},       // 最后清除用户
+	}
+
+	// 清空所有表
+	for _, table := range tablesToClean {
+		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(table).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("清空表失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "清空数据失败")
+			return
+		}
+	}
+
 	// 按照依赖关系顺序处理文件
 	fileOrder := []string{
-		"users.csv",       // 先导入用户
-		"products.csv",    // 再导入商品
-		"orders.csv",      // 然后是订单
-		"order_items.csv", // 最后是订单项
+		"users.csv",        // 先导入用户
+		"products.csv",     // 再导入商品
+		"tags.csv",         // 然后是标签
+		"product_tags.csv", // 产品标签关联
+		"orders.csv",       // 然后是订单
+		"order_items.csv",  // 最后是订单项
 	}
 
 	// 创建一个文件映射，方便查找
@@ -930,6 +991,10 @@ func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
 			importErr = importUserRecord(tx, record)
 		case "products.csv":
 			importErr = importProductRecord(tx, record)
+		case "tags.csv":
+			importErr = importTagRecord(tx, record)
+		case "product_tags.csv":
+			importErr = importProductTagRecord(tx, record)
 		case "orders.csv":
 			importErr = importOrderRecord(tx, record)
 		case "order_items.csv":
@@ -948,38 +1013,82 @@ func importCSVFile(tx *gorm.DB, zipFile *zip.File) error {
 
 // 辅助函数：导入用户记录
 func importUserRecord(tx *gorm.DB, record []string) error {
+	createdAt, _ := time.Parse(time.RFC3339, record[5])
+	updatedAt, _ := time.Parse(time.RFC3339, record[6])
+
 	user := models.User{
-		ID:      uint(parseInt(record[0])),
-		Name:    record[1],
-		Phone:   record[2],
-		Address: record[3],
-		Type:    record[4],
+		ID:        uint(parseInt(record[0])),
+		Name:      record[1],
+		Phone:     record[2],
+		Address:   record[3],
+		Type:      record[4],
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
 	}
 	return tx.Create(&user).Error
 }
 
 // 辅助函数：导入商品记录
 func importProductRecord(tx *gorm.DB, record []string) error {
+	createdAt, _ := time.Parse(time.RFC3339, record[6])
+	updatedAt, _ := time.Parse(time.RFC3339, record[7])
+
 	product := models.Product{
 		ID:          uint(parseInt(record[0])),
 		Name:        record[1],
 		Description: record[2],
 		Price:       parseFloat(record[3]),
 		Stock:       parseInt(record[4]),
-
-		ImageURL: record[5],
+		ImageURL:    record[5],
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 	}
 	return tx.Create(&product).Error
 }
 
+// 辅助函数：导入标签记录
+func importTagRecord(tx *gorm.DB, record []string) error {
+	createdAt, _ := time.Parse(time.RFC3339, record[3])
+	updatedAt, _ := time.Parse(time.RFC3339, record[4])
+
+	tag := models.Tag{
+		ID:          uint(parseInt(record[0])),
+		Name:        record[1],
+		Description: record[2],
+
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}
+	return tx.Create(&tag).Error
+}
+
+// 辅助函数：导入产品标签关联记录
+func importProductTagRecord(tx *gorm.DB, record []string) error {
+	createdAt, _ := time.Parse(time.RFC3339, record[2])
+	updatedAt, _ := time.Parse(time.RFC3339, record[3])
+
+	productTag := models.ProductTag{
+		ProductID: uint(parseInt(record[0])),
+		TagID:     uint(parseInt(record[1])),
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}
+	return tx.Create(&productTag).Error
+}
+
 // 辅助函数：导入订单记录
 func importOrderRecord(tx *gorm.DB, record []string) error {
+	createdAt, _ := time.Parse(time.RFC3339, record[5])
+	updatedAt, _ := time.Parse(time.RFC3339, record[6])
+
 	order := models.Order{
 		ID:         uint(parseInt(record[0])),
 		UserID:     uint(parseInt(record[1])),
 		TotalPrice: models.Price(parseFloat(record[2])),
 		Status:     record[3],
 		Remark:     record[4],
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
 	}
 	return tx.Create(&order).Error
 }

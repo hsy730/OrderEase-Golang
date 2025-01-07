@@ -17,4 +17,5 @@ type ProductTag struct {
 	ProductID uint      `gorm:"primaryKey" json:"product_id"`
 	TagID     uint      `gorm:"primaryKey" json:"tag_id"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
