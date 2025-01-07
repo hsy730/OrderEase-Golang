@@ -1,6 +1,6 @@
 server:
   port: 8080
-  basePath: "/api/v1"
+  basePath: "/api/order-ease/v1"
   host: "0.0.0.0"
   domain: "xhgscdzdvzsl.sealoshzh.site"
   allowedOrigins:
@@ -12,7 +12,7 @@ database:
   host: test-db-mysql.ns-ojjsi3o6.svc
   port: 3306
   username: root
-  password: x6695q6z
+  password: zf4wvmtm
   dbname: mysql
   charset: utf8mb4
   parseTime: true
