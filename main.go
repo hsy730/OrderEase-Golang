@@ -101,7 +101,8 @@ func main() {
 	h := handlers.NewHandler(db)
 
 	// 设置路由
-	routes.SetupRoutes(r, h)
+	routes.SetupBackedRoutes(r, h)
+	routes.SetupFrontRoutes(r, h)
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")

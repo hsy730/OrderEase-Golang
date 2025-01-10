@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes 配置所有路由
-func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
+func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 获取基础路径
 	basePath := config.AppConfig.Server.BasePath
 
