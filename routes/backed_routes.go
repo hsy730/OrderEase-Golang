@@ -74,6 +74,7 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 			tag.GET("/detail", h.GetTag)
 			tag.PUT("/update", h.UpdateTag)
 			tag.DELETE("/delete", h.DeleteTag)
+			tag.POST("/batch-tag", h.BatchTagProducts) // 批量打标签接口
 		}
 
 		// 数据管理接口

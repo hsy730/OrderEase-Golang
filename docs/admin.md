@@ -739,6 +739,32 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 }
 ```
 
+#### 6. 批量打标签
+- **接口**: POST `/tag/batch-tag`
+- **描述**: 为多个商品批量打标签
+- **认证**: 需要
+- **请求参数**:
+```json
+{
+    "product_ids": [1, 2, 3],
+    "tag_id": 1
+}
+```
+- **响应**:
+```json
+{
+    "message": "批量打标签成功",
+    "total": 3,
+    "successful": 3
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "标签不存在"
+}
+```
+
 ## 错误响应
 所有接口的错误响应格式统一为：
 ```json

@@ -26,6 +26,49 @@ func (h *Handler) CreateTag(c *gin.Context) {
 	successResponse(c, tag)
 }
 
+// BatchTagProducts 批量打标签
+func (h *Handler) BatchTagProducts(c *gin.Context) {
+	type request struct {
+		ProductIDs []uint `json:"product_ids" binding:"required"`
+		TagID      uint   `json:"tag_id" binding:"required"`
+	}
+
+	var req request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		return
+	}
+
+	// 检查标签是否存在
+	var tag models.Tag
+	if err := h.DB.First(&tag, req.TagID).Error; err != nil {
+		h.logger.Printf("标签不存在, ID: %d", req.TagID)
+		errorResponse(c, http.StatusNotFound, "标签不存在")
+		return
+	}
+
+	// 批量创建关联
+	var productTags []models.ProductTag
+	for _, productID := range req.ProductIDs {
+		productTags = append(productTags, models.ProductTag{
+			ProductID: productID,
+			TagID:     req.TagID,
+		})
+	}
+
+	if err := h.DB.Create(&productTags).Error; err != nil {
+		h.logger.Printf("批量打标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "批量打标签失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message":    "批量打标签成功",
+		"total":      len(req.ProductIDs),
+		"successful": len(productTags),
+	})
+}
+
 // UpdateTag 更新标签
 func (h *Handler) UpdateTag(c *gin.Context) {
 	var tag models.Tag
