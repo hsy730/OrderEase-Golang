@@ -26,6 +26,59 @@ func (h *Handler) CreateTag(c *gin.Context) {
 	successResponse(c, tag)
 }
 
+// GetTagOnlineProducts 获取标签关联的已上架商品
+func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
+	tagID := c.Query("tag_id")
+	if tagID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+
+	var products []models.Product
+	err := h.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
+		Where("product_tags.tag_id = ? AND products.status = ?", tagID, models.ProductStatusOnline).
+		Find(&products).Error
+
+	if err != nil {
+		h.logger.Printf("查询标签关联商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"tag_id":   tagID,
+		"products": products,
+	})
+}
+
+// GetUnboundTags 获取商品未绑定的标签
+func (h *Handler) GetUnboundTags(c *gin.Context) {
+	productID := c.Query("product_id")
+	if productID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
+		return
+	}
+
+	var tags []models.Tag
+	err := h.DB.Raw(`
+		SELECT * FROM tags 
+		WHERE id NOT IN (
+			SELECT tag_id FROM product_tags 
+			WHERE product_id = ?
+		)`, productID).Scan(&tags).Error
+
+	if err != nil {
+		h.logger.Printf("查询未绑定标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"product_id": productID,
+		"tags":       tags,
+	})
+}
+
 // BatchTagProducts 批量打标签
 func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
