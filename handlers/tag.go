@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // CreateTag 创建标签
@@ -247,4 +248,90 @@ func (h *Handler) GetTag(c *gin.Context) {
 	}
 
 	successResponse(c, tag)
+}
+
+// BatchTagProduct 批量设置商品标签
+func (h *Handler) BatchTagProduct(c *gin.Context) {
+	type request struct {
+		ProductID uint   `json:"product_id" binding:"required"`
+		TagIDs    []uint `json:"tag_ids" binding:"required"`
+	}
+
+	var req request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		return
+	}
+
+	// 获取当前标签
+	var currentTags []models.Tag
+	if err := h.DB.Joins("JOIN product_tags ON product_tags.tag_id = tags.id").
+		Where("product_tags.product_id = ?", req.ProductID).
+		Find(&currentTags).Error; err != nil {
+		h.logger.Printf("获取当前标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取当前标签失败")
+		return
+	}
+
+	// 计算需要添加和删除的标签
+	currentTagMap := make(map[uint]bool)
+	for _, tag := range currentTags {
+		currentTagMap[tag.ID] = true
+	}
+
+	newTagMap := make(map[uint]bool)
+	for _, tagID := range req.TagIDs {
+		newTagMap[tagID] = true
+	}
+
+	// 需要添加的标签
+	var tagsToAdd []models.ProductTag
+	for _, tagID := range req.TagIDs {
+		if !currentTagMap[tagID] {
+			tagsToAdd = append(tagsToAdd, models.ProductTag{
+				ProductID: req.ProductID,
+				TagID:     tagID,
+			})
+		}
+	}
+
+	// 需要删除的标签
+	var tagsToDelete []uint
+	for _, tag := range currentTags {
+		if !newTagMap[tag.ID] {
+			tagsToDelete = append(tagsToDelete, tag.ID)
+		}
+	}
+
+	// 在事务中执行操作
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		// 添加新标签
+		if len(tagsToAdd) > 0 {
+			if err := tx.Create(&tagsToAdd).Error; err != nil {
+				return err
+			}
+		}
+
+		// 删除旧标签
+		if len(tagsToDelete) > 0 {
+			if err := tx.Where("product_id = ? AND tag_id IN (?)", req.ProductID, tagsToDelete).
+				Delete(&models.ProductTag{}).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		h.logger.Printf("批量更新标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "批量更新标签失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message":       "批量更新标签成功",
+		"added_count":   len(tagsToAdd),
+		"deleted_count": len(tagsToDelete),
+	})
 }
