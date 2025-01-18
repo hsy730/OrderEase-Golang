@@ -26,6 +26,7 @@ type Config struct {
 		Charset   string `yaml:"charset"`
 		ParseTime bool   `yaml:"parseTime"`
 		Loc       string `yaml:"loc"`
+		LogLevel  int    `yaml:"logLevel"`
 	} `yaml:"database"`
 }
 

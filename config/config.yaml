@@ -17,7 +17,8 @@ database:
   charset: utf8mb4
   parseTime: true
   loc: Local 
+  logLevel: 4 # 1=Silent, 2=Error, 3=Warn, 4=Info
 
 jwt:
   secret: "e6jf493kdhbms9ew6mv2v1a4dx2"  # 建议使用随机生成的复杂字符串
-  expiration: 7200  # token过期时间，单位为秒（2小时） 
+  expiration: 7200  # token过期时间，单位为秒（2小时）
