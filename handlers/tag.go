@@ -51,6 +51,32 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 	})
 }
 
+// GetBoundTags 获取商品已绑定的标签
+func (h *Handler) GetBoundTags(c *gin.Context) {
+	productID := c.Query("product_id")
+	if productID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
+		return
+	}
+
+	var tags []models.Tag
+	err := h.DB.Raw(`
+		SELECT tags.* FROM tags
+		JOIN product_tags ON product_tags.tag_id = tags.id
+		WHERE product_tags.product_id = ?`, productID).Scan(&tags).Error
+
+	if err != nil {
+		h.logger.Printf("查询已绑定标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"product_id": productID,
+		"tags":       tags,
+	})
+}
+
 // GetUnboundTags 获取商品未绑定的标签
 func (h *Handler) GetUnboundTags(c *gin.Context) {
 	productID := c.Query("product_id")

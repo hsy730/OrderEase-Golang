@@ -804,6 +804,76 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 }
 ```
 
+#### 8. 获取商品已绑定标签
+- **接口**: GET `/tag/bound-tags`
+- **描述**: 获取指定商品已绑定的标签列表
+- **认证**: 需要
+- **查询参数**:
+  - product_id: 商品ID
+- **响应**:
+```json
+{
+    "product_id": 1,
+    "tags": [
+        {
+            "id": 1,
+            "name": "标签1",
+            "description": "标签描述1",
+            "created_at": "2024-01-05T14:30:00Z",
+            "updated_at": "2024-01-05T14:30:00Z"
+        },
+        {
+            "id": 2,
+            "name": "标签2",
+            "description": "标签描述2",
+            "created_at": "2024-01-05T14:31:00Z",
+            "updated_at": "2024-01-05T14:31:00Z"
+        }
+    ]
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "缺少商品ID"
+}
+```
+
+#### 9. 获取商品未绑定标签
+- **接口**: GET `/tag/unbound-tags`
+- **描述**: 获取指定商品未绑定的标签列表
+- **认证**: 需要
+- **查询参数**:
+  - product_id: 商品ID
+- **响应**:
+```json
+{
+    "product_id": 1,
+    "tags": [
+        {
+            "id": 3,
+            "name": "标签3",
+            "description": "标签描述3",
+            "created_at": "2024-01-05T14:32:00Z",
+            "updated_at": "2024-01-05T14:32:00Z"
+        },
+        {
+            "id": 4,
+            "name": "标签4",
+            "description": "标签描述4",
+            "created_at": "2024-01-05T14:33:00Z",
+            "updated_at": "2024-01-05T14:33:00Z"
+        }
+    ]
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "缺少商品ID"
+}
+```
+
 ## 错误响应
 所有接口的错误响应格式统一为：
 ```json

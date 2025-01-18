@@ -76,6 +76,7 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 			tag.DELETE("/delete", h.DeleteTag)
 			tag.POST("/batch-tag", h.BatchTagProducts)          // 批量打标签接口
 			tag.GET("/online-products", h.GetTagOnlineProducts) // 获取标签关联的已上架商品
+			tag.GET("/bound-tags", h.GetBoundTags)              // 获取商品已绑定的标签
 			tag.GET("/unbound-tags", h.GetUnboundTags)          // 获取商品未绑定的标签
 		}
 
