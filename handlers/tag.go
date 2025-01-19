@@ -232,6 +232,88 @@ func (h *Handler) GetTags(c *gin.Context) {
 	})
 }
 
+// GetUnboundProductsForTag 获取标签未绑定的商品列表
+func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
+	tagID := c.Query("tag_id")
+	if tagID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	offset := (page - 1) * pageSize
+
+	var products []models.Product
+	var total int64
+
+	// 查询未绑定该标签的商品
+	err := h.DB.Raw(`
+		SELECT * FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ?
+		) LIMIT ? OFFSET ?`, tagID, pageSize, offset).Scan(&products).Error
+
+	if err != nil {
+		h.logger.Printf("查询未绑定商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	// 获取总数
+	h.DB.Raw(`
+		SELECT COUNT(*) FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ?
+		)`, tagID).Scan(&total)
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"products": products,
+	})
+}
+
+// GetUnboundTagsList 获取没有绑定商品的标签列表
+func (h *Handler) GetUnboundTagsList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	offset := (page - 1) * pageSize
+
+	var tags []models.Tag
+	var total int64
+
+	// 查询没有绑定商品的标签
+	err := h.DB.Raw(`
+		SELECT * FROM tags
+		WHERE id NOT IN (
+			SELECT DISTINCT tag_id FROM product_tags
+		) LIMIT ? OFFSET ?`, pageSize, offset).Scan(&tags).Error
+
+	if err != nil {
+		h.logger.Printf("查询未绑定商品标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	// 获取总数
+	h.DB.Raw(`
+		SELECT COUNT(*) FROM tags
+		WHERE id NOT IN (
+			SELECT DISTINCT tag_id FROM product_tags
+		)`).Scan(&total)
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"tags":     tags,
+	})
+}
+
 // GetTag 获取标签详情
 func (h *Handler) GetTag(c *gin.Context) {
 	id := c.Query("id")

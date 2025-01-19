@@ -874,6 +874,87 @@ curl -X POST 'http://localhost:8080/api/v1/admin/user/create' \
 }
 ```
 
+#### 10. 获取未绑定商品的标签列表
+- **接口**: GET `/tag/unbound-list`
+- **描述**: 获取没有绑定任何商品的标签列表（支持分页）
+- **认证**: 需要
+- **查询参数**:
+  - page: 页码（可选，默认1）
+  - pageSize: 每页数量（可选，默认10）
+- **响应**:
+```json
+{
+    "total": 100,
+    "page": 1,
+    "pageSize": 10,
+    "tags": [
+        {
+            "id": 1,
+            "name": "标签1",
+            "description": "标签描述1",
+            "created_at": "2024-01-05T14:30:00Z",
+            "updated_at": "2024-01-05T14:30:00Z"
+        },
+        {
+            "id": 2,
+            "name": "标签2",
+            "description": "标签描述2",
+            "created_at": "2024-01-05T14:31:00Z",
+            "updated_at": "2024-01-05T14:31:00Z"
+        }
+    ]
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "服务器内部错误"
+}
+```
+
+#### 11. 获取标签未绑定的商品列表
+- **接口**: GET `/tag/unbound-products`
+- **描述**: 获取指定标签未绑定的商品列表（支持分页）
+- **认证**: 需要
+- **查询参数**:
+  - tag_id: 标签ID（必填）
+  - page: 页码（可选，默认1）
+  - pageSize: 每页数量（可选，默认10）
+- **响应**:
+```json
+{
+    "total": 100,
+    "page": 1,
+    "pageSize": 10,
+    "products": [
+        {
+            "id": 1,
+            "name": "商品1",
+            "description": "商品描述1",
+            "price": 99.99,
+            "stock": 100,
+            "status": "online",
+            "image_url": "/uploads/products/1.jpg"
+        },
+        {
+            "id": 2,
+            "name": "商品2",
+            "description": "商品描述2",
+            "price": 199.99,
+            "stock": 50,
+            "status": "online",
+            "image_url": "/uploads/products/2.jpg"
+        }
+    ]
+}
+```
+- **错误响应**:
+```json
+{
+    "error": "缺少标签ID"
+}
+```
+
 ## 错误响应
 所有接口的错误响应格式统一为：
 ```json
