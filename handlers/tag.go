@@ -273,7 +273,7 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
-		"products": products,
+		"data":     products,
 	})
 }
 
