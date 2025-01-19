@@ -9,7 +9,7 @@ type Tag struct {
 	Description string    `gorm:"size:200" json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Products    []Product `gorm:"many2many:product_tags;" json:"products,omitempty"`
+	Products    []Product `gorm:"many2many:product_tags;" json:"products"`
 }
 
 // ProductTag 商品和标签的多对多关系表

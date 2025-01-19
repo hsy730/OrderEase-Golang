@@ -246,8 +246,49 @@ func (h *Handler) GetTag(c *gin.Context) {
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
-
+	if len(tag.Products) == 0 {
+		tag.Products = []models.Product{}
+	}
 	successResponse(c, tag)
+}
+
+// BatchUntagProducts 批量解绑商品标签
+func (h *Handler) BatchUntagProducts(c *gin.Context) {
+	type request struct {
+		ProductIDs []uint `json:"product_ids" binding:"required"`
+		TagID      uint   `json:"tag_id" binding:"required"`
+	}
+
+	var req request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Printf("批量解绑标签, 数据绑定错误: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		return
+	}
+
+	// 检查标签是否存在
+	var tag models.Tag
+	if err := h.DB.First(&tag, req.TagID).Error; err != nil {
+		h.logger.Printf("标签不存在, ID: %d", req.TagID)
+		errorResponse(c, http.StatusNotFound, "标签不存在")
+		return
+	}
+
+	// 批量删除关联
+	result := h.DB.Where("tag_id = ? AND product_id IN (?)", req.TagID, req.ProductIDs).
+		Delete(&models.ProductTag{})
+
+	if result.Error != nil {
+		h.logger.Printf("批量解绑标签失败: %v", result.Error)
+		errorResponse(c, http.StatusInternalServerError, "批量解绑标签失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message":    "批量解绑标签成功",
+		"total":      len(req.ProductIDs),
+		"successful": result.RowsAffected,
+	})
 }
 
 // BatchTagProduct 批量设置商品标签
