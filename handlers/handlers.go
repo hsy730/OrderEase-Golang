@@ -78,8 +78,16 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
+	// 获取搜索关键词
+	search := c.Query("search")
+
 	// 只查询未下架的商品（待上架和已上架）
 	query := h.DB.Where("status != ?", models.ProductStatusOffline)
+
+	// 如果有搜索关键词，添加模糊搜索条件
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
 
 	// 获取总数
 	var total int64
