@@ -82,6 +82,7 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 			tag.DELETE("/batch-untag", h.BatchUntagProducts)         // 批量解绑商品标签
 			tag.GET("/unbound-list", h.GetUnboundTagsList)           // 获取没有绑定商品的标签列表
 			tag.GET("/unbound-products", h.GetUnboundProductsForTag) // 获取标签未绑定的商品列表
+			tag.GET("/bound-products", h.GetTagBoundProducts)        // 获取标签已绑定的商品列表
 		}
 
 		// 数据管理接口

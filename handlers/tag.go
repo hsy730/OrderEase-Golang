@@ -314,6 +314,51 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	})
 }
 
+// GetTagBoundProducts 获取标签已绑定的商品列表（分页）
+func (h *Handler) GetTagBoundProducts(c *gin.Context) {
+	tagID := c.Query("tag_id")
+	if tagID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	offset := (page - 1) * pageSize
+
+	var products []models.Product
+	var total int64
+
+	// 查询已绑定该标签的商品
+	err := h.DB.Raw(`
+		SELECT * FROM products
+		WHERE id IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ?
+		) LIMIT ? OFFSET ?`, tagID, pageSize, offset).Scan(&products).Error
+
+	if err != nil {
+		h.logger.Printf("查询已绑定商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	// 获取总数
+	h.DB.Raw(`
+		SELECT COUNT(*) FROM products
+		WHERE id IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ?
+		)`, tagID).Scan(&total)
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     products,
+	})
+}
+
 // GetTag 获取标签详情
 func (h *Handler) GetTag(c *gin.Context) {
 	id := c.Query("id")
@@ -323,13 +368,10 @@ func (h *Handler) GetTag(c *gin.Context) {
 	}
 
 	var tag models.Tag
-	if err := h.DB.Preload("Products").First(&tag, id).Error; err != nil {
+	if err := h.DB.First(&tag, id).Error; err != nil {
 		h.logger.Printf("获取标签详情失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
-	}
-	if len(tag.Products) == 0 {
-		tag.Products = []models.Product{}
 	}
 	successResponse(c, tag)
 }
