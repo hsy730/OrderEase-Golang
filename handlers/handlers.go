@@ -516,6 +516,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	var order models.Order
 	if err := h.DB.Preload("Items").
 		Preload("Items.Product").
+		Joins("User").
 		First(&order, id).Error; err != nil {
 		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
