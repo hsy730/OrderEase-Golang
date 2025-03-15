@@ -110,7 +110,7 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []uint `json:"product_ids" binding:"required"`
-		TagID      uint   `json:"tag_id" binding:"required"`
+		TagID      int    `json:"tag_id" binding:"required"`
 	}
 
 	var req request
@@ -207,22 +207,34 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	successResponse(c, gin.H{"message": "标签删除成功"})
 }
 
-// GetTags 获取标签列表
+// GetTags 获取标签列表, 全部
 func (h *Handler) GetTags(c *gin.Context) {
 	var tags []models.Tag
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	offset := (page - 1) * pageSize
-
-	var total int64
-	h.DB.Model(&models.Tag{}).Count(&total)
-
-	if err := h.DB.Offset(offset).Limit(pageSize).Find(&tags).Error; err != nil {
+	// 查询所有标签
+	if err := h.DB.Find(&tags).Error; err != nil {
 		h.logger.Printf("获取标签列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取标签列表失败")
 		return
 	}
+
+	// 检测是否存在未绑定标签的商品
+	var unbindCount int64
+	h.DB.Raw(`SELECT COUNT(*) FROM products 
+        WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
+
+	// 如果存在未绑定商品，添加虚拟标签
+	if unbindCount > 0 {
+		tags = append(tags, models.Tag{
+			ID:   -1,
+			Name: "其他",
+		})
+	}
+
+	// 获取总数时包含虚拟标签
+	total := int64(len(tags))
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -326,6 +338,23 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	offset := (page - 1) * pageSize
 
+	// 处理未绑定商品查询
+	if tagID == "-1" {
+		products, total, err := h.getUnboundProducts(page, pageSize)
+		if err != nil {
+			h.logger.Printf("查询未绑定商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+			return
+		}
+		successResponse(c, gin.H{
+			"total":    total,
+			"page":     page,
+			"pageSize": pageSize,
+			"data":     products,
+		})
+		return
+	}
+	// 原有绑定标签商品的查询逻辑保持不变...
 	var products []models.Product
 	var total int64
 
@@ -357,6 +386,29 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		"pageSize": pageSize,
 		"data":     products,
 	})
+}
+
+// 新增独立方法处理未绑定商品查询
+func (h *Handler) getUnboundProducts(page int, pageSize int) ([]models.Product, int64, error) {
+	offset := (page - 1) * pageSize
+	var products []models.Product
+	var total int64
+
+	// 执行未绑定商品查询
+	err := h.DB.Raw(`
+		SELECT * FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags
+		) LIMIT ? OFFSET ?`, pageSize, offset).Scan(&products).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 获取总数
+	h.DB.Raw(`SELECT COUNT(*) FROM products WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&total)
+
+	return products, total, nil
 }
 
 // GetTag 获取标签详情
@@ -418,8 +470,8 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 // BatchTagProduct 批量设置商品标签
 func (h *Handler) BatchTagProduct(c *gin.Context) {
 	type request struct {
-		ProductID uint   `json:"product_id" binding:"required"`
-		TagIDs    []uint `json:"tag_ids" binding:"required"`
+		ProductID uint  `json:"product_id" binding:"required"`
+		TagIDs    []int `json:"tag_ids" binding:"required"`
 	}
 
 	var req request
@@ -439,12 +491,12 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	}
 
 	// 计算需要添加和删除的标签
-	currentTagMap := make(map[uint]bool)
+	currentTagMap := make(map[int]bool)
 	for _, tag := range currentTags {
 		currentTagMap[tag.ID] = true
 	}
 
-	newTagMap := make(map[uint]bool)
+	newTagMap := make(map[int]bool)
 	for _, tagID := range req.TagIDs {
 		newTagMap[tagID] = true
 	}
@@ -461,7 +513,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	}
 
 	// 需要删除的标签
-	var tagsToDelete []uint
+	var tagsToDelete []int
 	for _, tag := range currentTags {
 		if !newTagMap[tag.ID] {
 			tagsToDelete = append(tagsToDelete, tag.ID)

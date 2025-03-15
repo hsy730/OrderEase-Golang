@@ -1061,7 +1061,7 @@ func importTagRecord(tx *gorm.DB, record []string) error {
 	updatedAt, _ := time.Parse(time.RFC3339, record[4])
 
 	tag := models.Tag{
-		ID:          uint(parseInt(record[0])),
+		ID:          parseInt(record[0]),
 		Name:        record[1],
 		Description: record[2],
 
@@ -1078,7 +1078,7 @@ func importProductTagRecord(tx *gorm.DB, record []string) error {
 
 	productTag := models.ProductTag{
 		ProductID: uint(parseInt(record[0])),
-		TagID:     uint(parseInt(record[1])),
+		TagID:     parseInt(record[1]),
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
 	}
