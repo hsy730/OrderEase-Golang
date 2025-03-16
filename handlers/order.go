@@ -11,6 +11,69 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 创建订单
+func (h *Handler) CreateOrder(c *gin.Context) {
+	var order models.Order
+	if err := c.ShouldBindJSON(&order); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
+		return
+	}
+
+	utils.SanitizeOrder(&order)
+
+	// 验证订单数据
+	if err := validateOrder(&order); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 假设存在一个 IsValidUserID 函数来验证用户ID的合法性
+	if !h.IsValidUserID(order.UserID) {
+		utils.Logger.Printf("创建订单失败: 非法用户")
+		errorResponse(c, http.StatusBadRequest, "创建订单失败")
+		return
+	}
+
+	tx := h.DB.Begin()
+
+	if err := tx.Create(&order).Error; err != nil {
+		tx.Rollback()
+		utils.Logger.Printf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+		return
+	}
+
+	// 更新商品库存
+	for _, item := range order.Items {
+		var product models.Product
+		if err := tx.First(&product, item.ProductID).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("商品不存在, ID: %d, 错误: %v", item.ProductID, err)
+			errorResponse(c, http.StatusBadRequest, "商品不存在")
+			return
+		}
+
+		if product.Stock < item.Quantity {
+			tx.Rollback()
+			h.logger.Printf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
+				item.ProductID, product.Stock, item.Quantity)
+			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("商品 %s 库存不足", product.Name))
+			return
+		}
+
+		product.Stock -= item.Quantity
+		if err := tx.Save(&product).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("更新商品库存失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新商品库存失败")
+			return
+		}
+	}
+
+	tx.Commit()
+	successResponse(c, order)
+}
+
 // 更新订单
 func (h *Handler) UpdateOrder(c *gin.Context) {
 	id := c.Query("id")
@@ -228,6 +291,26 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	})
 }
 
+// 查询某用户创建的所有订单
+func (h *Handler) GetOrdersByUser(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+		return
+	}
+
+	var orders []models.Order
+	if err := h.DB.Where("user_id = ?", userID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
+		h.logger.Printf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
+		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"data": orders,
+	})
+}
+
 // 添加状态转换验证函数
 func isValidStatusTransition(currentStatus string) bool {
 	_, exists := models.OrderStatusTransitions[currentStatus]
@@ -260,6 +343,7 @@ func validateOrder(order *models.Order) error {
 	if order.UserID == 0 {
 		return fmt.Errorf("用户ID不能为空")
 	}
+
 	if len(order.Items) == 0 {
 		return fmt.Errorf("订单项不能为空")
 	}
@@ -274,22 +358,9 @@ func validateOrder(order *models.Order) error {
 	return nil
 }
 
-// 查询某用户创建的所有订单
-func (h *Handler) GetOrdersByUser(c *gin.Context) {
-	userID := c.Query("user_id")
-	if userID == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
-		return
-	}
-
-	var orders []models.Order
-	if err := h.DB.Where("user_id = ?", userID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
-		h.logger.Printf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
-		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
-		return
-	}
-
-	successResponse(c, gin.H{
-		"data": orders,
-	})
+// 验证用户ID的合法性
+func (h *Handler) IsValidUserID(userID uint) bool {
+	var user models.User
+	err := h.DB.First(&user, userID).Error
+	return err == nil
 }
