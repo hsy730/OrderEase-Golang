@@ -282,15 +282,3 @@ func getCSVRecords(model interface{}) ([][]string, error) {
 
 	return records, nil
 }
-
-// 辅助函数：解析浮点数
-func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
-
-// 辅助函数：解析整数
-func parseInt(s string) int {
-	i, _ := strconv.Atoi(s)
-	return i
-}
