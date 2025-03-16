@@ -71,17 +71,14 @@
 - **路径**: /order/create
 - **描述**: 创建新订单
 - **请求参数**:
-  - product_id (string): 产品ID
-  - quantity (int): 数量
+  订单数据以JSON格式传递，具体字段参考 `models.Order` 结构体。
 - **响应**:
+  成功时返回创建的订单信息，失败时返回错误信息。示例如下：
+  成功:
   ```json
   {
     "code": 200,
-    "data": {
-      "order_id": "ORDER123",
-      "total_price": 199.8,
-      "status": "pending"
-    }
+    "message": "Order created successfully"
   }
   ```
 

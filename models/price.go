@@ -8,6 +8,10 @@ import (
 
 type Price float64
 
+func (p *Price) Value() float64 {
+	return float64(*p)
+}
+
 func (p *Price) UnmarshalJSON(data []byte) error {
 	var value interface{}
 	if err := json.Unmarshal(data, &value); err != nil {

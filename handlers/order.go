@@ -36,13 +36,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	tx := h.DB.Begin()
 
-	if err := tx.Create(&order).Error; err != nil {
-		tx.Rollback()
-		utils.Logger.Printf("创建订单失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
-		return
-	}
-
+	totalPrice := float64(0.0)
 	// 更新商品库存
 	for _, item := range order.Items {
 		var product models.Product
@@ -62,6 +56,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		}
 
 		product.Stock -= item.Quantity
+		totalPrice += float64(item.Quantity) * product.Price
 		if err := tx.Save(&product).Error; err != nil {
 			tx.Rollback()
 			h.logger.Printf("更新商品库存失败: %v", err)
@@ -70,8 +65,16 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	order.TotalPrice = models.Price(totalPrice)
+	if err := tx.Create(&order).Error; err != nil {
+		tx.Rollback()
+		utils.Logger.Printf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+		return
+	}
+
 	tx.Commit()
-	successResponse(c, order)
+	successResponse(c, gin.H{"code": 200, "message": "订单创建成功"})
 }
 
 // 更新订单
@@ -305,8 +308,10 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
 	}
+	//
 
 	successResponse(c, gin.H{
+		"code": 200,
 		"data": orders,
 	})
 }
