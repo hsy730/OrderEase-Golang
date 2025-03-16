@@ -18,7 +18,7 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 		public.GET("/product/list", h.GetProducts)
 		public.GET("/product/detail", h.GetProduct)
 		public.POST("/order/create", h.CreateOrder)
-		public.GET("/order/list", h.GetOrders)
+		public.GET("/order/listByUser", h.GetOrdersByUser)
 		public.GET("/order/detail", h.GetOrder)
 		public.DELETE("/order/delete", h.DeleteOrder)
 		// public.POST("/order/pay", h.PayOrder)

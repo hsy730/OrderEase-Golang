@@ -273,3 +273,23 @@ func validateOrder(order *models.Order) error {
 	}
 	return nil
 }
+
+// 查询某用户创建的所有订单
+func (h *Handler) GetOrdersByUser(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+		return
+	}
+
+	var orders []models.Order
+	if err := h.DB.Where("user_id = ?", userID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
+		h.logger.Printf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
+		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"data": orders,
+	})
+}
