@@ -54,6 +54,5 @@ func (p *Price) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("invalid price type: %T", value)
 	}
-	fmt.Println("Price:", *p)
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 )
 
 type Admin struct {
+	// 管理员只有几个，可以不使用雪花算法
 	ID        uint      `gorm:"primarykey" json:"id"`
 	Username  string    `gorm:"unique" json:"username"`
 	Password  string    `json:"-"` // 密码不会在JSON中返回
