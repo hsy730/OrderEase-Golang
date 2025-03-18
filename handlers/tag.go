@@ -6,6 +6,7 @@ import (
 	"orderease/models"
 	"strconv"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -109,8 +110,8 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 // BatchTagProducts 批量打标签
 func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
-		ProductIDs []uint `json:"product_ids" binding:"required"`
-		TagID      int    `json:"tag_id" binding:"required"`
+		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
+		TagID      int            `json:"tag_id" binding:"required"`
 	}
 
 	var req request
@@ -470,8 +471,8 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 // BatchTagProduct 批量设置商品标签
 func (h *Handler) BatchTagProduct(c *gin.Context) {
 	type request struct {
-		ProductID uint  `json:"product_id" binding:"required"`
-		TagIDs    []int `json:"tag_ids" binding:"required"`
+		ProductID snowflake.ID `json:"product_id" binding:"required"`
+		TagIDs    []int        `json:"tag_ids" binding:"required"`
 	}
 
 	var req request

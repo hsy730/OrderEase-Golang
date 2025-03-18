@@ -1,15 +1,19 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/bwmarrin/snowflake"
+)
 
 type User struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	Name      string    `json:"name"`
-	Phone     string    `json:"phone"`
-	Address   string    `json:"address"`
-	Type      string    `json:"type"` // delivery: 邮寄, pickup: 自提
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        snowflake.ID `gorm:"primarykey" json:"id"`
+	Name      string       `json:"name"`
+	Phone     string       `json:"phone"`
+	Address   string       `json:"address"`
+	Type      string       `json:"type"` // delivery: 邮寄, pickup: 自提
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
 }
 
 const (

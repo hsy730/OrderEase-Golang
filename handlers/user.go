@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"orderease/models"
+	"orderease/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,8 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// 生成用户ID
+	user.ID = utils.GenerateSnowflakeID()
 	if err := h.DB.Create(&user).Error; err != nil {
 		h.logger.Printf("创建用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建用户失败")

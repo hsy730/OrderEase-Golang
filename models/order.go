@@ -2,27 +2,29 @@ package models
 
 import (
 	"time"
+
+	"github.com/bwmarrin/snowflake"
 )
 
 type Order struct {
-	ID         uint        `gorm:"primarykey" json:"id"`
-	UserID     uint        `json:"user_id"`
-	User       User        `gorm:"foreignKey:UserID" json:"user"`
-	TotalPrice Price       `json:"total_price"`
-	Status     string      `json:"status"`
-	Remark     string      `json:"remark"`
-	Items      []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
-	CreatedAt  time.Time   `json:"created_at"`
-	UpdatedAt  time.Time   `json:"updated_at"`
+	ID         snowflake.ID `gorm:"primarykey" json:"id"`
+	UserID     snowflake.ID `json:"user_id"`
+	User       User         `gorm:"foreignKey:UserID" json:"user"`
+	TotalPrice Price        `json:"total_price"`
+	Status     string       `json:"status"`
+	Remark     string       `json:"remark"`
+	Items      []OrderItem  `gorm:"foreignKey:OrderID" json:"items"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
 }
 
 type OrderItem struct {
-	ID        uint    `gorm:"primarykey" json:"id"`
-	OrderID   uint    `json:"order_id"`
-	ProductID uint    `json:"product_id"`
-	Quantity  int     `json:"quantity"`
-	Price     Price   `json:"price"`
-	Product   Product `gorm:"foreignKey:ProductID" json:"product"`
+	ID        snowflake.ID `gorm:"primarykey" json:"id"`
+	OrderID   snowflake.ID `json:"order_id"`
+	ProductID snowflake.ID `json:"product_id"`
+	Quantity  int          `json:"quantity"`
+	Price     Price        `json:"price"`
+	Product   Product      `gorm:"foreignKey:ProductID" json:"product"`
 }
 
 const (
@@ -46,9 +48,9 @@ var OrderStatusTransitions = map[string]string{
 
 // 订单状态变更日志
 type OrderStatusLog struct {
-	ID          uint      `gorm:"primarykey" json:"id"`
-	OrderID     uint      `json:"order_id"`
-	OldStatus   string    `json:"old_status"`
-	NewStatus   string    `json:"new_status"`
-	ChangedTime time.Time `json:"changed_time"`
+	ID          snowflake.ID `gorm:"primarykey" json:"id"`
+	OrderID     snowflake.ID `json:"order_id"`
+	OldStatus   string       `json:"old_status"`
+	NewStatus   string       `json:"new_status"`
+	ChangedTime time.Time    `json:"changed_time"`
 }

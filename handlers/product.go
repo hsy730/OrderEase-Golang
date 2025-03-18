@@ -26,6 +26,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 
 	utils.SanitizeProduct(&product)
 	product.Status = models.ProductStatusPending
+	product.ID = utils.GenerateSnowflakeID()
 
 	if err := h.DB.Create(&product).Error; err != nil {
 		h.logger.Printf("创建商品失败: %v", err)

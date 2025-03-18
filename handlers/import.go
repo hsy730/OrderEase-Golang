@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"orderease/utils"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -164,8 +166,12 @@ func importUserRecord(tx *gorm.DB, record []string) error {
 	createdAt, _ := time.Parse(time.RFC3339, record[5])
 	updatedAt, _ := time.Parse(time.RFC3339, record[6])
 
+	id, err := utils.StringToSnowflakeID(record[0])
+	if err != nil {
+		return fmt.Errorf("解析用户ID失败: %v", err)
+	}
 	user := models.User{
-		ID:        uint(parseInt(record[0])),
+		ID:        id,
 		Name:      record[1],
 		Phone:     record[2],
 		Address:   record[3],
@@ -181,8 +187,12 @@ func importProductRecord(tx *gorm.DB, record []string) error {
 	createdAt, _ := time.Parse(time.RFC3339, record[6])
 	updatedAt, _ := time.Parse(time.RFC3339, record[7])
 
+	id, err := utils.StringToSnowflakeID(record[0])
+	if err != nil {
+		return fmt.Errorf("解析商品ID失败: %v", err)
+	}
 	product := models.Product{
-		ID:          uint(parseInt(record[0])),
+		ID:          id,
 		Name:        record[1],
 		Description: record[2],
 		Price:       parseFloat(record[3]),
@@ -215,8 +225,13 @@ func importProductTagRecord(tx *gorm.DB, record []string) error {
 	createdAt, _ := time.Parse(time.RFC3339, record[2])
 	updatedAt, _ := time.Parse(time.RFC3339, record[3])
 
+	productId, err := utils.StringToSnowflakeID(record[0])
+	if err != nil {
+		return fmt.Errorf("解析商品ID失败: %v", err)
+	}
+
 	productTag := models.ProductTag{
-		ProductID: uint(parseInt(record[0])),
+		ProductID: productId,
 		TagID:     parseInt(record[1]),
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
@@ -229,9 +244,18 @@ func importOrderRecord(tx *gorm.DB, record []string) error {
 	createdAt, _ := time.Parse(time.RFC3339, record[5])
 	updatedAt, _ := time.Parse(time.RFC3339, record[6])
 
+	id, err := utils.StringToSnowflakeID(record[0])
+	if err != nil {
+		return fmt.Errorf("解析订单ID失败: %v", err)
+	}
+
+	userID, err := utils.StringToSnowflakeID(record[1])
+	if err != nil {
+		return fmt.Errorf("解析订单UserID失败: %v", err)
+	}
 	order := models.Order{
-		ID:         uint(parseInt(record[0])),
-		UserID:     uint(parseInt(record[1])),
+		ID:         id,
+		UserID:     userID,
 		TotalPrice: models.Price(parseFloat(record[2])),
 		Status:     record[3],
 		Remark:     record[4],
@@ -243,10 +267,24 @@ func importOrderRecord(tx *gorm.DB, record []string) error {
 
 // 辅助函数：导入订单项记录
 func importOrderItemRecord(tx *gorm.DB, record []string) error {
+
+	id, err := utils.StringToSnowflakeID(record[0])
+	if err != nil {
+		return fmt.Errorf("解析订单项ID失败: %v", err)
+	}
+	orderId, err := utils.StringToSnowflakeID(record[1])
+	if err != nil {
+		return fmt.Errorf("解析订单ID失败: %v", err)
+	}
+	productID, err := utils.StringToSnowflakeID(record[2])
+	if err != nil {
+		return fmt.Errorf("解析订单ID失败: %v", err)
+	}
+
 	orderItem := models.OrderItem{
-		ID:        uint(parseInt(record[0])),
-		OrderID:   uint(parseInt(record[1])),
-		ProductID: uint(parseInt(record[2])),
+		ID:        id,
+		OrderID:   orderId,
+		ProductID: productID,
 		Quantity:  parseInt(record[3]),
 		Price:     models.Price(parseFloat(record[4])),
 	}

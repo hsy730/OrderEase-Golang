@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
@@ -66,6 +67,8 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	order.TotalPrice = models.Price(totalPrice)
+	// 生成雪花ID
+	order.ID = utils.GenerateSnowflakeID()
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
 		utils.Logger.Printf("创建订单失败: %v", err)
@@ -364,7 +367,7 @@ func validateOrder(order *models.Order) error {
 }
 
 // 验证用户ID的合法性
-func (h *Handler) IsValidUserID(userID uint) bool {
+func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 	var user models.User
 	err := h.DB.First(&user, userID).Error
 	return err == nil
