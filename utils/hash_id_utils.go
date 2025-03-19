@@ -20,7 +20,7 @@ func init() {
 }
 
 // EncryptOrderID 将内部的雪花ID转换为加密后的字符串
-func EncryptOrderID(id uint64) (string, error) {
+func EncryptID(id uint64) (string, error) {
 	encoded, err := sqidInstance.Encode([]uint64{id})
 	if err != nil {
 		return "", err
@@ -29,7 +29,7 @@ func EncryptOrderID(id uint64) (string, error) {
 }
 
 // DecryptOrderID 将加密后的字符串还原为内部的雪花ID
-func DecryptOrderID(encryptedID string) (int64, error) {
+func DecryptID(encryptedID string) (int64, error) {
 	ids := sqidInstance.Decode(encryptedID)
 
 	if len(ids) == 0 {

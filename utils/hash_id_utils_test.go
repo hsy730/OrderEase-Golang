@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEncryptOrderID(t *testing.T) {
+func TestEncryptID(t *testing.T) {
 	id := uint64(123456)
-	encrypted, err := EncryptOrderID(id)
+	encrypted, err := EncryptID(id)
 	if err != nil {
 		t.Errorf("EncryptOrderID failed: %v", err)
 	}
@@ -19,11 +19,11 @@ func TestEncryptOrderID(t *testing.T) {
 
 func TestDecryptOrderID(t *testing.T) {
 	id := uint64(123456)
-	encrypted, err := EncryptOrderID(id)
+	encrypted, err := EncryptID(id)
 	if err != nil {
 		t.Errorf("EncryptOrderID failed: %v", err)
 	}
-	decrypted, err := DecryptOrderID(encrypted)
+	decrypted, err := DecryptID(encrypted)
 	if err != nil {
 		t.Errorf("DecryptOrderID failed: %v", err)
 	}
@@ -34,9 +34,8 @@ func TestDecryptOrderID(t *testing.T) {
 
 func TestDecryptOrderIDIsRight(t *testing.T) {
 	id := uint64(123456)
+	encrypted, _ := EncryptID(id)
 
-	encrypted, _ := EncryptOrderID(id)
-
-	decrypted, _ := DecryptOrderID(encrypted)
+	decrypted, _ := DecryptID(encrypted)
 	assert.Equal(t, int64(123456), decrypted)
 }
