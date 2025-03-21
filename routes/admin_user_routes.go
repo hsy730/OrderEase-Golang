@@ -34,7 +34,10 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 
 		shop := admin.Group("/shop")
 		{
-			shop.GET("/:shopId", h.GetShopInfo) // 新增店铺信息查询
+			shop.POST("/create", h.CreateProduct)
+			shop.PUT("/update", h.UpdateProduct)
+			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
+			shop.GET("/list", h.GetShopList)   // 新增店铺信息查询
 		}
 
 		// 商品管理接口

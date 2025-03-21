@@ -25,8 +25,6 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 		public.GET("/tag/list", h.GetTags)
 		public.GET("/tag/detail", h.GetTag)
 		public.GET("/tag/bound-products", h.GetTagBoundProducts) // 获取标签已绑定的商品列表
-		public.GET("/shop/:shopId", h.GetShopInfo) // 新增店铺信息查询
 		public.GET("/shop/:shopId/tags", h.GetShopTags)
-		public.POST("/shop/login", h.ShopOwnerLogin) // 新增店主登录
 	}
 }
