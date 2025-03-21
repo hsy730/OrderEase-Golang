@@ -129,3 +129,106 @@ func (h *Handler) GetShopList(c *gin.Context) {
 		"data":  responseData,
 	})
 }
+
+// CreateShop 创建店铺
+func (h *Handler) CreateShop(c *gin.Context) {
+    var shopData struct {
+        Name         string `json:"name" binding:"required"`
+        OwnerUsername string `json:"owner_username" binding:"required"`
+        OwnerPassword string `json:"password" binding:"required"`
+        ContactPhone  string `json:"contact_phone"`
+        ContactEmail  string `json:"contact_email"`
+        Description  string `json:"description"`
+    }
+
+    if err := c.ShouldBindJSON(&shopData); err != nil {
+        errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+        return
+    }
+
+    // 检查用户名是否已存在
+    var count int64
+    h.DB.Model(&models.Shop{}).Where("owner_username = ?", shopData.OwnerUsername).Count(&count)
+    if count > 0 {
+        errorResponse(c, http.StatusConflict, "店主用户名已存在")
+        return
+    }
+
+    newShop := models.Shop{
+        Name:          shopData.Name,
+        OwnerUsername: shopData.OwnerUsername,
+        OwnerPassword: shopData.OwnerPassword, // 密码将在BeforeSave钩子中加密
+        ContactPhone:  shopData.ContactPhone,
+        ContactEmail:  shopData.ContactEmail,
+        Description:   shopData.Description,
+        ValidUntil:    time.Now().AddDate(1, 0, 0), // 默认有效期1年
+    }
+
+    if err := h.DB.Create(&newShop).Error; err != nil {
+        h.logger.Printf("创建店铺失败: %v", err)
+        errorResponse(c, http.StatusInternalServerError, "创建店铺失败")
+        return
+    }
+
+    successResponse(c, gin.H{
+        "id":   newShop.ID,
+        "name": newShop.Name,
+    })
+}
+
+// UpdateShop 更新店铺信息
+func (h *Handler) UpdateShop(c *gin.Context) {
+    var updateData struct {
+        ID           uint   `json:"id" binding:"required"`
+        Name         string `json:"name"`
+        ContactPhone string `json:"contact_phone"`
+        ContactEmail string `json:"contact_email"`
+        Description  string `json:"description"`
+        ValidUntil   string `json:"valid_until"`
+    }
+
+    if err := c.ShouldBindJSON(&updateData); err != nil {
+        errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+        return
+    }
+
+    // 查询现有店铺
+    var shop models.Shop
+    if err := h.DB.First(&shop, updateData.ID).Error; err != nil {
+        errorResponse(c, http.StatusNotFound, "店铺不存在")
+        return
+    }
+
+    // 更新字段
+    if updateData.Name != "" {
+        shop.Name = updateData.Name
+    }
+    if updateData.ContactPhone != "" {
+        shop.ContactPhone = updateData.ContactPhone
+    }
+    if updateData.ContactEmail != "" {
+        shop.ContactEmail = updateData.ContactEmail
+    }
+    if updateData.Description != "" {
+        shop.Description = updateData.Description
+    }
+    if updateData.ValidUntil != "" {
+        validUntil, err := time.Parse(time.RFC3339, updateData.ValidUntil)
+        if err != nil {
+            errorResponse(c, http.StatusBadRequest, "无效的有效期格式")
+            return
+        }
+        shop.ValidUntil = validUntil
+    }
+
+    if err := h.DB.Save(&shop).Error; err != nil {
+        h.logger.Printf("更新店铺失败: %v", err)
+        errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
+        return
+    }
+
+    successResponse(c, gin.H{
+        "id":   shop.ID,
+        "name": shop.Name,
+    })
+}
