@@ -1,4 +1,4 @@
-package routes
+package frontend
 
 import (
 	"orderease/config"

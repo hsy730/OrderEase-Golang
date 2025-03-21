@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"orderease/database"
-	"orderease/routes"
+	"orderease/routes/backend"
+	"orderease/routes/frontend"
 	"orderease/tasks"
 
 	"github.com/gin-gonic/gin"
@@ -101,8 +102,8 @@ func main() {
 	h := handlers.NewHandler(db)
 
 	// 设置路由
-	routes.SetupBackedRoutes(r, h)
-	routes.SetupFrontRoutes(r, h)
+	backend.SetupBackedRoutes(r, h)
+	frontend.SetupFrontRoutes(r, h)
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
