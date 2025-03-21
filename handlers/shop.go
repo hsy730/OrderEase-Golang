@@ -44,7 +44,7 @@ func (h *Handler) GetShopTags(c *gin.Context) {
 
 // GetShopInfo 获取店铺详细信息
 func (h *Handler) GetShopInfo(c *gin.Context) {
-	shopID := c.Param("shopId")
+	shopID := c.Query("shopId")
 
 	// 转换店铺ID为数字
 	shopIDInt, err := strconv.Atoi(shopID)

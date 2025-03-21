@@ -11,12 +11,12 @@ import (
 )
 
 // 管理员登录
-func (h *Handler) AdminLogin(c *gin.Context) {
-	utils.Logger.Printf("开始处理管理员登录请求")
+func (h *Handler) UniversalLogin(c *gin.Context) {
+	utils.Logger.Printf("开始处理统一登录请求")
 
 	var loginData struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&loginData); err != nil {
@@ -25,21 +25,46 @@ func (h *Handler) AdminLogin(c *gin.Context) {
 		return
 	}
 
+	// 尝试管理员登录
 	var admin models.Admin
-	if err := h.DB.Where("username = ?", loginData.Username).First(&admin).Error; err != nil {
-		utils.Logger.Printf("管理员登录失败, 用户名: %s, 错误: %v", loginData.Username, err)
+	if err := h.DB.Where("username = ?", loginData.Username).First(&admin).Error; err == nil {
+		if !admin.CheckPassword(loginData.Password) {
+			utils.Logger.Printf("管理员密码验证失败, 用户名: %s", loginData.Username)
+			errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+			return
+		}
+
+		token, expiredAt, err := utils.GenerateToken(admin.ID, admin.Username)
+		if err != nil {
+			utils.Logger.Printf("生成token失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "登录失败")
+			return
+		}
+
+		successResponse(c, gin.H{
+			"role":      "admin",
+			"user_info": gin.H{"id": admin.ID, "username": admin.Username},
+			"token":     token,
+			"expiredAt": expiredAt.Unix(),
+		})
+		return
+	}
+
+	// 管理员登录失败，尝试店主登录
+	var shop models.Shop
+	if err := h.DB.Where("owner_username = ?", loginData.Username).First(&shop).Error; err != nil {
+		utils.Logger.Printf("登录失败，用户名: %s, 错误: %v", loginData.Username, err)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
-	if !admin.CheckPassword(loginData.Password) {
-		utils.Logger.Printf("管理员密码验证失败, 用户名: %s", loginData.Username)
+	if err := shop.CheckPassword(loginData.Password); err != nil {
+		utils.Logger.Printf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
-	// 生成JWT token
-	token, expiredAt, err := utils.GenerateToken(admin.ID, admin.Username)
+	token, expiredAt, err := utils.GenerateToken(shop.ID, "shop_"+shop.OwnerUsername)
 	if err != nil {
 		utils.Logger.Printf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")
@@ -47,11 +72,8 @@ func (h *Handler) AdminLogin(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{
-		"message": "登录成功",
-		"admin": gin.H{
-			"id":       admin.ID,
-			"username": admin.Username,
-		},
+		"role":      "shop",
+		"user_info": gin.H{"id": shop.ID, "shop_name": shop.Name, "username": shop.OwnerUsername},
 		"token":     token,
 		"expiredAt": expiredAt.Unix(),
 	})

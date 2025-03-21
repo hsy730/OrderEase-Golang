@@ -19,9 +19,9 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 公开路由组 - 不需要认证
 	public := r.Group(basePath + "/admin")
 	{
-		public.POST("/login", h.AdminLogin)             // 登录接口不需要认证
-		public.POST("/refresh-token", h.RefreshToken)   // 添加刷新token接口
-		public.GET("/product/image", h.GetProductImage) // 查看图片不认值，方便前端获取图片
+		public.POST("/login", h.UniversalLogin) // 合并后的登录接口
+		public.POST("/refresh-token", h.RefreshToken)
+		public.GET("/product/image", h.GetProductImage)
 	}
 
 	// 需要认证的路由组
@@ -31,6 +31,11 @@ func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
 		admin.POST("/logout", h.Logout) // 添加登出接口
 		// 管理员基础接口
 		admin.POST("/change-password", h.ChangeAdminPassword)
+
+		shop := admin.Group("/shop")
+		{
+			shop.GET("/:shopId", h.GetShopInfo) // 新增店铺信息查询
+		}
 
 		// 商品管理接口
 		product := admin.Group("/product")
