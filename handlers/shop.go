@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"orderease/models"
-	"orderease/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,49 +73,59 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 	})
 }
 
-// ShopOwnerLogin 店铺店主登录
-func (h *Handler) ShopOwnerLogin(c *gin.Context) {
-	var loginData struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-	}
+// GetShopList 获取店铺列表（分页+搜索）
+func (h *Handler) GetShopList(c *gin.Context) {
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	search := c.Query("search")
 
-	if err := c.ShouldBindJSON(&loginData); err != nil {
-		h.logger.Printf("无效的登录数据: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的登录数据")
+	// 验证分页参数
+	if page < 1 || pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "无效的分页参数")
 		return
 	}
 
-	var shop models.Shop
-	if err := h.DB.Where("owner_username = ?", loginData.Username).First(&shop).Error; err != nil {
-		h.logger.Printf("店主登录失败, 用户名: %s, 错误: %v", loginData.Username, err)
-		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+	query := h.DB.Model(&models.Shop{}).Preload("Tags")
+
+	// 添加搜索条件
+	if search != "" {
+		search = "%" + search + "%"
+		query = query.Where("name LIKE ? OR owner_username LIKE ?", search, search)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		h.logger.Printf("查询店铺总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
-	// 验证密码
-	if err := shop.CheckPassword(loginData.Password); err != nil {
-		h.logger.Printf("密码验证失败, 用户名: %s", loginData.Username)
-		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+	// 执行分页查询
+	var shops []models.Shop
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("id DESC").Find(&shops).Error; err != nil {
+		h.logger.Printf("查询店铺列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
-	// 生成JWT token
-	token, expiredAt, err := utils.GenerateToken(shop.ID, shop.OwnerUsername)
-	if err != nil {
-		h.logger.Printf("生成token失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "登录失败")
-		return
+	// 构建响应数据
+	responseData := make([]gin.H, 0, len(shops))
+	for _, shop := range shops {
+		responseData = append(responseData, gin.H{
+			"id":             shop.ID,
+			"name":           shop.Name,
+			"owner_username": shop.OwnerUsername,
+			"contact_phone":  shop.ContactPhone,
+			"valid_until":    shop.ValidUntil.Format(time.RFC3339),
+			"tags_count":     len(shop.Tags),
+		})
 	}
 
 	successResponse(c, gin.H{
-		"message": "登录成功",
-		"shop_info": gin.H{
-			"id":       shop.ID,
-			"name":     shop.Name,
-			"username": shop.OwnerUsername,
-		},
-		"token":     token,
-		"expiredAt": expiredAt.Unix(),
+		"total": total,
+		"page":  page,
+		"data":  responseData,
 	})
 }
