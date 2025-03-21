@@ -26,14 +26,3 @@ type ProductTag struct {
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
 }
-
-// 新增店铺模型
-type Shop struct {
-	ID          int       `gorm:"primarykey" json:"id"`
-	Name        string    `gorm:"size:100;not null" json:"name"`
-	Description string    `gorm:"type:text" json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Products    []Product `gorm:"foreignKey:ShopID" json:"products"`
-	Tags        []Tag     `gorm:"foreignKey:ShopID" json:"tags"`
-}
