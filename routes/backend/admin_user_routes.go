@@ -9,20 +9,12 @@ import (
 )
 
 // SetupRoutes 配置所有路由
-func SetupBackedRoutes(r *gin.Engine, h *handlers.Handler) {
+func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 获取基础路径
 	basePath := config.AppConfig.Server.BasePath
 
 	// 应用限流中间件到所有管理员接口
 	r.Use(middleware.RateLimitMiddleware())
-
-	// 公开路由组 - 不需要认证
-	public := r.Group(basePath + "/admin")
-	{
-		public.POST("/login", h.UniversalLogin) // 合并后的登录接口
-		public.POST("/refresh-token", h.RefreshToken)
-		public.GET("/product/image", h.GetProductImage)
-	}
 
 	// 需要认证的路由组
 	admin := r.Group(basePath + "/admin")

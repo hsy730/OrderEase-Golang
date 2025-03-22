@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"orderease/config"
 	"orderease/handlers"
+	"orderease/routes"
 	"orderease/utils"
 	"os"
 	"time"
 
 	"orderease/database"
-	"orderease/routes/backend"
-	"orderease/routes/frontend"
 	"orderease/tasks"
 
 	"github.com/gin-gonic/gin"
@@ -102,8 +101,7 @@ func main() {
 	h := handlers.NewHandler(db)
 
 	// 设置路由
-	backend.SetupBackedRoutes(r, h)
-	frontend.SetupFrontRoutes(r, h)
+	routes.SetupRoutes(r, h)
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
