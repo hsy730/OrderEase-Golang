@@ -15,10 +15,11 @@ func SetupNoAuthRoutes(r *gin.Engine, h *handlers.Handler) {
 	r.Use(middleware.RateLimitMiddleware())
 
 	// 公开路由组 - 不需要认证
-	public := r.Group(basePath + "/admin")
+	public := r.Group(basePath)
 	{
 		public.POST("/login", h.UniversalLogin) // 合并后的登录接口
-		public.POST("/refresh-token", h.RefreshToken)
+		public.POST("/admin/refresh-token", h.RefreshAdminToken)
+		public.POST("/shop/refresh-token", h.RefreshShopToken)
 		public.GET("/product/image", h.GetProductImage)
 	}
 

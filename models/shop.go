@@ -48,3 +48,15 @@ func (s *Shop) BeforeSave(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+// IsExpired 判断店铺是否到期
+func (s *Shop) IsExpired() bool {
+	now := time.Now().UTC()
+	return s.ValidUntil.Before(now)
+}
+
+// RemainingDays 获取剩余有效天数（负数表示已过期）
+func (s *Shop) RemainingDays() int {
+	hours := time.Until(s.ValidUntil.UTC()).Hours()
+	return int(hours / 24) // 向下取整
+}

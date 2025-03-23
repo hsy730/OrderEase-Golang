@@ -21,8 +21,8 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 	shopOwner.Use(middleware.AuthMiddleware(false))
 	{
 		shopOwner.POST("/logout", h.Logout) // 添加登出接口
-		// 管理员基础接口
-		shopOwner.POST("/change-password", h.ChangeAdminPassword)
+		// 商户基础接口
+		shopOwner.POST("/change-password", h.ChangeShopPassword)
 
 		// 商品管理接口
 		product := shopOwner.Group("/product")

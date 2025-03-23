@@ -59,6 +59,11 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
+	if shop.IsExpired() {
+		errorResponse(c, http.StatusUnauthorized, "店铺已到期")
+		return
+	}
+
 	if err := shop.CheckPassword(loginData.Password); err != nil {
 		log2.Errorf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
@@ -131,8 +136,73 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	successResponse(c, gin.H{"message": "密码修改成功"})
 }
 
+func (h *Handler) ChangeShopPassword(c *gin.Context) {
+	log2.Debugf("开始处理店主密码修改请求")
+
+	// 从上下文中获取店主ID
+	shopID := c.MustGet("userID").(uint)
+
+	var passwordData struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&passwordData); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		return
+	}
+
+	// 获取当前店主账户
+	var shop models.Shop
+	if err := h.DB.First(&shop, shopID).Error; err != nil {
+		log2.Errorf("查找店主失败: %v", err)
+		errorResponse(c, http.StatusNotFound, "店铺账户不存在")
+		return
+	}
+
+	if shop.IsExpired() {
+		errorResponse(c, http.StatusForbidden, "店铺服务已到期")
+		return
+	}
+
+	// 验证旧密码
+	if err := shop.CheckPassword(passwordData.OldPassword); err != nil {
+		errorResponse(c, http.StatusUnauthorized, "旧密码错误")
+		return
+	}
+
+	// 验证新密码强度（复用相同规则）
+	if err := utils.ValidatePassword(passwordData.NewPassword); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 更新密码
+	shop.OwnerPassword = passwordData.NewPassword
+	if err := shop.HashPassword(); err != nil {
+		log2.Errorf("密码加密失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
+		return
+	}
+
+	if err := h.DB.Save(&shop).Error; err != nil {
+		log2.Errorf("保存新密码失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
+		return
+	}
+
+	successResponse(c, gin.H{"message": "密码修改成功"})
+}
+func (h *Handler) RefreshAdminToken(c *gin.Context) {
+	h.RefreshToken(c, false)
+}
+
+func (h *Handler) RefreshShopToken(c *gin.Context) {
+	h.RefreshToken(c, true)
+}
+
 // RefreshToken 刷新token
-func (h *Handler) RefreshToken(c *gin.Context) {
+func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 	// 从请求头获取旧token
 	oldToken := c.GetHeader("Authorization")
 	if oldToken == "" {
@@ -148,6 +218,25 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	if err != nil {
 		errorResponse(c, http.StatusUnauthorized, "无效的token")
 		return
+	}
+
+	if isShopOwner {
+		// 去掉用户名前缀
+		rawUsername := strings.TrimPrefix(claims.Username, "shop_")
+
+		// 查询当前店铺状态
+		var shop models.Shop
+		if err := h.DB.Where("owner_username = ?", rawUsername).First(&shop).Error; err != nil {
+			log2.Errorf("店铺查询失败: %s, 错误: %v", rawUsername, err)
+			errorResponse(c, http.StatusUnauthorized, "店铺账户不存在")
+			return
+		}
+
+		if shop.IsExpired() {
+			log2.Warnf("店铺服务已到期: %s (ID: %d)", shop.Name, shop.ID)
+			errorResponse(c, http.StatusForbidden, "店铺服务已到期")
+			return
+		}
 	}
 
 	// 生成新token
