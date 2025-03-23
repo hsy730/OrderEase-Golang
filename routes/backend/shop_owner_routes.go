@@ -18,7 +18,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 
 	// 需要认证的路由组
 	shopOwner := r.Group(basePath + "/shop")
-	shopOwner.Use(middleware.AuthMiddleware())
+	shopOwner.Use(middleware.AuthMiddleware(false))
 	{
 		shopOwner.POST("/logout", h.Logout) // 添加登出接口
 		// 管理员基础接口

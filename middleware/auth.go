@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(isAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		db := database.GetDB()
 		token := c.GetHeader("Authorization")
@@ -37,10 +37,14 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
 			return
 		}
-
+		if claims.Username != "admin" && isAdmin { // 检查是否为管理员
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "没有管理员权限"})
+			return
+		}
 		// 将用户信息存入上下文
 		c.Set("userID", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("isAdmin", isAdmin)
 
 		c.Next()
 	}
