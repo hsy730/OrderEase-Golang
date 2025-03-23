@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"orderease/models"
 	"orderease/utils"
+	"orderease/utils/log2"
 	"strings"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 // 管理员登录
 func (h *Handler) UniversalLogin(c *gin.Context) {
-	utils.Logger.Printf("开始处理统一登录请求")
+	log2.Debugf("开始处理统一登录请求")
 
 	var loginData struct {
 		Username string `json:"username" binding:"required"`
@@ -20,7 +21,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&loginData); err != nil {
-		utils.Logger.Printf("无效的登录数据: %s, %v", loginData.Username, err)
+		log2.Errorf("无效的登录数据: %s, %v", loginData.Username, err)
 		errorResponse(c, http.StatusBadRequest, "无效的登录数据")
 		return
 	}
@@ -29,14 +30,14 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	var admin models.Admin
 	if err := h.DB.Where("username = ?", loginData.Username).First(&admin).Error; err == nil {
 		if !admin.CheckPassword(loginData.Password) {
-			utils.Logger.Printf("管理员密码验证失败, 用户名: %s", loginData.Username)
+			log2.Errorf("管理员密码验证失败, 用户名: %s", loginData.Username)
 			errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 			return
 		}
 
 		token, expiredAt, err := utils.GenerateToken(admin.ID, admin.Username)
 		if err != nil {
-			utils.Logger.Printf("生成token失败: %v", err)
+			log2.Errorf("生成token失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "登录失败")
 			return
 		}
@@ -53,20 +54,20 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	// 管理员登录失败，尝试店主登录
 	var shop models.Shop
 	if err := h.DB.Where("owner_username = ?", loginData.Username).First(&shop).Error; err != nil {
-		utils.Logger.Printf("登录失败，用户名: %s, 错误: %v", loginData.Username, err)
+		log2.Errorf("登录失败，用户名: %s, 错误: %v", loginData.Username, err)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	if err := shop.CheckPassword(loginData.Password); err != nil {
-		utils.Logger.Printf("店主密码验证失败, 用户名: %s", loginData.Username)
+		log2.Errorf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	token, expiredAt, err := utils.GenerateToken(shop.ID, "shop_"+shop.OwnerUsername)
 	if err != nil {
-		utils.Logger.Printf("生成token失败: %v", err)
+		log2.Errorf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")
 		return
 	}
@@ -81,7 +82,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 
 // 修改管理员密码
 func (h *Handler) ChangeAdminPassword(c *gin.Context) {
-	utils.Logger.Printf("开始处理管理员修改密码请求")
+	log2.Debugf("开始处理管理员修改密码请求")
 
 	var passwordData struct {
 		OldPassword string `json:"old_password"`
@@ -96,7 +97,7 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	// 获取唯一的管理员账户
 	var admin models.Admin
 	if err := h.DB.First(&admin).Error; err != nil {
-		utils.Logger.Printf("查找管理员失败: %v", err)
+		log2.Errorf("查找管理员失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "管理员账户不存在")
 		return
 	}
@@ -116,13 +117,13 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	// 更新密码
 	admin.Password = passwordData.NewPassword
 	if err := admin.HashPassword(); err != nil {
-		utils.Logger.Printf("密码加密失败: %v", err)
+		log2.Errorf("密码加密失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return
 	}
 
 	if err := h.DB.Save(&admin).Error; err != nil {
-		utils.Logger.Printf("保存新密码失败: %v", err)
+		log2.Errorf("保存新密码失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return
 	}
@@ -152,7 +153,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// 生成新token
 	newToken, expiredAt, err := utils.GenerateToken(claims.UserID, claims.Username)
 	if err != nil {
-		utils.Logger.Printf("生成新token失败: %v", err)
+		log2.Errorf("生成新token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "刷新token失败")
 		return
 	}
@@ -191,7 +192,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&blacklistedToken).Error; err != nil {
-		utils.Logger.Printf("添加token到黑名单失败: %v", err)
+		log2.Errorf("添加token到黑名单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登出失败")
 		return
 	}

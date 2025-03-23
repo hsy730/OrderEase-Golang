@@ -7,7 +7,7 @@ import (
 	"orderease/config"
 	"orderease/handlers"
 	"orderease/routes"
-	"orderease/utils"
+	"orderease/utils/log2"
 	"os"
 	"time"
 
@@ -25,8 +25,8 @@ func LoggerMiddleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 
-		utils.Logger.Printf("开始处理请求: %s %s", c.Request.Method, path)
-		utils.Logger.Printf("请求头: %v", c.Request.Header)
+		log2.Debugf("开始处理请求: %s %s", c.Request.Method, path)
+		log2.Debugf("请求头: %v", c.Request.Header)
 
 		// 处理请求
 		c.Next()
@@ -34,7 +34,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 		// 计算延迟
 		latency := time.Since(start)
 
-		utils.Logger.Printf("请求处理完成: %s %s?%s 耗时: %v",
+		log2.Debugf("请求处理完成: %s %s?%s 耗时: %v",
 			c.Request.Method, path, raw, latency)
 	}
 }
@@ -57,14 +57,14 @@ func init() {
 
 func main() {
 	// 初始化日志
-	utils.InitLogger()
-	utils.Logger.Println("服务启动...")
+	log2.InitLogger()
+	log2.Logger.Println("服务启动...")
 
 	// 加载配置文件
 	if err := config.LoadConfig("config/config.yaml"); err != nil {
-		utils.Logger.Fatal("加载配置文件失败:", err)
+		log2.Logger.Fatal("加载配置文件失败:", err)
 	}
-	utils.Logger.Println("配置加载成功")
+	log2.Logger.Println("配置加载成功")
 
 	// 设置 Gin 模式
 	gin.SetMode(gin.ReleaseMode)
@@ -95,7 +95,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
-	utils.Logger.Println("数据库连接成功")
+	log2.Logger.Println("数据库连接成功")
 
 	// 创建处理器
 	h := handlers.NewHandler(db)
@@ -108,9 +108,9 @@ func main() {
 
 	// 确保上传目录存在
 	if err := os.MkdirAll("./uploads/products", 0755); err != nil {
-		utils.Logger.Fatal("创建上传目录失败:", err)
+		log2.Logger.Fatal("创建上传目录失败:", err)
 	}
-	utils.Logger.Println("上传目录创建成功")
+	log2.Logger.Println("上传目录创建成功")
 
 	// 初始化清理任务
 	cleanupTask := tasks.NewCleanupTask(db)
@@ -118,6 +118,6 @@ func main() {
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
-	utils.Logger.Printf("服务器启动在 %s", serverAddr)
-	utils.Logger.Fatal(r.Run(serverAddr))
+	log2.Logger.Printf("服务器启动在 %s", serverAddr)
+	log2.Logger.Fatal(r.Run(serverAddr))
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"orderease/models"
 	"orderease/utils"
+	"orderease/utils/log2"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 
 // 创建商品
 func (h *Handler) CreateProduct(c *gin.Context) {
+	c.Get("")
 	var product models.Product
 	if err := c.ShouldBindJSON(&product); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的商品数据: "+err.Error())
@@ -45,7 +47,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required,oneof=pending online offline"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Logger.Printf("解析请求参数失败: %v", err)
+		log2.Errorf("解析请求参数失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
 		return
 	}
@@ -57,7 +59,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 			errorResponse(c, http.StatusNotFound, "商品不存在")
 			return
 		}
-		utils.Logger.Printf("查询商品失败: %v", err)
+		log2.Errorf("查询商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "服务器内部错误")
 		return
 	}
@@ -66,7 +68,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		product.Status = models.ProductStatusPending
 	}
 
-	utils.Logger.Printf("更新商品前状态: %s", product.Status)
+	log2.Debugf("更新商品前状态: %s", product.Status)
 	// 验证状态流转
 	if !isValidProductStatusTransition(product.Status, req.Status) {
 		errorResponse(c, http.StatusBadRequest, "无效的状态变更")
@@ -75,7 +77,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 
 	// 更新商品状态
 	if err := h.DB.Model(&product).Update("status", req.Status).Error; err != nil {
-		utils.Logger.Printf("更新商品状态失败: %v", err)
+		log2.Errorf("更新商品状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
 		return
 	}
@@ -120,6 +122,8 @@ func isValidProductStatusTransition(currentStatus, newStatus string) bool {
 func (h *Handler) GetProducts(c *gin.Context) {
 	var products []models.Product
 
+	v, _ := c.Get("username")
+	log2.Debugf("用户名： %v", v)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
@@ -149,14 +153,14 @@ func (h *Handler) GetProducts(c *gin.Context) {
 	// 获取总数
 	var total int64
 	if err := query.Model(&models.Product{}).Count(&total).Error; err != nil {
-		h.logger.Printf("获取商品总数失败: %v", err)
+		log2.Errorf("获取商品总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
 	}
 
 	// 获取分页数据
 	if err := query.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
-		h.logger.Printf("查询商品列表失败: %v", err)
+		log2.Errorf("查询商品列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
 	}
@@ -179,7 +183,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 
 	var product models.Product
 	if err := h.DB.First(&product, id).Error; err != nil {
-		h.logger.Printf("查询商品失败, ID: %s, 错误: %v", id, err)
+		log2.Errorf("查询商品失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "商品未找到")
 		return
 	}
@@ -197,7 +201,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 	var product models.Product
 	if err := h.DB.First(&product, id).Error; err != nil {
-		h.logger.Printf("更新商品失败, ID: %s, 错误: %v", id, err)
+		log2.Errorf("更新商品失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "商品未找到")
 		return
 	}
@@ -211,14 +215,14 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	utils.SanitizeProduct(&updateData)
 
 	if err := h.DB.Model(&product).Updates(updateData).Error; err != nil {
-		h.logger.Printf("更新商品失败: %v", err)
+		log2.Errorf("更新商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品失败")
 		return
 	}
 
 	// 重新获取更新后的商品信息
 	if err := h.DB.First(&product, id).Error; err != nil {
-		h.logger.Printf("获取更新后的商品信息失败: %v", err)
+		log2.Errorf("获取更新后的商品信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的商品信息失败")
 		return
 	}
@@ -237,7 +241,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	// 获取商品信息
 	var product models.Product
 	if err := h.DB.First(&product, id).Error; err != nil {
-		h.logger.Printf("删除商品失败, ID: %s, 错误: %v", id, err)
+		log2.Errorf("删除商品失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "商品不存在")
 		return
 	}
@@ -247,7 +251,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	if err := h.DB.Model(&models.OrderItem{}).
 		Where("product_id = ?", id).
 		Count(&orderCount).Error; err != nil {
-		h.logger.Printf("检查商品订单关联失败: %v", err)
+		log2.Errorf("检查商品订单关联失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "系统错误")
 		return
 	}
@@ -266,14 +270,14 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	if product.ImageURL != "" {
 		imagePath := strings.TrimPrefix(product.ImageURL, "/")
 		if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
-			h.logger.Printf("删除商品图片失败: %v", err)
+			log2.Errorf("删除商品图片失败: %v", err)
 		}
 	}
 
 	// 删除商品记录
 	if err := tx.Delete(&product).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除商品记录失败: %v", err)
+		log2.Errorf("删除商品记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
 		return
 	}
@@ -295,14 +299,14 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 
 	var product models.Product
 	if err := h.DB.First(&product, id).Error; err != nil {
-		utils.Logger.Printf("商品不存在, ID: %s, 错误: %v", id, err)
+		log2.Errorf("商品不存在, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "商品不存在")
 		return
 	}
 
 	file, err := c.FormFile("image")
 	if err != nil {
-		utils.Logger.Printf("获取上传文件失败: %v", err)
+		log2.Errorf("获取上传文件失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "获取上传文件失败")
 		return
 	}
@@ -315,7 +319,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 
 	uploadDir := "./uploads/products"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		h.logger.Printf("创建上传目录失败: %v", err)
+		log2.Errorf("创建上传目录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建上传目录失败")
 		return
 	}
@@ -324,7 +328,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	if product.ImageURL != "" {
 		oldImagePath := strings.TrimPrefix(product.ImageURL, "/")
 		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
-			utils.Logger.Printf("删除旧图片失败: %v", err)
+			log2.Errorf("删除旧图片失败: %v", err)
 		}
 	}
 
@@ -337,19 +341,19 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
 
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		h.logger.Printf("保存文件失败: %v", err)
+		log2.Errorf("保存文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return
 	}
 
 	if err := utils.ValidateImageURL(imageURL); err != nil {
-		h.logger.Printf("图片URL验证失败: %v", err)
+		log2.Errorf("图片URL验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
 		return
 	}
 
 	if err := h.DB.Model(&product).Update("image_url", imageURL).Error; err != nil {
-		h.logger.Printf("更新商品图片失败: %v", err)
+		log2.Errorf("更新商品图片失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品图片失败")
 		return
 	}
@@ -384,7 +388,7 @@ func (h *Handler) GetProductImage(c *gin.Context) {
 	}
 
 	if err := utils.ValidateImageURL(imagePath); err != nil {
-		h.logger.Printf("图片路径验证失败: %v", err)
+		log2.Errorf("图片路径验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
 		return
 	}
@@ -392,7 +396,7 @@ func (h *Handler) GetProductImage(c *gin.Context) {
 	imagePath = "." + imagePath
 
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-		h.logger.Printf("图片文件不存在: %s", imagePath)
+		log2.Errorf("图片文件不存在: %s", imagePath)
 		errorResponse(c, http.StatusNotFound, "图片不存在")
 		return
 	}

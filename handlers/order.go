@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"orderease/models"
 	"orderease/utils"
+	"orderease/utils/log2"
 	"strconv"
 	"time"
 
@@ -30,7 +31,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	// 假设存在一个 IsValidUserID 函数来验证用户ID的合法性
 	if !h.IsValidUserID(order.UserID) {
-		utils.Logger.Printf("创建订单失败: 非法用户")
+		log2.Errorf("创建订单失败: 非法用户")
 		errorResponse(c, http.StatusBadRequest, "创建订单失败")
 		return
 	}
@@ -71,7 +72,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	order.ID = utils.GenerateSnowflakeID()
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
-		utils.Logger.Printf("创建订单失败: %v", err)
+		log2.Errorf("创建订单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
 		return
 	}
@@ -244,7 +245,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 
 	var order models.Order
 	if err := h.DB.First(&order, id).Error; err != nil {
-		utils.Logger.Printf("订单不存在, ID: %s, 错误: %v", id, err)
+		log2.Errorf("订单不存在, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
 	}
@@ -267,7 +268,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	// 更新订单状态
 	if err := tx.Model(&order).Update("status", nextStatus).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("更新订单状态失败: %v", err)
+		log2.Errorf("更新订单状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单状态失败")
 		return
 	}
@@ -280,7 +281,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		ChangedTime: time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("记录状态变更失败: %v", err)
+		log2.Errorf("记录状态变更失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "记录状态变更失败")
 		return
 	}
@@ -307,7 +308,7 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 
 	var orders []models.Order
 	if err := h.DB.Where("user_id = ?", userID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
-		h.logger.Printf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
+		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
 	}
@@ -337,7 +338,7 @@ func isValidImageType(contentType string) bool {
 
 // 添加错误响应辅助函数
 func errorResponse(c *gin.Context, code int, message string) {
-	utils.Logger.Printf("错误响应: %d - %s", code, message)
+	log2.Errorf("错误响应: %d - %s", code, message)
 	c.JSON(code, gin.H{"error": message})
 }
 

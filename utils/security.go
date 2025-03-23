@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"orderease/models"
+	"orderease/utils/log2"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -70,6 +71,6 @@ func SanitizeProduct(product *models.Product) {
 	product.Description = SanitizeString(product.Description)
 	if err := ValidateImageURL(product.ImageURL); err != nil {
 		product.ImageURL = "" // 如果图片URL无效，清空它
-		Logger.Printf("Invalid image URL detected: %v", err)
+		log2.Errorf("Invalid image URL detected: %v", err)
 	}
 }

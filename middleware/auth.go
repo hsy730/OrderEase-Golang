@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"orderease/utils"
+	"orderease/utils/log2"
 	"strings"
 
 	"orderease/database"
@@ -41,6 +42,7 @@ func AuthMiddleware(isAdmin bool) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "没有管理员权限"})
 			return
 		}
+		log2.Debugf("token验证成功, 用户ID: %d, 用户名: %s", claims.UserID, claims.Username)
 		// 将用户信息存入上下文
 		c.Set("userID", claims.UserID)
 		c.Set("username", claims.Username)

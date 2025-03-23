@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"orderease/utils"
+	"orderease/utils/log2"
 	"sync"
 	"time"
 
@@ -28,6 +28,7 @@ var (
 
 // 获取限流器
 func getLimiter(ip string, isLogin bool) *rate.Limiter {
+	log2.Debugf("获取限流器, IP: %s, 登录接口: %v", ip, isLogin)
 	mu.RLock()
 	var limiter *rate.Limiter
 	var exists bool
@@ -82,7 +83,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 
 		// 尝试获取令牌
 		if !limiter.Allow() {
-			utils.Logger.Printf("IP %s 请求过于频繁 [%s]", ip, c.FullPath())
+			log2.Infof("IP %s 请求过于频繁 [%s]", ip, c.FullPath())
 
 			var message string
 			if isLogin {

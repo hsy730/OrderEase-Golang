@@ -2,7 +2,7 @@ package database
 
 import (
 	"orderease/models"
-	"orderease/utils"
+	"orderease/utils/log2"
 
 	"fmt"
 
@@ -29,7 +29,7 @@ func InitAdminAccount(db *gorm.DB) error {
 			return err
 		}
 
-		utils.Logger.Println("已创建默认管理员账户，请及时修改密码")
+		log2.Infof("已创建默认管理员账户，请及时修改密码")
 	}
 
 	return nil
@@ -54,12 +54,12 @@ func Init() (*gorm.DB, error) {
 	// 自动迁移数据库表结构
 	for _, table := range tables {
 		if err := db.AutoMigrate(table); err != nil {
-			utils.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
+			log2.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
 		}
-		utils.Logger.Printf("表 %T 迁移成功", table)
+		log2.Logger.Printf("表 %T 迁移成功", table)
 	}
 
-	utils.Logger.Println("所有数据库表迁移完成")
+	log2.Logger.Println("所有数据库表迁移完成")
 
 	// 初始化管理员账户
 	if err := InitAdminAccount(db); err != nil {

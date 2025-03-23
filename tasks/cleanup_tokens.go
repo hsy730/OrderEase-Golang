@@ -3,7 +3,7 @@ package tasks
 import (
 	"log"
 	"orderease/models"
-	"orderease/utils"
+	"orderease/utils/log2"
 	"time"
 
 	"gorm.io/gorm"
@@ -19,7 +19,7 @@ type TokenCleanupTask struct {
 func NewTokenCleanupTask(db *gorm.DB) *TokenCleanupTask {
 	return &TokenCleanupTask{
 		db:     db,
-		logger: utils.Logger,
+		logger: log2.Logger,
 	}
 }
 

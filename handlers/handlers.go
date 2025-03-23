@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"log"
-	"orderease/utils"
+	"orderease/utils/log2"
 
 	"gorm.io/gorm"
 )
@@ -20,6 +20,6 @@ type Handler struct {
 func NewHandler(db *gorm.DB) *Handler {
 	return &Handler{
 		DB:     db,
-		logger: utils.Logger,
+		logger: log2.Logger,
 	}
 }
