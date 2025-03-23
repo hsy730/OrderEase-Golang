@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"orderease/utils/log2"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,7 +76,9 @@ func getLimiter(ip string, isLogin bool) *rate.Limiter {
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 判断是否是登录接口
-		isLogin := c.FullPath() == "/api/v1/admin/login"
+		// 由于strings.EndsWith是Go 1.20及以上版本才支持的函数，
+		// 如果你使用的Go版本低于1.20，可以使用strings.HasSuffix替代
+		isLogin := strings.HasSuffix(c.FullPath(), "/login")
 
 		// 获取客户端IP
 		ip := c.ClientIP()
@@ -83,7 +86,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 
 		// 尝试获取令牌
 		if !limiter.Allow() {
-			log2.Infof("IP %s 请求过于频繁 [%s]", ip, c.FullPath())
+			log2.Debugf("IP %s 请求过于频繁 [%s]", ip, c.FullPath())
 
 			var message string
 			if isLogin {
