@@ -19,7 +19,6 @@ import (
 
 // 创建商品
 func (h *Handler) CreateProduct(c *gin.Context) {
-	c.Get("")
 	var product models.Product
 	if err := c.ShouldBindJSON(&product); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的商品数据: "+err.Error())

@@ -290,3 +290,9 @@ func (h *Handler) Logout(c *gin.Context) {
 		"message": "登出成功",
 	})
 }
+
+type UserInfo struct {
+	UserID   uint
+	Username string
+	IsAdmin  bool
+}

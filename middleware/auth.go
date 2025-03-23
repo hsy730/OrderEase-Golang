@@ -42,12 +42,27 @@ func AuthMiddleware(isAdmin bool) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "没有管理员权限"})
 			return
 		}
+
+		// 设置shopID
+		var shopID uint
+		if !isAdmin {
+			// 检查商户是否存在
+			var shop models.Shop
+			if err := db.Where("owner_username =?", claims.Username).First(&shop).Error; err != nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "商户不存在"})
+				return
+			}
+			shopID = shop.ID
+		}
 		log2.Debugf("token验证成功, 用户ID: %d, 用户名: %s", claims.UserID, claims.Username)
 		// 将用户信息存入上下文
-		c.Set("userID", claims.UserID)
-		c.Set("username", claims.Username)
-		c.Set("isAdmin", isAdmin)
-
+		userInfo := models.UserInfo{
+			UserID:   claims.UserID,
+			Username: claims.Username,
+			IsAdmin:  isAdmin,
+			ShopID:   shopID,
+		}
+		c.Set("userInfo", userInfo)
 		c.Next()
 	}
 }

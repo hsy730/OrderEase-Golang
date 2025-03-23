@@ -30,3 +30,10 @@ func (a *Admin) CheckPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(a.Password), []byte(password))
 	return err == nil
 }
+
+type UserInfo struct {
+	UserID   uint
+	Username string
+	IsAdmin  bool
+	ShopID   uint
+}
