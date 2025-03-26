@@ -11,7 +11,7 @@ import (
 )
 
 type Shop struct {
-	ID            uint   `gorm:"primarykey" json:"id"`
+	ID            uint64 `gorm:"primarykey" json:"id"`
 	Name          string `gorm:"size:100;not null" json:"name"`                      //店名
 	OwnerUsername string `gorm:"size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
 	OwnerPassword string `gorm:"size:255;not null" json:"-"`                         // 店主登录密码
