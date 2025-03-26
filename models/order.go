@@ -9,6 +9,7 @@ import (
 type Order struct {
 	ID         snowflake.ID `gorm:"primarykey" json:"id"`
 	UserID     snowflake.ID `json:"user_id"`
+	ShopID     uint64       `gorm:"index;not null" json:"shop_id"`
 	User       User         `gorm:"foreignKey:UserID" json:"user"`
 	TotalPrice Price        `json:"total_price"`
 	Status     string       `json:"status"`

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"orderease/models"
@@ -33,6 +34,16 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	if !h.IsValidUserID(order.UserID) {
 		log2.Errorf("创建订单失败: 非法用户")
 		errorResponse(c, http.StatusBadRequest, "创建订单失败")
+		return
+	}
+
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if !userInfo.IsAdmin {
+			order.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -104,6 +115,16 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 
 	utils.SanitizeOrder(&updateData)
 
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if !userInfo.IsAdmin {
+			order.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	// 开启事务
 	tx := h.DB.Begin()
 
@@ -141,17 +162,34 @@ func (h *Handler) GetOrders(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	offset := (page - 1) * pageSize
 
 	var total int64
-	if err := h.DB.Model(&models.Order{}).Count(&total).Error; err != nil {
+	if err := h.DB.Model(&models.Order{}).Where("shop_id = ?", shopID).Count(&total).Error; err != nil {
 		h.logger.Printf("获取订单总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
 
 	var orders []models.Order
-	if err := h.DB.Offset(offset).Limit(pageSize).
+	if err := h.DB.Where("shop_id = ?", shopID).Offset(offset).Limit(pageSize).
 		Preload("Items").
 		Preload("Items.Product").
 		Find(&orders).Error; err != nil {
@@ -175,9 +213,26 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
 		return
 	}
+	var shopID uint64 // 定义shopID变量，用于存储shopID的数值
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	var order models.Order
 	if err := h.DB.Preload("Items").
+		Where("shop_id = ?", shopID).
 		Preload("Items.Product").
 		Joins("User").
 		First(&order, id).Error; err != nil {
@@ -197,8 +252,25 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var order models.Order
-	if err := h.DB.First(&order, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", shopID).First(&order, id).Error; err != nil {
 		h.logger.Printf("删除订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
@@ -243,8 +315,25 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var order models.Order
-	if err := h.DB.First(&order, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", shopID).First(&order, id).Error; err != nil {
 		log2.Errorf("订单不存在, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
@@ -306,8 +395,25 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var orders []models.Order
-	if err := h.DB.Where("user_id = ?", userID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
+	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", shopID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
 		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
