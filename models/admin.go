@@ -8,7 +8,7 @@ import (
 
 type Admin struct {
 	// 管理员只有几个，可以不使用雪花算法
-	ID        uint      `gorm:"primarykey" json:"id"`
+	ID        uint64    `gorm:"primarykey" json:"id"`
 	Username  string    `gorm:"unique" json:"username"`
 	Password  string    `json:"-"` // 密码不会在JSON中返回
 	CreatedAt time.Time `json:"created_at"`
@@ -32,8 +32,7 @@ func (a *Admin) CheckPassword(password string) bool {
 }
 
 type UserInfo struct {
-	UserID   uint
+	UserID   uint64
 	Username string
 	IsAdmin  bool
-	ShopID   uint
 }

@@ -13,13 +13,13 @@ func getJWTSecret() []byte {
 }
 
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UserID   uint64 `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成JWT token
-func GenerateToken(userID uint, username string) (string, time.Time, error) {
+func GenerateToken(userID uint64, username string) (string, time.Time, error) {
 	// 从配置文件获取过期时间
 	expirationSeconds := viper.GetInt("jwt.expiration")
 	expirationTime := time.Now().Add(time.Duration(expirationSeconds) * time.Second)

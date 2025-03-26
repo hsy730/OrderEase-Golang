@@ -29,6 +29,16 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	product.Status = models.ProductStatusPending
 	product.ID = utils.GenerateSnowflakeID()
 
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if !userInfo.IsAdmin {
+			product.ShopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	if err := h.DB.Create(&product).Error; err != nil {
 		h.logger.Printf("创建商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
@@ -50,10 +60,26 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
 		return
 	}
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	// 获取当前商品信息
 	var product models.Product
-	if err := h.DB.First(&product, req.ID).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, req.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			errorResponse(c, http.StatusNotFound, "商品不存在")
 			return
@@ -121,8 +147,6 @@ func isValidProductStatusTransition(currentStatus, newStatus string) bool {
 func (h *Handler) GetProducts(c *gin.Context) {
 	var products []models.Product
 
-	v, _ := c.Get("username")
-	log2.Debugf("用户名： %v", v)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
@@ -136,13 +160,30 @@ func (h *Handler) GetProducts(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	offset := (page - 1) * pageSize
 
 	// 获取搜索关键词
 	search := c.Query("search")
 
 	// 只查询未下架的商品（待上架和已上架）
-	query := h.DB.Where("status != ?", models.ProductStatusOffline)
+	query := h.DB.Where("status != ? and shop_id = ?", models.ProductStatusOffline, shopID)
 
 	// 如果有搜索关键词，添加模糊搜索条件
 	if search != "" {
@@ -180,13 +221,33 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	var product models.Product
-	if err := h.DB.First(&product, id).Error; err != nil {
-		log2.Errorf("查询商品失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "商品未找到")
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	var product models.Product
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "商品不存在")
+		} else {
+			log2.Errorf("查询商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+		}
+		return
+	}
 	successResponse(c, product)
 }
 
@@ -198,10 +259,31 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var product models.Product
-	if err := h.DB.First(&product, id).Error; err != nil {
-		log2.Errorf("更新商品失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "商品未找到")
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "商品不存在")
+		} else {
+			log2.Errorf("查询商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+		}
 		return
 	}
 
@@ -220,9 +302,13 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	}
 
 	// 重新获取更新后的商品信息
-	if err := h.DB.First(&product, id).Error; err != nil {
-		log2.Errorf("获取更新后的商品信息失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取更新后的商品信息失败")
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "商品不存在")
+		} else {
+			log2.Errorf("查询商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+		}
 		return
 	}
 
@@ -237,11 +323,32 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	// 获取商品信息
 	var product models.Product
-	if err := h.DB.First(&product, id).Error; err != nil {
-		log2.Errorf("删除商品失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "商品不存在")
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "商品不存在")
+		} else {
+			log2.Errorf("查询商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+		}
 		return
 	}
 
@@ -296,10 +403,31 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
+	var shopID uint64
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if userInfo.IsAdmin {
+			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			if err != nil {
+				return errors.New("无效的店铺ID")
+			}
+			shopID = requestShopID // 将shopID设置为请求的店铺ID
+		} else {
+			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var product models.Product
-	if err := h.DB.First(&product, id).Error; err != nil {
-		log2.Errorf("商品不存在, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "商品不存在")
+	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "商品不存在")
+		} else {
+			log2.Errorf("查询商品失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "查询失败")
+		}
 		return
 	}
 

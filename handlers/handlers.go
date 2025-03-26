@@ -27,23 +27,25 @@ func NewHandler(db *gorm.DB) *Handler {
 	}
 }
 
-func (h *Handler) getUserInfo(c *gin.Context) (uint, error) {
-
+func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 	user_info, ok := c.Get("userInfo")
 	if !ok {
-		return 0, errors.New("未找到用户信息")
+		return nil, errors.New("未找到用户信息")
 	}
 
 	userInfo, ok := user_info.(models.UserInfo)
 	if !ok {
-		return 0, errors.New("用户信息格式错误")
+		return nil, errors.New("用户信息格式错误")
 	}
 
-	// 根据商家用户名获取商户ishopid
-	var shop models.Shop
-	if err := h.DB.Where("owner_username = ?", userInfo.Username).First(&shop).Error; err != nil {
-		return 0, errors.New("未找到商家用户名")
+	return &userInfo, nil
+}
 
+func (h *Handler) applyShopIdPolicy(c *gin.Context, setShopFunc func(models.UserInfo) error) error {
+	requestUser, err := h.getRequestUserInfo(c)
+	if err != nil {
+		return errors.New("获取用户信息失败")
 	}
-	return shop.ID, nil
+
+	return setShopFunc(*requestUser) // 非管理员，设置shopID为用户ID
 }
