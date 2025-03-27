@@ -63,7 +63,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -163,7 +163,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -224,7 +224,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -262,7 +262,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -326,7 +326,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -406,7 +406,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}

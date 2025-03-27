@@ -165,7 +165,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -216,7 +216,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	var shopID uint64 // 定义shopID变量，用于存储shopID的数值
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -255,7 +255,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -318,7 +318,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
@@ -398,7 +398,7 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	var shopID uint64
 	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
 		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shopID"), 10, 64)
+			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 			if err != nil {
 				return errors.New("无效的店铺ID")
 			}
