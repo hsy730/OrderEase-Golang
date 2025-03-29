@@ -6,6 +6,8 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 
+	"orderease/repositories"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -15,15 +17,17 @@ const (
 )
 
 type Handler struct {
-	DB     *gorm.DB
-	logger *log.Logger
+	DB          *gorm.DB
+	logger      *log.Logger
+	productRepo *repositories.ProductRepository
 }
 
 // 创建处理器实例
 func NewHandler(db *gorm.DB) *Handler {
 	return &Handler{
-		DB:     db,
-		logger: log2.Logger,
+		DB:          db,
+		logger:      log2.Logger,
+		productRepo: repositories.NewProductRepository(db),
 	}
 }
 

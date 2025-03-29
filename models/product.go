@@ -25,3 +25,15 @@ type Product struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 	Status      string       `json:"status"`
 }
+
+// ProductTag 商品和标签的多对多关系表
+type ProductTag struct {
+	ProductID snowflake.ID `gorm:"primaryKey" json:"product_id"`
+	TagID     int          `gorm:"primaryKey" json:"tag_id"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+	// 移除 ShopID（可通过关联查询获取）
+	// 通过以下方式保证数据一致性：
+	// 1. 添加数据库外键约束
+	// 2. 在应用层验证 Product.ShopID == Tag.ShopID
+}

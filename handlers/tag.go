@@ -20,6 +20,16 @@ func (h *Handler) CreateTag(c *gin.Context) {
 		return
 	}
 
+	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
+		if !userInfo.IsAdmin {
+			tag.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
+		}
+		return nil
+	}); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	if err := h.DB.Create(&tag).Error; err != nil {
 		h.logger.Printf("创建标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建标签失败")
@@ -134,7 +144,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 
 	// 检查标签是否存在
 	var tag models.Tag
-	if err := h.DB.First(&tag, req.TagID).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", req.ShopID).First(&tag, req.TagID).Error; err != nil {
 		h.logger.Printf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -142,11 +152,31 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 
 	// 批量创建关联
 	var productTags []models.ProductTag
+
+	// 批量查询商品的店铺信息
+	var validProducts []models.Product
+	if err := h.DB.Select("id").Where("id IN (?) AND shop_id = ?", req.ProductIDs, tag.ShopID).Find(&validProducts).Error; err != nil {
+		h.logger.Printf("批量查询商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "批量操作失败")
+		return
+	}
+
+	// 构建有效商品ID集合
+	validProductMap := make(map[snowflake.ID]bool)
+	for _, p := range validProducts {
+		validProductMap[p.ID] = true
+	}
+
+	// 过滤无效商品并生成关联记录
+	var successCount int
 	for _, productID := range req.ProductIDs {
-		productTags = append(productTags, models.ProductTag{
-			ProductID: productID,
-			TagID:     req.TagID,
-		})
+		if validProductMap[productID] {
+			productTags = append(productTags, models.ProductTag{
+				ProductID: productID,
+				TagID:     req.TagID,
+			})
+			successCount++
+		}
 	}
 
 	if err := h.DB.Create(&productTags).Error; err != nil {

@@ -52,7 +52,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	// 解析请求参数
 	var req struct {
-		ID     uint   `json:"id" binding:"required"`
+		ID     uint64 `json:"id" binding:"required"`
 		Status string `json:"status" binding:"required,oneof=pending online offline"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,14 +78,9 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	// 获取当前商品信息
-	var product models.Product
-	if err := h.DB.Where("shop_id = ?", shopID).First(&product, req.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-			return
-		}
-		log2.Errorf("查询商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "服务器内部错误")
+	product, err := h.productRepo.GetProductByID(req.ID, shopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -253,8 +248,8 @@ func (h *Handler) GetProduct(c *gin.Context) {
 
 // 更新商品信息
 func (h *Handler) UpdateProduct(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	id, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
@@ -276,14 +271,9 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	var product models.Product
-	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-		} else {
-			log2.Errorf("查询商品失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "查询失败")
-		}
+	product, err := h.productRepo.GetProductByID(id, shopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -302,13 +292,9 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	}
 
 	// 重新获取更新后的商品信息
-	if err := h.DB.Where("shop_id = ?", shopID).First(&product, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-		} else {
-			log2.Errorf("查询商品失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "查询失败")
-		}
+	product, err = h.productRepo.GetProductByID(id, shopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
