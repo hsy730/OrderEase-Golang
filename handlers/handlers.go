@@ -45,15 +45,6 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 	return &userInfo, nil
 }
 
-func (h *Handler) applyShopIdPolicy(c *gin.Context, setShopFunc func(models.UserInfo) error) error {
-	requestUser, err := h.getRequestUserInfo(c)
-	if err != nil {
-		return errors.New("获取用户信息失败")
-	}
-
-	return setShopFunc(*requestUser) // 非管理员，设置shopID为用户ID
-}
-
 func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
 	requestUser, err := h.getRequestUserInfo(c)
 	if err != nil {
