@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"orderease/models"
@@ -20,15 +19,13 @@ func (h *Handler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if !userInfo.IsAdmin {
-			tag.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
-		}
-		return nil
-	}); err != nil {
+	validShopID, err := h.validAndReturnShopID(c, tag.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	if err := h.DB.Create(&tag).Error; err != nil {
 		h.logger.Printf("创建标签失败: %v", err)
@@ -132,15 +129,13 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		return
 	}
 
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if !userInfo.IsAdmin {
-			req.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
-		}
-		return nil
-	}); err != nil {
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 检查标签是否存在
 	var tag models.Tag
@@ -200,15 +195,13 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if !userInfo.IsAdmin {
-			tag.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
-		}
-		return nil
-	}); err != nil {
+	validShopID, err := h.validAndReturnShopID(c, tag.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	if err := h.DB.Save(&tag).Error; err != nil {
 		h.logger.Printf("更新标签失败: %v", err)
@@ -227,26 +220,21 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 检查标签是否存在
 	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", shopID).First(&tag, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
 		h.logger.Printf("标签不存在, ID: %s", id)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -283,25 +271,20 @@ func (h *Handler) GetTags(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 查询所有标签
-	if err := h.DB.Where("shop_id = ?", shopID).Find(&tags).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).Find(&tags).Error; err != nil {
 		h.logger.Printf("获取标签列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取标签列表失败")
 		return
@@ -339,19 +322,14 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		return
 	}
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -364,12 +342,12 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 	var total int64
 
 	// 查询未绑定该标签的商品
-	err := h.DB.Raw(`
+	err = h.DB.Raw(`
 		SELECT * FROM products
 		WHERE id NOT IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ? AND shop_id =?
-		) LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error
+		) LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
 		h.logger.Printf("查询未绑定商品失败: %v", err)
@@ -399,19 +377,14 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	offset := (page - 1) * pageSize
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -420,11 +393,11 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	var total int64
 
 	// 查询没有绑定商品的标签
-	err := h.DB.Raw(`
+	err = h.DB.Raw(`
 		SELECT * FROM tags
 		WHERE shop_id = ? ANS id NOT IN (
 			SELECT DISTINCT tag_id FROM product_tags
-		) LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&tags).Error
+		) LIMIT ? OFFSET ?`, validShopID, pageSize, offset).Scan(&tags).Error
 
 	if err != nil {
 		h.logger.Printf("查询未绑定商品标签失败: %v", err)
@@ -437,7 +410,7 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 		SELECT COUNT(*) FROM tags
 		WHERE shop_id = ? AND id NOT IN (
 			SELECT DISTINCT tag_id FROM product_tags
-		)`, shopID).Scan(&total)
+		)`, validShopID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -455,19 +428,14 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		return
 	}
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -478,7 +446,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 
 	// 处理未绑定商品查询
 	if tagID == "-1" {
-		products, total, err := h.getUnboundProducts(shopID, page, pageSize)
+		products, total, err := h.getUnboundProducts(validShopID, page, pageSize)
 		if err != nil {
 			h.logger.Printf("查询未绑定商品失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "查询失败")
@@ -497,12 +465,12 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	var total int64
 
 	// 查询已绑定该标签的商品
-	err := h.DB.Raw(`
+	err = h.DB.Raw(`
 		SELECT * FROM products
 		WHERE id IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ? AND shop_id =?
-		) LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error
+		) LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
 		h.logger.Printf("查询已绑定商品失败: %v", err)
@@ -557,25 +525,20 @@ func (h *Handler) GetTag(c *gin.Context) {
 		return
 	}
 
-	var shopID uint64
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if userInfo.IsAdmin {
-			requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-			if err != nil {
-				return errors.New("无效的店铺ID")
-			}
-			shopID = requestShopID // 将shopID设置为请求的店铺ID
-		} else {
-			shopID = userInfo.UserID // 将shopID设置为当前用户的ID
-		}
-		return nil
-	}); err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", shopID).First(&tag, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
 		h.logger.Printf("获取标签详情失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -598,15 +561,12 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		return
 	}
 
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if !userInfo.IsAdmin {
-			req.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
-		}
-		return nil
-	}); err != nil {
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 检查标签是否存在
 	var tag models.Tag
@@ -647,15 +607,12 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		return
 	}
 
-	if err := h.applyShopIdPolicy(c, func(userInfo models.UserInfo) error {
-		if !userInfo.IsAdmin {
-			req.ShopID = userInfo.UserID // 将shopID设置为请求的店铺ID
-		}
-		return nil
-	}); err != nil {
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 获取当前标签
 	var currentTags []models.Tag
@@ -698,7 +655,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	}
 
 	// 在事务中执行操作
-	err := h.DB.Transaction(func(tx *gorm.DB) error {
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
 		// 添加新标签
 		if len(tagsToAdd) > 0 {
 			if err := tx.Create(&tagsToAdd).Error; err != nil {
