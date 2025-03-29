@@ -47,6 +47,8 @@ func Init() (*gorm.DB, error) {
 		&models.User{},
 		&models.Tag{},
 		&models.ProductTag{},
+		&models.Shop{},
+
 		&models.OrderStatusLog{},   // 不需要迁移数据
 		&models.Admin{},            // 不需要迁移数据
 		&models.BlacklistedToken{}, // 不需要迁移数据
