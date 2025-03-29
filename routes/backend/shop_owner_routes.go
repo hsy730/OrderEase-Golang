@@ -65,5 +65,10 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 			tag.GET("/unbound-products", h.GetUnboundProductsForTag) // 获取标签未绑定的商品列表
 			tag.GET("/bound-products", h.GetTagBoundProducts)        // 获取标签已绑定的商品列表
 		}
+
+		shop := shopOwner.Group("/shop")
+		{
+			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
+		}
 	}
 }

@@ -27,3 +27,12 @@ func (r *ProductRepository) CheckProductsBelongToShop(productIDs []uint, shopID 
 		Pluck("id", &validIDs).Error
 	return validIDs, err
 }
+
+func (r *ProductRepository) GetShopTagsByID(shopID uint64) ([]models.Tag, error) {
+	tags := make([]models.Tag, 0)
+	err := r.DB.Where("shop_id = ?", shopID).Find(&tags).Error
+	if err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
