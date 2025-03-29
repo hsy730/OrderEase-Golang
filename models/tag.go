@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/bwmarrin/snowflake"
 )
 
 // Tag 商品标签
@@ -16,13 +14,4 @@ type Tag struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Products    []Product `gorm:"many2many:product_tags;" json:"products"`
-}
-
-// ProductTag 商品和标签的多对多关系表
-type ProductTag struct {
-	ProductID snowflake.ID `gorm:"primaryKey" json:"product_id"`
-	TagID     int          `gorm:"primaryKey" json:"tag_id"`
-	ShopID    int          `gorm:"index;not null" json:"shop_id"` // 新增店铺ID
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
 }
