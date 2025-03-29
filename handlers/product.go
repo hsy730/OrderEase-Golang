@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"orderease/models"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // 创建商品
@@ -136,6 +134,11 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
 
 	if page < 1 {
 		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
@@ -144,12 +147,6 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	if pageSize < 1 || pageSize > 100 {
 		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
-		return
-	}
-
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
 
@@ -197,8 +194,8 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 // 获取单个商品详情
 func (h *Handler) GetProduct(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
@@ -215,14 +212,9 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	var product models.Product
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&product, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-		} else {
-			log2.Errorf("查询商品失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "查询失败")
-		}
+	product, err := h.productRepo.GetProductByID(id, validShopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 	successResponse(c, product)
@@ -230,7 +222,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 
 // 更新商品信息
 func (h *Handler) UpdateProduct(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
@@ -280,8 +272,8 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 // 删除商品
 func (h *Handler) DeleteProduct(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
@@ -298,18 +290,11 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	// 获取商品信息
-	var product models.Product
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&product, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-		} else {
-			log2.Errorf("查询商品失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "查询失败")
-		}
+	product, err := h.productRepo.GetProductByID(id, validShopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
-
 	// 检查是否存在关联订单
 	var orderCount int64
 	if err := h.DB.Model(&models.OrderItem{}).
@@ -355,8 +340,8 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	// 限制文件大小
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
 
-	id := c.Query("id")
-	if id == "" {
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少商品ID")
 		return
 	}
@@ -373,14 +358,9 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	var product models.Product
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&product, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			errorResponse(c, http.StatusNotFound, "商品不存在")
-		} else {
-			log2.Errorf("查询商品失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "查询失败")
-		}
+	product, err := h.productRepo.GetProductByID(id, validShopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
