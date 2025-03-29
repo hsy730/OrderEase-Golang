@@ -660,56 +660,8 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		return
 	}
 
-	// 计算需要添加和删除的标签
-	currentTagMap := make(map[int]bool)
-	for _, tag := range currentTags {
-		currentTagMap[tag.ID] = true
-	}
-
-	newTagMap := make(map[int]bool)
-	for _, tagID := range req.TagIDs {
-		newTagMap[tagID] = true
-	}
-
-	// 需要添加的标签
-	var tagsToAdd []models.ProductTag
-	for _, tagID := range req.TagIDs {
-		if !currentTagMap[tagID] {
-			tagsToAdd = append(tagsToAdd, models.ProductTag{
-				ProductID: req.ProductID,
-				TagID:     tagID,
-			})
-		}
-	}
-
-	// 需要删除的标签
-	var tagsToDelete []int
-	for _, tag := range currentTags {
-		if !newTagMap[tag.ID] {
-			tagsToDelete = append(tagsToDelete, tag.ID)
-		}
-	}
-
-	// 在事务中执行操作
-	err = h.DB.Transaction(func(tx *gorm.DB) error {
-		// 添加新标签
-		if len(tagsToAdd) > 0 {
-			if err := tx.Create(&tagsToAdd).Error; err != nil {
-				return err
-			}
-		}
-
-		// 删除旧标签
-		if len(tagsToDelete) > 0 {
-			if err := tx.Where("product_id = ? AND tag_id IN (?)", req.ProductID, tagsToDelete).
-				Delete(&models.ProductTag{}).Error; err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
+	// 替换原有计算和更新逻辑
+	added, deleted, err := h.updateProductTags(currentTags, req.TagIDs, req.ProductID, req.ShopID)
 	if err != nil {
 		h.logger.Printf("批量更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量更新标签失败")
@@ -718,7 +670,61 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 
 	successResponse(c, gin.H{
 		"message":       "批量更新标签成功",
-		"added_count":   len(tagsToAdd),
-		"deleted_count": len(tagsToDelete),
+		"added_count":   added,
+		"deleted_count": deleted,
 	})
+}
+
+// 新增方法：更新商品标签关联
+func (h *Handler) updateProductTags(currentTags []models.Tag, newTagIDs []int, productID snowflake.ID, shopID uint64) (int, int, error) {
+	// 计算差异
+	currentTagMap := make(map[int]bool)
+	for _, tag := range currentTags {
+		currentTagMap[tag.ID] = true
+	}
+
+	newTagMap := make(map[int]bool)
+	for _, tagID := range newTagIDs {
+		newTagMap[tagID] = true
+	}
+
+	// 准备操作数据
+	var tagsToAdd []models.ProductTag
+	var tagsToDelete []int
+
+	// 计算需要添加的标签
+	for _, tagID := range newTagIDs {
+		if !currentTagMap[tagID] {
+			tagsToAdd = append(tagsToAdd, models.ProductTag{
+				ProductID: productID,
+				TagID:     tagID,
+			})
+		}
+	}
+
+	// 计算需要删除的标签
+	for _, tag := range currentTags {
+		if !newTagMap[tag.ID] {
+			tagsToDelete = append(tagsToDelete, tag.ID)
+		}
+	}
+
+	// 执行事务操作
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if len(tagsToAdd) > 0 {
+			if err := tx.Create(&tagsToAdd).Error; err != nil {
+				return err
+			}
+		}
+
+		if len(tagsToDelete) > 0 {
+			if err := tx.Where("product_id = ? AND tag_id IN (?)", productID, tagsToDelete).
+				Delete(&models.ProductTag{}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return len(tagsToAdd), len(tagsToDelete), err
 }
