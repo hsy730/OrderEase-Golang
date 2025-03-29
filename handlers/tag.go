@@ -44,9 +44,22 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var products []models.Product
-	err := h.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
-		Where("product_tags.tag_id = ? AND products.status = ?", tagID, models.ProductStatusOnline).
+	err = h.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
+		Where("product_tags.tag_id = ? AND products.status = ? AND products.shop_id = ?",
+			tagID, models.ProductStatusOnline, validShopID).
 		Find(&products).Error
 
 	if err != nil {
@@ -69,11 +82,24 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var tags []models.Tag
-	err := h.DB.Raw(`
+	err = h.DB.Raw(`
 		SELECT tags.* FROM tags
 		JOIN product_tags ON product_tags.tag_id = tags.id
-		WHERE product_tags.product_id = ?`, productID).Scan(&tags).Error
+		WHERE product_tags.product_id = ? 
+		AND tags.shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
 
 	if err != nil {
 		h.logger.Printf("查询已绑定标签失败: %v", err)
@@ -95,13 +121,26 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var tags []models.Tag
-	err := h.DB.Raw(`
+	err = h.DB.Raw(`
 		SELECT * FROM tags 
 		WHERE id NOT IN (
 			SELECT tag_id FROM product_tags 
 			WHERE product_id = ?
-		)`, productID).Scan(&tags).Error
+		)
+		AND shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
 
 	if err != nil {
 		h.logger.Printf("查询未绑定标签失败: %v", err)
@@ -570,7 +609,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 
 	// 检查标签是否存在
 	var tag models.Tag
-	if err := h.DB.First(&tag, req.TagID).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, req.TagID).Error; err != nil {
 		h.logger.Printf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -614,12 +653,9 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	}
 	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
-	// 获取当前标签
-	var currentTags []models.Tag
-	if err := h.DB.Joins("JOIN product_tags ON product_tags.tag_id = tags.id").
-		Where("product_tags.product_id = ? AND product_tags.shop_id = ?", req.ProductID, req.ShopID).
-		Find(&currentTags).Error; err != nil {
-		h.logger.Printf("获取当前标签失败: %v", err)
+	// 替换原有查询代码
+	currentTags, err := h.productRepo.GetCurrentProductTags(req.ProductID, req.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取当前标签失败")
 		return
 	}
