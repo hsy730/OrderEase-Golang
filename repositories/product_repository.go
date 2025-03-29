@@ -40,3 +40,24 @@ func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) 
 	}
 	return products, nil
 }
+
+// CheckShopExists 校验店铺ID合法性
+func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
+    var count int64
+    if err := r.DB.Model(&models.Shop{}).Where("id = ?", shopID).Count(&count).Error; err != nil {
+        log2.Errorf("CheckShopExists failed: %v", err)
+        return false, errors.New("店铺校验失败")
+    }
+    return count > 0, nil
+}
+
+// GetShopProducts 获取指定店铺的商品（用于批量操作前的店铺校验）
+func (r *ProductRepository) GetShopProducts(shopID uint64, productIDs []snowflake.ID) ([]models.Product, error) {
+    var products []models.Product
+    if err := r.DB.Select("id").
+        Where("shop_id = ? AND id IN (?)", shopID, productIDs).
+        Find(&products).Error; err != nil {
+        return nil, err
+    }
+    return products, nil
+}

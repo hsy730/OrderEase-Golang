@@ -53,3 +53,21 @@ func (h *Handler) applyShopIdPolicy(c *gin.Context, setShopFunc func(models.User
 
 	return setShopFunc(*requestUser) // 非管理员，设置shopID为用户ID
 }
+
+func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
+	requestUser, err := h.getRequestUserInfo(c)
+	if err != nil {
+		return 0, errors.New("获取用户信息失败")
+	}
+	if !requestUser.IsAdmin {
+		shopID = requestUser.UserID // 非管理员，设置shopID为用户ID
+	}
+	exist, err := h.productRepo.CheckShopExists(shopID)
+	if err != nil {
+		return 0, err
+	}
+	if !exist {
+		return 0, errors.New("店铺不存在")
+	}
+	return shopID, nil
+}
