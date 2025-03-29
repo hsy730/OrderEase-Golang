@@ -288,8 +288,9 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 // 翻转订单状态
 func (h *Handler) ToggleOrderStatus(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	if err != nil {
+		log2.Errorf("无效的订单ID: %v", err)
 		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
 		return
 	}
@@ -306,10 +307,9 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
-	var order models.Order
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&order, id).Error; err != nil {
-		log2.Errorf("订单不存在, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "订单不存在")
+	order, err := h.productRepo.GetOrderByIDAndShopID(id, validShopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -387,7 +387,6 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
 	}
-	//
 
 	successResponse(c, gin.H{
 		"code": 200,

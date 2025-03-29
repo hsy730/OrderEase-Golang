@@ -14,25 +14,17 @@ import (
 
 // GetShopTags 获取店铺标签列表
 func (h *Handler) GetShopTags(c *gin.Context) {
-	shopID := c.Param("shop_id")
-
-	// 转换店铺ID为数字
-	shopIDInt, err := strconv.Atoi(shopID)
-	if err != nil || shopIDInt <= 0 {
+	shopID, err := strconv.ParseUint(c.Param("shop_id"), 10, 64)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
 
-	var tags []models.Tag
-	if err := h.DB.Where("shop_id = ?", shopIDInt).Find(&tags).Error; err != nil {
-		h.logger.Printf("查询店铺标签失败，店铺ID: %d，错误: %v", shopIDInt, err)
-		errorResponse(c, http.StatusInternalServerError, "获取标签失败")
+	tags, err := h.productRepo.GetShopTagsByID(shopID)
+	if err != nil {
+		h.logger.Printf("查询店铺标签失败，ID: %d，错误: %v", shopID, err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
-	}
-
-	// 如果查询结果为空返回空数组
-	if len(tags) == 0 {
-		tags = make([]models.Tag, 0)
 	}
 
 	successResponse(c, gin.H{
@@ -179,7 +171,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID           uint   `json:"id" binding:"required"`
+		ID           uint64 `json:"id" binding:"required"`
 		Name         string `json:"name"`
 		ContactPhone string `json:"contact_phone"`
 		ContactEmail string `json:"contact_email"`
@@ -193,8 +185,8 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 
 	// 查询现有店铺
-	var shop models.Shop
-	if err := h.DB.First(&shop, updateData.ID).Error; err != nil {
+	shop, err := h.productRepo.GetShopByID(updateData.ID)
+	if err != nil {
 		errorResponse(c, http.StatusNotFound, "店铺不存在")
 		return
 	}

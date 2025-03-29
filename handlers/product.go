@@ -392,7 +392,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		}
 	}
 
-	filename := fmt.Sprintf("product_%s_%d%s",
+	filename := fmt.Sprintf("product_%d_%d%s",
 		id,
 		time.Now().Unix(),
 		filepath.Ext(file.Filename))
