@@ -222,22 +222,25 @@
 ### 创建店铺
 - **方法**: POST
 - **路径**: /shop/create
-- **描述**: 创建新的产品
+- **描述**: 创建新的店铺
 - **请求参数**:
-  产品数据以JSON格式传递，具体字段参考 `models.Product` 结构体。
+  店铺数据以JSON格式传递，具体字段参考 `models.Shop` 结构体，包含以下字段：
+  - name (string): 店铺名称
+  - description (string): 店铺描述
+  - address (string): 店铺地址
+  - contact (string): 联系方式
 - **响应**: 
-  成功时返回创建的产品信息，失败时返回错误信息。示例如下：
+  成功时返回创建的店铺信息，失败时返回错误信息。示例如下：
   成功:
   ```json
   { 
     "code": 200,
     "data": {
-      "id": "123",
-      "name": "产品A",
-      "description": "产品描述",
-      "price": 99.9,
-      "stock": 100,
-      "tags": ["tag1", "tag2"]
+      "id": "SHOP123",
+      "name": "店铺A",
+      "description": "店铺描述",
+      "address": "店铺地址",
+      "contact": "联系方式"
     }
   }
   ```
@@ -245,29 +248,33 @@
   ```json
   { 
     "code": 404,
-    "message": "Product creation failed"
+    "message": "Shop creation failed"
   }
   ```
 
 ### 更新店铺
 - **方法**: PUT
 - **路径**: /shop/update
-- **描述**: 更新产品信息
+- **描述**: 更新店铺信息
 - **请求参数**:
-  产品数据以JSON格式传递，具体字段参考 `models.Product` 结构体。
+  店铺数据以JSON格式传递，具体字段参考 `models.Shop` 结构体，包含以下字段：
+  - id (string): 店铺ID
+  - name (string): 店铺名称
+  - description (string): 店铺描述
+  - address (string): 店铺地址
+  - contact (string): 联系方式
 - **响应**: 
-  成功时返回更新后的产品信息，失败时返回错误信息。示例如下：
+  成功时返回更新后的店铺信息，失败时返回错误信息。示例如下：
   成功:
   ```json
   { 
     "code": 200,
     "data": {
-      "id": "123",
-      "name": "产品A",
-      "description": "更新后的产品描述",
-      "price": 109.9,
-      "stock": 90,
-      "tags": ["tag1", "tag2"]
+      "id": "SHOP123",
+      "name": "更新后的店铺名称",
+      "description": "更新后的店铺描述",
+      "address": "更新后的店铺地址",
+      "contact": "更新后的联系方式"
     }
   }
   ```
@@ -275,7 +282,7 @@
   ```json
   { 
     "code": 404,
-    "message": "Product update failed"
+    "message": "Shop update failed"
   }
   ```
 
