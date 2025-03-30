@@ -225,10 +225,13 @@
 - **描述**: 创建新的店铺
 - **请求参数**:
   店铺数据以JSON格式传递，具体字段参考 `models.Shop` 结构体，包含以下字段：
+  - owner_username (string): 店主登录用户名
+  - owner_password (string): 店主登录密码
   - name (string): 店铺名称
+  - contact_phone (string): 联系电话
+  - contact_email (string): 联系邮箱
   - description (string): 店铺描述
-  - address (string): 店铺地址
-  - contact (string): 联系方式
+  - valid_until (string): 有效期截止时间（ISO8601格式）
 - **响应**: 
   成功时返回创建的店铺信息，失败时返回错误信息。示例如下：
   成功:
@@ -239,8 +242,9 @@
       "id": "SHOP123",
       "name": "店铺A",
       "description": "店铺描述",
-      "address": "店铺地址",
-      "contact": "联系方式"
+      "contact_phone": "13800138000",
+      "contact_email": "shop@example.com",
+      "valid_until": "2025-12-31T23:59:59Z"
     }
   }
   ```
@@ -258,11 +262,13 @@
 - **描述**: 更新店铺信息
 - **请求参数**:
   店铺数据以JSON格式传递，具体字段参考 `models.Shop` 结构体，包含以下字段：
-  - id (string): 店铺ID
+  - owner_username (string): 店主登录用户名
+  - owner_password (string): 店主登录密码（可选修改）
   - name (string): 店铺名称
+  - contact_phone (string): 联系电话
+  - contact_email (string): 联系邮箱
   - description (string): 店铺描述
-  - address (string): 店铺地址
-  - contact (string): 联系方式
+  - valid_until (string): 新的有效期截止时间（ISO8601格式）
 - **响应**: 
   成功时返回更新后的店铺信息，失败时返回错误信息。示例如下：
   成功:
@@ -273,8 +279,9 @@
       "id": "SHOP123",
       "name": "更新后的店铺名称",
       "description": "更新后的店铺描述",
-      "address": "更新后的店铺地址",
-      "contact": "更新后的联系方式"
+      "contact_phone": "更新后的联系电话",
+      "contact_email": "updated@example.com",
+      "valid_until": "2026-12-31T23:59:59Z"
     }
   }
   ```
@@ -302,8 +309,9 @@
       "id": "SHOP123",
       "name": "店铺A",
       "description": "店铺描述",
-      "address": "店铺地址",
-      "contact": "联系方式"
+      "contact_phone": "13800138000",
+      "contact_email": "shop@example.com",
+      "valid_until": "2025-12-31T23:59:59Z"
     }
   }
   ```
