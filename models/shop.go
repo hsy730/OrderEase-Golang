@@ -16,12 +16,14 @@ type Shop struct {
 	OwnerUsername string `gorm:"size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
 	OwnerPassword string `gorm:"size:255;not null" json:"-"`                         // 店主登录密码
 
-	ContactPhone string    `gorm:"size:20" json:"contact_phone"`
-	ContactEmail string    `gorm:"size:100" json:"contact_email"`
-	Description  string    `gorm:"type:text" json:"description"` // 店铺描述
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	ValidUntil   time.Time `gorm:"index" json:"valid_until"` // 有效期
+	ContactPhone string `gorm:"size:20" json:"contact_phone"`
+	ContactEmail string `gorm:"size:100" json:"contact_email"`
+	Address      string `gorm:"size:100" json:"address"`
+
+	Description string    `gorm:"type:text" json:"description"` // 店铺描述
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	ValidUntil  time.Time `gorm:"index" json:"valid_until"` // 有效期
 	// 假设使用 gorm.io/datatypes 包中的 JSON 类型
 	Settings datatypes.JSON `gorm:"type:json" json:"settings"` // 店铺设置
 	Products []Product      `gorm:"foreignKey:ShopID" json:"products"`
