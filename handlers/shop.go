@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"orderease/models"
+	"orderease/utils/log2"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -127,13 +128,14 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	var shopData struct {
 		Name          string `json:"name" binding:"required"`
 		OwnerUsername string `json:"owner_username" binding:"required"`
-		OwnerPassword string `json:"password" binding:"required"`
+		OwnerPassword string `json:"owner_password" binding:"required"`
 		ContactPhone  string `json:"contact_phone"`
 		ContactEmail  string `json:"contact_email"`
 		Description   string `json:"description"`
 	}
 
 	if err := c.ShouldBindJSON(&shopData); err != nil {
+		log2.Errorf("Bind Json failed: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
