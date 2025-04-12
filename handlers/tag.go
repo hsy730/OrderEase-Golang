@@ -304,8 +304,16 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	successResponse(c, gin.H{"message": "标签删除成功"})
 }
 
+func (h *Handler) GetTagsForFront(c *gin.Context) {
+	h.GetTags(c, true)
+}
+
+func (h *Handler) GetTagsForBackend(c *gin.Context) {
+	h.GetTags(c, false)
+}
+
 // GetTags 获取标签列表, 全部
-func (h *Handler) GetTags(c *gin.Context) {
+func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	var tags []models.Tag
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -330,16 +338,18 @@ func (h *Handler) GetTags(c *gin.Context) {
 	}
 
 	// 检测是否存在未绑定标签的商品
-	var unbindCount int64
-	h.DB.Raw(`SELECT COUNT(*) FROM products 
+	if isFront {
+		var unbindCount int64
+		h.DB.Raw(`SELECT COUNT(*) FROM products 
         WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
 
-	// 如果存在未绑定商品，添加虚拟标签
-	if unbindCount > 0 {
-		tags = append(tags, models.Tag{
-			ID:   -1,
-			Name: "其他",
-		})
+		// 如果存在未绑定商品，添加虚拟标签
+		if unbindCount > 0 {
+			tags = append(tags, models.Tag{
+				ID:   -1,
+				Name: "其他",
+			})
+		}
 	}
 
 	// 获取总数时包含虚拟标签

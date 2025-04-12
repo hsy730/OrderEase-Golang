@@ -70,7 +70,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 		tag := admin.Group("/tag")
 		{
 			tag.POST("/create", h.CreateTag)
-			tag.GET("/list", h.GetTags)
+			tag.GET("/list", h.GetTagsForBackend)
 			tag.GET("/detail", h.GetTag)
 			tag.PUT("/update", h.UpdateTag)
 			tag.DELETE("/delete", h.DeleteTag)
