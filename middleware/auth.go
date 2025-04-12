@@ -35,6 +35,7 @@ func AuthMiddleware(isAdmin bool) gin.HandlerFunc {
 		// 验证token
 		claims, err := utils.ParseToken(token)
 		if err != nil {
+			log2.Debugf("invalid token: %s, error: %v", token, err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
 			return
 		}

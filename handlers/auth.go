@@ -216,6 +216,7 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 	// 验证旧token
 	claims, err := utils.ParseToken(oldToken)
 	if err != nil {
+		log2.Debugf("invalid token: %s, error: %v", oldToken, err)
 		errorResponse(c, http.StatusUnauthorized, "无效的token")
 		return
 	}
@@ -269,6 +270,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	// 验证token
 	claims, err := utils.ParseToken(token)
 	if err != nil {
+		log2.Debugf("invalid token: %s, error: %v", token, err)
 		errorResponse(c, http.StatusUnauthorized, "无效的token")
 		return
 	}
