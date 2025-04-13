@@ -29,6 +29,13 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	validShopID, err := h.validAndReturnShopID(c, user.ShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	user.ShopID = validShopID
+
 	// 生成用户ID
 	user.ID = utils.GenerateSnowflakeID()
 	if err := h.DB.Create(&user).Error; err != nil {
@@ -58,14 +65,28 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	var users []models.User
 	var total int64
 
-	if err := h.DB.Model(&models.User{}).Count(&total).Error; err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	baseQuery := h.DB.Model(&models.User{}).Where("shop_id = ?", validShopID)
+
+	if err := baseQuery.Count(&total).Error; err != nil {
 		h.logger.Printf("获取用户总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
 
 	offset := (page - 1) * pageSize
-	if err := h.DB.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+	if err := baseQuery.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
 		h.logger.Printf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
@@ -87,8 +108,20 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
 		h.logger.Printf("查询用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
@@ -105,8 +138,20 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
 		h.logger.Printf("更新用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
@@ -154,8 +199,20 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
 		h.logger.Printf("删除用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户不存在")
 		return
@@ -191,7 +248,19 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 		Name string `json:"name"`
 	}
 
-	if err := h.DB.Model(&models.User{}).Select("id, name").Find(&users).Error; err != nil {
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := h.DB.Where("shop_id = ?", validShopID).Model(&models.User{}).Select("id, name").Find(&users).Error; err != nil {
 		h.logger.Printf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return

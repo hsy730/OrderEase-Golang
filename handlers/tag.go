@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"orderease/models"
+	"orderease/utils/log2"
 	"strconv"
 
 	"github.com/bwmarrin/snowflake"
@@ -339,6 +340,7 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 
 	// 检测是否存在未绑定标签的商品
 	if isFront {
+		log2.Debugf("GetTags isFront: %v ", isFront)
 		var unbindCount int64
 		h.DB.Raw(`SELECT COUNT(*) FROM products 
         WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
