@@ -8,6 +8,8 @@ import (
 
 	"orderease/repositories"
 
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -46,13 +48,19 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 }
 
 func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
-	requestUser, err := h.getRequestUserInfo(c)
-	if err != nil {
-		return 0, errors.New("获取用户信息失败")
+	// 如果是管理端接口，普通用户（店主）需要使用绑定的shopId
+	if strings.Contains(c.Request.URL.Path, "/admin/") {
+		requestUser, err := h.getRequestUserInfo(c)
+		if err != nil {
+			return 0, errors.New("获取用户信息失败")
+		}
+		if !requestUser.IsAdmin {
+			shopID = requestUser.UserID // 非管理员，设置shopID为用户ID
+		}
+	} else {
+		log2.Debugf("非管理端接口，shopID: %d", shopID)
 	}
-	if !requestUser.IsAdmin {
-		shopID = requestUser.UserID // 非管理员，设置shopID为用户ID
-	}
+
 	exist, err := h.productRepo.CheckShopExists(shopID)
 	if err != nil {
 		return 0, err

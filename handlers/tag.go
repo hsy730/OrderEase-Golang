@@ -554,7 +554,7 @@ func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]m
 	// 执行未绑定商品查询
 	err := h.DB.Raw(`
 		SELECT * FROM products
-		WHERE shop_id = ? AMD id NOT IN (
+		WHERE shop_id = ? AND id NOT IN (
 			SELECT product_id FROM product_tags
 		) LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&products).Error
 

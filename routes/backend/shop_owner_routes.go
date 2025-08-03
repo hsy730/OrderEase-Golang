@@ -14,10 +14,11 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 	basePath := config.AppConfig.Server.BasePath
 
 	// 应用限流中间件到所有管理员接口
-	r.Use(middleware.RateLimitMiddleware())
 
 	// 需要认证的路由组
 	shopOwner := r.Group(basePath + "/shop")
+	shopOwner.Use(middleware.RateLimitMiddleware())
+
 	shopOwner.Use(middleware.AuthMiddleware(false))
 	{
 		shopOwner.POST("/logout", h.Logout) // 添加登出接口

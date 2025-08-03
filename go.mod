@@ -12,6 +12,7 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/datatypes v1.0.5
 	gorm.io/driver/mysql v1.5.4
 	gorm.io/gorm v1.25.7
 )
@@ -61,5 +62,7 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/datatypes v1.0.5 // indirect
+	gorm.io/driver/postgres v1.2.3 // indirect
+	gorm.io/driver/sqlite v1.5.7 // indirect
+	gorm.io/driver/sqlserver v1.5.4 // indirect
 )

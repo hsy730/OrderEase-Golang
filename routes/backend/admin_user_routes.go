@@ -13,11 +13,9 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 获取基础路径
 	basePath := config.AppConfig.Server.BasePath
 
-	// 应用限流中间件到所有管理员接口
-	r.Use(middleware.RateLimitMiddleware())
-
 	// 需要认证的路由组
 	admin := r.Group(basePath + "/admin")
+	admin.Use(middleware.RateLimitMiddleware())
 	admin.Use(middleware.AuthMiddleware(true))
 	{
 		admin.POST("/logout", h.Logout) // 添加登出接口
@@ -29,7 +27,8 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.POST("/create", h.CreateShop)
 			shop.PUT("/update", h.UpdateShop)
 			shop.GET("/detail", h.GetShopInfo)
-			shop.GET("/list", h.GetShopList) // 新增店铺信息查询
+			shop.GET("/list", h.GetShopList)
+			shop.DELETE("/delete", h.DeleteShop) // 新增删除店铺接口
 		}
 
 		// 商品管理接口

@@ -226,3 +226,46 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		"name": shop.Name,
 	})
 }
+
+// 删除店铺及关联数据
+func (h *Handler) DeleteShop(c *gin.Context) {
+	shopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	// 开启事务
+	tx := h.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 检查是否存在关联商品
+	var productCount int64
+	if err := tx.Model(&models.Product{}).Where("shop_id = ?", shopID).Count(&productCount).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("查询关联商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
+		return
+	}
+
+	if productCount > 0 {
+		tx.Rollback()
+		errorResponse(c, http.StatusConflict, "存在关联商品，无法删除店铺")
+		return
+	}
+
+	// 删除店铺记录
+	if err := tx.Where("id = ?", shopID).Delete(&models.Shop{}).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("删除店铺失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
+		return
+	}
+
+	tx.Commit()
+	successResponse(c, gin.H{"message": "店铺删除成功"})
+}

@@ -3,6 +3,7 @@ package frontend
 import (
 	"orderease/config"
 	"orderease/handlers"
+	"orderease/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,8 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 
 	// 公开路由组 - 不需要认证
 	public := r.Group(basePath)
+	public.Use(middleware.RateLimitMiddleware())
+
 	{
 		public.GET("/product/image", h.GetProductImage)
 		public.GET("/product/list", h.GetProducts)
