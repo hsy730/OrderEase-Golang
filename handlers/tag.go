@@ -710,6 +710,7 @@ func (h *Handler) updateProductTags(currentTags []models.Tag, newTagIDs []int, p
 			tagsToAdd = append(tagsToAdd, models.ProductTag{
 				ProductID: productID,
 				TagID:     tagID,
+				ShopID:    shopID,
 			})
 		}
 	}
