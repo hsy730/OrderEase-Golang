@@ -205,12 +205,14 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID           uint64 `json:"id" binding:"required"`
-		Name         string `json:"name"`
-		ContactPhone string `json:"contact_phone"`
-		ContactEmail string `json:"contact_email"`
-		Description  string `json:"description"`
-		ValidUntil   string `json:"valid_until"`
+		ID            uint64  `json:"id" binding:"required"`
+		OwnerUsername string  `json:"owner_username" binding:"required"`
+		OwnerPassword *string `json:"owner_password"` // 使用指针类型以区分null和空字符串
+		Name          string  `json:"name"`
+		ContactPhone  string  `json:"contact_phone"`
+		ContactEmail  string  `json:"contact_email"`
+		Description   string  `json:"description"`
+		ValidUntil    string  `json:"valid_until"`
 	}
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
@@ -222,6 +224,12 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	shop, err := h.productRepo.GetShopByID(updateData.ID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, "店铺不存在")
+		return
+	}
+
+	// 验证店主用户名
+	if shop.OwnerUsername != updateData.OwnerUsername {
+		errorResponse(c, http.StatusUnauthorized, "用户名不匹配")
 		return
 	}
 
@@ -246,6 +254,10 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		}
 		shop.ValidUntil = validUntil
 	}
+	// 处理密码更新：如果密码不为null，则更新密码
+	if updateData.OwnerPassword != nil {
+		shop.OwnerPassword = *updateData.OwnerPassword
+	}
 
 	if err := h.DB.Save(&shop).Error; err != nil {
 		h.logger.Printf("更新店铺失败: %v", err)
@@ -253,9 +265,20 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		return
 	}
 
+	// 构建响应数据（不包含密码）
 	successResponse(c, gin.H{
-		"id":   shop.ID,
-		"name": shop.Name,
+		"code": 200,
+		"data": gin.H{
+			"id":             shop.ID,
+			"name":           shop.Name,
+			"description":    shop.Description,
+			"owner_username": shop.OwnerUsername,
+			"contact_phone":  shop.ContactPhone,
+			"address":        shop.Address,
+			"contact_email":  shop.ContactEmail,
+			"valid_until":    shop.ValidUntil.Format(time.RFC3339),
+			"settings":       shop.Settings,
+		},
 	})
 }
 

@@ -281,11 +281,15 @@
     "code": 200,
     "data": {
       "id": "SHOP123",
-      "name": "更新后的店铺名称",
-      "description": "更新后的店铺描述",
-      "contact_phone": "更新后的联系电话",
-      "contact_email": "updated@example.com",
-      "valid_until": "2026-12-31T23:59:59Z"
+      "name": "店铺A",
+      "description": "店铺描述",
+      "owner_username": "testuser",
+      "owner_password": "123",
+      "contact_phone": "13800138000",
+      "address": "address",
+      "contact_email": "shop@example.com",
+      "valid_until": "2025-12-31T23:59:59Z",
+      "settings": {}
     }
   }
   ```
