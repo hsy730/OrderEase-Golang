@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"net/http"
@@ -57,12 +58,18 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{
-		"id":          shop.ID,
-		"name":        shop.Name,
-		"description": shop.Description,
-		"valid_until": shop.ValidUntil.Format(time.RFC3339),
-		"settings":    shop.Settings,
-		"created_at":  shop.CreatedAt.Format(time.RFC3339),
+		"id":             shop.ID,
+		"name":           shop.Name,
+		"owner_username": shop.OwnerUsername,
+		"contact_phone":  shop.ContactPhone,
+		"contact_email":  shop.ContactEmail,
+		"address":        shop.Address,
+		"description":    shop.Description,
+		"created_at":     shop.CreatedAt.Format(time.RFC3339),
+		"updated_at":     shop.UpdatedAt.Format(time.RFC3339),
+		"valid_until":    shop.ValidUntil.Format(time.RFC3339),
+		"settings":       shop.Settings,
+		// "tags":           shop.Tags,
 	})
 }
 
@@ -132,6 +139,8 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		ContactPhone  string `json:"contact_phone"`
 		ContactEmail  string `json:"contact_email"`
 		Description   string `json:"description"`
+		ValidUntil    string `json:"valid_until"`
+		Address       string `json:"address"`
 	}
 
 	if err := c.ShouldBindJSON(&shopData); err != nil {
@@ -148,6 +157,17 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		return
 	}
 
+	// 处理有效期
+	validUntil := time.Now().AddDate(1, 0, 0) // 默认有效期1年
+	if shopData.ValidUntil != "" {
+		parsedValidUntil, err := time.Parse(time.RFC3339, shopData.ValidUntil)
+		if err != nil {
+			errorResponse(c, http.StatusBadRequest, "无效的有效期格式")
+			return
+		}
+		validUntil = parsedValidUntil
+	}
+
 	newShop := models.Shop{
 		Name:          shopData.Name,
 		OwnerUsername: shopData.OwnerUsername,
@@ -155,7 +175,9 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		ContactPhone:  shopData.ContactPhone,
 		ContactEmail:  shopData.ContactEmail,
 		Description:   shopData.Description,
-		ValidUntil:    time.Now().AddDate(1, 0, 0), // 默认有效期1年
+		ValidUntil:    validUntil,
+		Address:       shopData.Address,
+		Settings:      datatypes.JSON(`{}`), // 初始化为空对象
 	}
 
 	if err := h.DB.Create(&newShop).Error; err != nil {
@@ -165,8 +187,18 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{
-		"id":   newShop.ID,
-		"name": newShop.Name,
+		"code": 200,
+		"data": gin.H{
+			"id":             newShop.ID,
+			"name":           newShop.Name,
+			"description":    newShop.Description,
+			"owner_username": newShop.OwnerUsername,
+			"contact_phone":  newShop.ContactPhone,
+			"address":        newShop.Address,
+			"contact_email":  newShop.ContactEmail,
+			"valid_until":    newShop.ValidUntil.Format(time.RFC3339),
+			"settings":       newShop.Settings,
+		},
 	})
 }
 
