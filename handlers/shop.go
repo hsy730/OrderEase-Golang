@@ -228,10 +228,10 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 
 	// 验证店主用户名
-	if shop.OwnerUsername != updateData.OwnerUsername {
-		errorResponse(c, http.StatusUnauthorized, "用户名不匹配")
-		return
-	}
+	// if shop.OwnerUsername != updateData.OwnerUsername {
+	// 	errorResponse(c, http.StatusUnauthorized, "用户名不匹配")
+	// 	return
+	// }
 
 	// 更新字段
 	if updateData.Name != "" {
@@ -253,6 +253,10 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 			return
 		}
 		shop.ValidUntil = validUntil
+	}
+
+	if updateData.OwnerUsername != "" {
+		shop.OwnerUsername = updateData.OwnerUsername
 	}
 	// 处理密码更新：如果密码不为null，则更新密码
 	if updateData.OwnerPassword != nil {

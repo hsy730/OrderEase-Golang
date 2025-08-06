@@ -16,7 +16,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 应用限流中间件到所有管理员接口
 
 	// 需要认证的路由组
-	shopOwner := r.Group(basePath + "/shop")
+	shopOwner := r.Group(basePath + "/shopOwner")
 	shopOwner.Use(middleware.RateLimitMiddleware())
 
 	shopOwner.Use(middleware.AuthMiddleware(false))

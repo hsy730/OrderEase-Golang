@@ -49,7 +49,7 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 
 func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
 	// 如果是管理端接口，普通用户（店主）需要使用绑定的shopId
-	if strings.Contains(c.Request.URL.Path, "/admin/") {
+	if strings.Contains(c.Request.URL.Path, "/shopOwner/") {
 		requestUser, err := h.getRequestUserInfo(c)
 		if err != nil {
 			return 0, errors.New("获取用户信息失败")
