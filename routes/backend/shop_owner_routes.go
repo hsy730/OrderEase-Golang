@@ -71,5 +71,16 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 		{
 			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
 		}
+
+		// 用户管理接口
+		user := shopOwner.Group("/user")
+		{
+			user.POST("/create", h.CreateUser)
+			user.GET("/list", h.GetUsers)
+			user.GET("/simple-list", h.GetUserSimpleList)
+			user.GET("/detail", h.GetUser)
+			user.PUT("/update", h.UpdateUser)
+			user.DELETE("/delete", h.DeleteUser)
+		}
 	}
 }
