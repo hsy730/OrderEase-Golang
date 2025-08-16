@@ -320,6 +320,7 @@
       "contact_phone": "13800138000",
       "contact_email": "shop@example.com",
       "valid_until": "2025-12-31T23:59:59Z"
+      "tags": []
     }
   }
   ```

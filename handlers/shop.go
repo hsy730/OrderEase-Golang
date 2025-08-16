@@ -69,7 +69,7 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 		"updated_at":     shop.UpdatedAt.Format(time.RFC3339),
 		"valid_until":    shop.ValidUntil.Format(time.RFC3339),
 		"settings":       shop.Settings,
-		// "tags":           shop.Tags,
+		"tags":           shop.Tags,
 	})
 }
 
