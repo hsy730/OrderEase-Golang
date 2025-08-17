@@ -7,7 +7,7 @@ import (
 )
 
 type Order struct {
-	ID         snowflake.ID `gorm:"primarykey" json:"id"`
+	ID         snowflake.ID `gorm:"primarykey" json:"id,omitempty"`
 	UserID     snowflake.ID `json:"user_id"`
 	ShopID     uint64       `gorm:"index;not null" json:"shop_id"`
 	User       User         `gorm:"foreignKey:UserID" json:"user"`
@@ -20,7 +20,7 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID        snowflake.ID `gorm:"primarykey" json:"id"`
+	ID        snowflake.ID `gorm:"primarykey" json:"id,omitempty"`
 	OrderID   snowflake.ID `json:"order_id"`
 	ProductID snowflake.ID `json:"product_id"`
 	Quantity  int          `json:"quantity"`

@@ -2,10 +2,17 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
 	"unicode"
 )
 
 // ValidatePassword 验证密码强度
+// ValidatePhoneWithRegex 验证中国大陆手机号格式
+func ValidatePhoneWithRegex(phone string) bool {
+	matched, _ := regexp.MatchString(`^1[3-9]\d{9}$`, phone)
+	return matched
+}
+
 func ValidatePassword(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("密码长度至少为8位")

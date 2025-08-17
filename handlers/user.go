@@ -5,16 +5,36 @@ import (
 	"orderease/models"
 	"orderease/utils"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+// 创建用户请求结构体
+type CreateUserRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Phone    string `json:"phone" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Type     string `json:"type" binding:"required,oneof=delivery pickup"`
+	Address  string `json:"address"`
+	IsSystem bool   `json:"is_system"`
+}
+
 // 创建用户
 func (h *Handler) CreateUser(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	req := CreateUserRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的用户数据: "+err.Error())
 		return
+	}
+	// 创建用户对象并设置密码
+	user := models.User{
+		Name:     req.Name,
+		Phone:    req.Phone,
+		Password: req.Password, // 存储哈希后的密码
+		Type:     req.Type,
+		IsSystem: req.IsSystem, // 明确设置默认值
+		Address:  req.Address,  // 初始化地址字段
 	}
 
 	// 验证用户类型
@@ -23,28 +43,38 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 验证手机号
-	if !isValidPhone(user.Phone) {
-		errorResponse(c, http.StatusBadRequest, "无效的手机号")
+	// 增强版手机号验证
+	if !utils.ValidatePhoneWithRegex(user.Phone) {
+		h.logger.Printf("无效的手机号格式: %s", user.Phone)
+		errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, user.ShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+	// 检查手机号唯一性
+	var existingUser models.User
+	if h.DB.Where("phone = ?", user.Phone).First(&existingUser).Error == nil {
+		errorResponse(c, http.StatusConflict, "该手机号已注册")
 		return
 	}
-	user.ShopID = validShopID
 
 	// 生成用户ID
 	user.ID = utils.GenerateSnowflakeID()
+
 	if err := h.DB.Create(&user).Error; err != nil {
 		h.logger.Printf("创建用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
 		return
 	}
 
-	successResponse(c, user)
+	// 移除敏感字段后返回
+	responseData := gin.H{
+		"id":         user.ID,
+		"name":       user.Name,
+		"phone":      user.Phone,
+		"type":       user.Type,
+		"created_at": user.CreatedAt.Format(time.RFC3339),
+	}
+	successResponse(c, responseData)
 }
 
 // 获取用户列表
@@ -71,13 +101,13 @@ func (h *Handler) GetUsers(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	_, err = h.validAndReturnShopID(c, requestShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	baseQuery := h.DB.Model(&models.User{}).Where("shop_id = ?", validShopID)
+	baseQuery := h.DB.Model(&models.User{})
 
 	if err := baseQuery.Count(&total).Error; err != nil {
 		h.logger.Printf("获取用户总数失败: %v", err)

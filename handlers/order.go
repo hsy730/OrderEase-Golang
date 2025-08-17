@@ -14,13 +14,27 @@ import (
 )
 
 // 创建订单
+type CreateOrderRequest struct {
+	UserID snowflake.ID       `json:"user_id"`
+	ShopID uint64             `json:"shop_id"`
+	Items  []models.OrderItem `json:"items"`
+	Remark string             `json:"remark"`
+}
+
 func (h *Handler) CreateOrder(c *gin.Context) {
-	var order models.Order
-	if err := c.ShouldBindJSON(&order); err != nil {
+	var req CreateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
 		return
 	}
 
+	order := models.Order{
+		UserID: req.UserID,
+		ShopID: req.ShopID,
+		Items:  req.Items,
+		Remark: req.Remark,
+		
+	}
 	utils.SanitizeOrder(&order)
 
 	// 验证订单数据
@@ -75,8 +89,10 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	order.TotalPrice = models.Price(totalPrice)
-	// 生成雪花ID
+	// 雪花ID生成逻辑（第58行）
 	order.ID = utils.GenerateSnowflakeID()
+	
+	// 数据库写入（第61行）
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("创建订单失败: %v", err)
@@ -85,7 +101,12 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	tx.Commit()
-	successResponse(c, gin.H{"code": 200, "message": "订单创建成功"})
+	successResponse(c, gin.H{
+		"order_id":    order.ID,
+		"total_price": order.TotalPrice,
+		"created_at":  order.CreatedAt,
+		"status":      "created",
+	})
 }
 
 // 更新订单
