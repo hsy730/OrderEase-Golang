@@ -1,14 +1,17 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type User struct {
 	ID        snowflake.ID `gorm:"primarykey" json:"id"`
-	IsSystem  bool         `gorm:"default:false" json:"is_system"` // true表示系统自动生成的公共用户
+	Role      string       `gorm:"size:50;default:'user'" json:"role"` // 使用UserRole枚举值
 	Password  string       `gorm:"size:255" json:"-"`
 	Name      string       `json:"name"`
 	Phone     string       `json:"phone"`
@@ -19,6 +22,21 @@ type User struct {
 }
 
 const (
-	UserTypeDelivery = "delivery" // 邮寄
-	UserTypePickup   = "pickup"   // 自提
+	UserTypeDelivery = "delivery"
+	UserTypePickup   = "pickup"
+
+	// 用户角色枚举
+	UserRoleRegular = "user"     // 普通用户
+	UserRoleSystem  = "system"  // 系统用户
 )
+
+func (u *User) BeforeSave(tx *gorm.DB) error {
+	if u.Password != "" && !strings.HasPrefix(u.Password, "$2a$") {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		u.Password = string(hashed)
+	}
+	return nil
+}

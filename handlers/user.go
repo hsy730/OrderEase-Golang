@@ -17,7 +17,7 @@ type CreateUserRequest struct {
 	Password string `json:"password" binding:"required"`
 	Type     string `json:"type" binding:"required,oneof=delivery pickup"`
 	Address  string `json:"address"`
-	IsSystem bool   `json:"is_system"`
+	Role     string `json:"role"`
 }
 
 // 创建用户
@@ -33,8 +33,8 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		Phone:    req.Phone,
 		Password: req.Password, // 存储哈希后的密码
 		Type:     req.Type,
-		IsSystem: req.IsSystem, // 明确设置默认值
-		Address:  req.Address,  // 初始化地址字段
+		Role:     req.Role,    // 明确设置默认值
+		Address:  req.Address, // 初始化地址字段
 	}
 
 	// 验证用户类型
