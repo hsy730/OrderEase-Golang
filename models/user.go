@@ -19,6 +19,7 @@ type User struct {
 	Type      string       `json:"type"` // delivery:邮寄, pickup:自提, system:系统用户
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
+	Orders    []Order      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 }
 
 const (
@@ -26,8 +27,8 @@ const (
 	UserTypePickup   = "pickup"
 
 	// 用户角色枚举
-	UserRoleRegular = "user"     // 普通用户
-	UserRoleSystem  = "system"  // 系统用户
+	UserRoleRegular = "user"   // 普通用户
+	UserRoleSystem  = "system" // 系统用户
 )
 
 func (u *User) BeforeSave(tx *gorm.DB) error {

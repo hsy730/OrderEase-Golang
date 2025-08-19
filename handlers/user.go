@@ -144,14 +144,14 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	_, err = h.validAndReturnShopID(c, requestShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var user models.User
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
+	if err := h.DB.First(&user, id).Error; err != nil {
 		h.logger.Printf("查询用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
@@ -235,14 +235,14 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	_, err = h.validAndReturnShopID(c, requestShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var user models.User
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
+	if err := h.DB.First(&user, id).Error; err != nil {
 		h.logger.Printf("删除用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户不存在")
 		return
