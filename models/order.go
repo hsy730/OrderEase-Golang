@@ -14,9 +14,10 @@ type Order struct {
 	TotalPrice Price        `json:"total_price"`
 	Status     string       `json:"status"`
 	Remark     string       `json:"remark"`
-	Items      []OrderItem  `gorm:"foreignKey:OrderID" json:"items"`
-	CreatedAt  time.Time    `json:"created_at"`
-	UpdatedAt  time.Time    `json:"updated_at"`
+	Items      []OrderItem  `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE" json:"items"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type OrderItem struct {

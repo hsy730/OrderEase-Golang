@@ -13,8 +13,8 @@ import (
 // 创建用户请求结构体
 type CreateUserRequest struct {
 	Name     string `json:"name" binding:"required"`
-	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	Phone    string `json:"phone"`
 	Type     string `json:"type" binding:"required,oneof=delivery pickup"`
 	Address  string `json:"address"`
 	Role     string `json:"role"`
@@ -43,18 +43,20 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 增强版手机号验证
-	if !utils.ValidatePhoneWithRegex(user.Phone) {
-		h.logger.Printf("无效的手机号格式: %s", user.Phone)
-		errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
-		return
-	}
+	if user.Phone != "" { // 电话选填
+		// 增强版手机号验证
+		if !utils.ValidatePhoneWithRegex(user.Phone) {
+			h.logger.Printf("无效的手机号格式: %s", user.Phone)
+			errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
+			return
+		}
 
-	// 检查手机号唯一性
-	var existingUser models.User
-	if h.DB.Where("phone = ?", user.Phone).First(&existingUser).Error == nil {
-		errorResponse(c, http.StatusConflict, "该手机号已注册")
-		return
+		// 检查手机号唯一性
+		var existingUser models.User
+		if h.DB.Where("phone = ?", user.Phone).First(&existingUser).Error == nil {
+			errorResponse(c, http.StatusConflict, "该手机号已注册")
+			return
+		}
 	}
 
 	// 生成用户ID
@@ -95,17 +97,17 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	var users []models.User
 	var total int64
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
+	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+	// 	return
+	// }
 
-	_, err = h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+	// _, err = h.validAndReturnShopID(c, requestShopID)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
 
 	baseQuery := h.DB.Model(&models.User{})
 
@@ -138,17 +140,17 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
+	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+	// 	return
+	// }
 
-	_, err = h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
 
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
@@ -168,20 +170,20 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
+	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+	// 	return
+	// }
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
 
 	var user models.User
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&user, id).Error; err != nil {
+	if err := h.DB.First(&user, id).Error; err != nil {
 		h.logger.Printf("更新用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
@@ -229,17 +231,17 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
+	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+	// 	return
+	// }
 
-	_, err = h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
 
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
