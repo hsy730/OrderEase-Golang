@@ -164,34 +164,24 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 // 更新用户信息
 func (h *Handler) UpdateUser(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
-		return
+	// 定义更新数据结构体
+	var updateData struct {
+		ID       string `json:"id"`
+		Type     string `json:"type"`
+		Phone    string `json:"phone"`
+		Password string `json:"password"` // 使用指针类型以区分null和空字符串
+		Address  string `json:"address"`
+		// 其他需要更新的字段
 	}
 
-	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-	// 	return
-	// }
-
-	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-
-	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Printf("更新用户失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "用户未找到")
-		return
-	}
-
-	var updateData models.User
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
+		return
+	}
+
+	id := updateData.ID
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
 		return
 	}
 
@@ -207,7 +197,30 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Model(&user).Updates(updateData).Error; err != nil {
+	// 查询现有用户
+	var user models.User
+	if err := h.DB.First(&user, id).Error; err != nil {
+		h.logger.Printf("更新用户失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "用户未找到")
+		return
+	}
+
+	// 更新字段
+	if updateData.Type != "" {
+		user.Type = updateData.Type
+	}
+	if updateData.Phone != "" {
+		user.Phone = updateData.Phone
+	}
+	if updateData.Address != "" {
+		user.Address = updateData.Address
+	}
+	// 处理密码更新：如果密码不为空字符串，则更新密码
+	if updateData.Password != "" {
+		user.Password = updateData.Password
+	}
+
+	if err := h.DB.Save(&user).Error; err != nil {
 		h.logger.Printf("更新用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新用户失败")
 		return
@@ -276,23 +289,23 @@ func isValidPhone(phone string) bool {
 // 获取简单用户列表（只返回ID和名称）
 func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	var users []struct {
-		ID   uint   `json:"id"`
+		ID   string `json:"id"`
 		Name string `json:"name"`
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
+	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+	// 	return
+	// }
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
 
-	if err := h.DB.Where("shop_id = ?", validShopID).Model(&models.User{}).Select("id, name").Find(&users).Error; err != nil {
+	if err := h.DB.Model(&models.User{}).Select("id, name").Find(&users).Error; err != nil {
 		h.logger.Printf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return

@@ -209,6 +209,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 			productTags = append(productTags, models.ProductTag{
 				ProductID: productID,
 				TagID:     req.TagID,
+				ShopID:    validShopID,
 			})
 			successCount++
 		}

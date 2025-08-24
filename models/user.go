@@ -11,9 +11,9 @@ import (
 
 type User struct {
 	ID        snowflake.ID `gorm:"primarykey" json:"id"`
+	Name      string       `json:"name"`
 	Role      string       `gorm:"size:50;default:'user'" json:"role"` // 使用UserRole枚举值
 	Password  string       `gorm:"size:255" json:"-"`
-	Name      string       `json:"name"`
 	Phone     string       `json:"phone"`
 	Address   string       `json:"address"`
 	Type      string       `json:"type"` // delivery:邮寄, pickup:自提, system:系统用户
