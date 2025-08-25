@@ -2,16 +2,21 @@ package handlers
 
 import (
 	"errors"
-	"orderease/models"
-	"orderease/utils/log2"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
-	"net/http"
-	"strconv"
+	"orderease/models"
+	"orderease/utils"
+	"orderease/utils/log2"
 )
 
 // GetShopTags 获取店铺标签列表
@@ -327,4 +332,136 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 
 	tx.Commit()
 	successResponse(c, gin.H{"message": "店铺删除成功"})
+}
+
+// 上传店铺图片
+func (h *Handler) UploadShopImage(c *gin.Context) {
+	// 限制文件大小
+	const maxFileSize = 5 * 1024 * 1024 // 5MB
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
+
+	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "缺少店铺ID")
+		return
+	}
+
+	// 查询店铺
+	var shop models.Shop
+	if err := h.DB.First(&shop, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			errorResponse(c, http.StatusNotFound, "店铺不存在")
+			return
+		}
+		h.logger.Printf("查询店铺失败，ID: %d，错误: %v", id, err)
+		errorResponse(c, http.StatusInternalServerError, "查询店铺失败")
+		return
+	}
+
+	// 获取上传文件
+	file, err := c.FormFile("image")
+	if err != nil {
+		log2.Errorf("获取上传文件失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "获取上传文件失败")
+		return
+	}
+
+	// 检查文件类型
+	if !utils.IsValidImageType(file.Header.Get("Content-Type")) {
+		errorResponse(c, http.StatusBadRequest, "不支持的文件类型")
+		return
+	}
+
+	// 创建上传目录
+	uploadDir := "./uploads/shops"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		log2.Errorf("创建上传目录失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建上传目录失败")
+		return
+	}
+
+	// 如果已有图片，先删除旧图片
+	if shop.ImageURL != "" {
+		oldImagePath := strings.TrimPrefix(shop.ImageURL, "/")
+		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
+			log2.Errorf("删除旧图片失败: %v", err)
+		}
+	}
+
+	// 生成新文件名
+	filename := fmt.Sprintf("shop_%d_%d%s",
+		id,
+		time.Now().Unix(),
+		filepath.Ext(file.Filename))
+
+	// 构建图片URL和文件路径
+	imageURL := fmt.Sprintf("/uploads/shops/%s", filename)
+	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
+
+	// 保存上传文件
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		log2.Errorf("保存文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
+		return
+	}
+
+	// 验证图片URL
+	if err := utils.ValidateImageURL(imageURL, "shop"); err != nil {
+		log2.Errorf("图片URL验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
+		return
+	}
+
+	// 更新店铺图片URL
+	if err := h.DB.Model(&shop).Update("image_url", imageURL).Error; err != nil {
+		log2.Errorf("更新店铺图片失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新店铺图片失败")
+		return
+	}
+
+	// 构建响应消息
+	message := "图片更新成功"
+	if shop.ImageURL == "" {
+		message = "图片上传成功"
+	}
+
+	operationType := "update"
+	if message == "图片上传成功" {
+		operationType = "create"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": message,
+		"url":     imageURL,
+		"type":    operationType,
+	})
+}
+
+// 获取店铺图片
+func (h *Handler) GetShopImage(c *gin.Context) {
+	imagePath := c.Query("path")
+	if imagePath == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少图片路径")
+		return
+	}
+
+	if !strings.HasPrefix(imagePath, "/") {
+		imagePath = "/" + imagePath
+	}
+
+	if err := utils.ValidateImageURL(imagePath, "shop"); err != nil {
+		log2.Errorf("图片路径验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
+		return
+	}
+
+	imagePath = "." + imagePath
+
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		log2.Errorf("图片文件不存在: %s", imagePath)
+		errorResponse(c, http.StatusNotFound, "图片不存在")
+		return
+	}
+
+	c.File(imagePath)
 }

@@ -29,6 +29,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.GET("/detail", h.GetShopInfo)
 			shop.GET("/list", h.GetShopList)
 			shop.DELETE("/delete", h.DeleteShop) // 新增删除店铺接口
+			shop.POST("/upload-image", h.UploadShopImage)
 		}
 
 		// 商品管理接口

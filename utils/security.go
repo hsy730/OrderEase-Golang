@@ -22,15 +22,15 @@ func SanitizeString(input string) string {
 }
 
 // 验证图片URL
-func ValidateImageURL(imageURL string) error {
+func ValidateImageURL(imageURL string, folder string) error {
 	// 检查是否为空
 	if imageURL == "" {
 		return nil
 	}
 
 	// 确保路径以 /uploads/products/ 开头
-	if !strings.HasPrefix(imageURL, "/uploads/products/") {
-		return fmt.Errorf("invalid image path prefix")
+	if !strings.HasPrefix(imageURL, fmt.Sprintf("/uploads/%ss/", folder)) {
+		return fmt.Errorf("invalid image path prefix:" + imageURL)
 	}
 
 	// 验证文件扩展名
@@ -51,7 +51,7 @@ func ValidateImageURL(imageURL string) error {
 	}
 
 	// 验证文件名格式
-	validName := regexp.MustCompile(`^/uploads/products/product_\d+_\d+\.(jpg|jpeg|png|gif)$`)
+	validName := regexp.MustCompile(fmt.Sprintf(`^/uploads/%ss/%s_\d+_\d+\.(jpg|jpeg|png|gif)$`, folder, folder))
 	if !validName.MatchString(imageURL) {
 		return fmt.Errorf("invalid image filename format")
 	}
@@ -69,7 +69,7 @@ func SanitizeOrder(order *models.Order) {
 func SanitizeProduct(product *models.Product) {
 	product.Name = SanitizeString(product.Name)
 	product.Description = SanitizeString(product.Description)
-	if err := ValidateImageURL(product.ImageURL); err != nil {
+	if err := ValidateImageURL(product.ImageURL, "products"); err != nil {
 		product.ImageURL = "" // 如果图片URL无效，清空它
 		log2.Errorf("Invalid image URL detected: %v", err)
 	}

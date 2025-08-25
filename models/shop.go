@@ -19,6 +19,7 @@ type Shop struct {
 	ContactPhone string `gorm:"size:20" json:"contact_phone"`
 	ContactEmail string `gorm:"size:100" json:"contact_email"`
 	Address      string `gorm:"size:100" json:"address"`
+	ImageURL     string `gorm:"size:255" json:"image_url"`                           // 店铺图片URL
 
 	Description string    `gorm:"type:text" json:"description"` // 店铺描述
 	CreatedAt   time.Time `json:"created_at"`

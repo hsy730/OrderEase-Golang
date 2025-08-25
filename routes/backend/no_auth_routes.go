@@ -20,5 +20,6 @@ func SetupNoAuthRoutes(r *gin.Engine, h *handlers.Handler) {
 		public.POST("/admin/refresh-token", h.RefreshAdminToken)
 		public.POST("/shop/refresh-token", h.RefreshShopToken)
 		public.GET("/admin/product/image", h.GetProductImage)
+		public.GET("/admin/shop/image", h.GetShopImage)
 	}
 }

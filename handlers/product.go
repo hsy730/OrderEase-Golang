@@ -372,7 +372,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	}
 
 	// 检查文件类型
-	if !isValidImageType(file.Header.Get("Content-Type")) {
+	if !utils.IsValidImageType(file.Header.Get("Content-Type")) {
 		errorResponse(c, http.StatusBadRequest, "不支持的文件类型")
 		return
 	}
@@ -406,7 +406,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	if err := utils.ValidateImageURL(imageURL); err != nil {
+	if err := utils.ValidateImageURL(imageURL, "product"); err != nil {
 		log2.Errorf("图片URL验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
 		return
@@ -447,7 +447,7 @@ func (h *Handler) GetProductImage(c *gin.Context) {
 		imagePath = "/" + imagePath
 	}
 
-	if err := utils.ValidateImageURL(imagePath); err != nil {
+	if err := utils.ValidateImageURL(imagePath, "product"); err != nil {
 		log2.Errorf("图片路径验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
 		return
