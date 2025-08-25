@@ -513,7 +513,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		return
 	}
 	// 原有绑定标签商品的查询逻辑保持不变...
-	var products []models.Product
+	var products []models.Product = []models.Product{}
 	var total int64
 
 	// 查询已绑定该标签的商品
@@ -601,9 +601,9 @@ func (h *Handler) GetTag(c *gin.Context) {
 // BatchUntagProducts 批量解绑商品标签
 func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	type request struct {
-		ProductIDs []uint `json:"product_ids" binding:"required"`
-		TagID      uint   `json:"tag_id" binding:"required"`
-		ShopID     uint64 `json:"shop_id" binding:"required"`
+		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
+		TagID      uint           `json:"tag_id" binding:"required"`
+		ShopID     uint64         `json:"shop_id" binding:"required"`
 	}
 
 	var req request
