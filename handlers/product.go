@@ -15,6 +15,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 商品图片最大大小 512KB
+const maxProductImageSize = 2048 * 1024
+const maxProductImageZipSize = 512 * 1024
+
 // 创建商品
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var product models.Product
@@ -338,7 +342,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 // 上传商品图片
 func (h *Handler) UploadProductImage(c *gin.Context) {
 	// 限制文件大小
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxProductImageSize)
 
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
@@ -404,6 +408,18 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		log2.Errorf("保存文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return
+	}
+
+	// 压缩图片
+	compressedSize, err := utils.CompressImage(filePath, maxProductImageZipSize)
+	if err != nil {
+		log2.Errorf("压缩图片失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "压缩图片失败")
+		return
+	}
+
+	if compressedSize > 0 {
+		log2.Infof("图片压缩成功，原始大小: %d 字节，压缩后: %d 字节", file.Size, compressedSize)
 	}
 
 	if err := utils.ValidateImageURL(imageURL, "product"); err != nil {

@@ -33,7 +33,6 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		ShopID: req.ShopID,
 		Items:  req.Items,
 		Remark: req.Remark,
-		
 	}
 	utils.SanitizeOrder(&order)
 
@@ -60,26 +59,33 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	tx := h.DB.Begin()
 
 	totalPrice := float64(0.0)
-	// 更新商品库存
-	for _, item := range order.Items {
+	// 更新商品库存并保存商品快照
+	for i := range order.Items {
 		var product models.Product
-		if err := tx.First(&product, item.ProductID).Error; err != nil {
+		if err := tx.First(&product, order.Items[i].ProductID).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("商品不存在, ID: %d, 错误: %v", item.ProductID, err)
+			h.logger.Printf("商品不存在, ID: %d, 错误: %v", order.Items[i].ProductID, err)
 			errorResponse(c, http.StatusBadRequest, "商品不存在")
 			return
 		}
 
-		if product.Stock < item.Quantity {
+		if product.Stock < order.Items[i].Quantity {
 			tx.Rollback()
 			h.logger.Printf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
-				item.ProductID, product.Stock, item.Quantity)
+				order.Items[i].ProductID, product.Stock, order.Items[i].Quantity)
 			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("商品 %s 库存不足", product.Name))
 			return
 		}
 
-		product.Stock -= item.Quantity
-		totalPrice += float64(item.Quantity) * product.Price
+		// 保存商品快照信息
+		order.Items[i].ProductName = product.Name
+		order.Items[i].ProductDescription = product.Description
+		order.Items[i].ProductImageURL = product.ImageURL
+		order.Items[i].Price = models.Price(product.Price) // 使用当前价格
+
+		// 更新库存
+		product.Stock -= order.Items[i].Quantity
+		totalPrice += float64(order.Items[i].Quantity) * product.Price
 		if err := tx.Save(&product).Error; err != nil {
 			tx.Rollback()
 			h.logger.Printf("更新商品库存失败: %v", err)
@@ -89,13 +95,29 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	order.TotalPrice = models.Price(totalPrice)
-	// 雪花ID生成逻辑（第58行）
+	// 雪花ID生成逻辑
 	order.ID = utils.GenerateSnowflakeID()
-	
-	// 数据库写入（第61行）
+	// 设置订单初始状态
+	order.Status = models.OrderStatusPending
+
+	// 数据库写入
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+		return
+	}
+
+	// 创建订单状态日志
+	statusLog := models.OrderStatusLog{
+		OrderID:     order.ID,
+		OldStatus:   "",
+		NewStatus:   order.Status,
+		ChangedTime: time.Now(),
+	}
+	if err := tx.Create(&statusLog).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("创建订单状态日志失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
 		return
 	}
@@ -105,7 +127,129 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		"order_id":    order.ID,
 		"total_price": order.TotalPrice,
 		"created_at":  order.CreatedAt,
-		"status":      "created",
+		"status":      order.Status,
+	})
+}
+
+// 获取订单列表
+func (h *Handler) GetOrders(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
+		return
+	}
+
+	if pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+		return
+	}
+
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	offset := (page - 1) * pageSize
+
+	var total int64
+	if err := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID).Count(&total).Error; err != nil {
+		h.logger.Printf("获取订单总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	var orders []models.Order
+	// 只预加载Items，不预加载Product
+	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
+		Preload("Items").
+		Find(&orders).Error; err != nil {
+		h.logger.Printf("查询订单列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     orders,
+	})
+}
+
+// 获取订单详情
+func (h *Handler) GetOrder(c *gin.Context) {
+	id := c.Query("id")
+	if id == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+		return
+	}
+
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var order models.Order
+	// 只预加载Items，不预加载Product
+	if err := h.DB.Preload("Items").
+		Where("shop_id = ?", validShopID).
+		Joins("User").
+		First(&order, id).Error; err != nil {
+		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
+		errorResponse(c, http.StatusNotFound, "订单未找到")
+		return
+	}
+
+	successResponse(c, order)
+}
+
+// 查询某用户创建的所有订单
+func (h *Handler) GetOrdersByUser(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+		return
+	}
+
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var orders []models.Order
+	// 只预加载Items，不预加载Product
+	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID).Preload("Items").Find(&orders).Error; err != nil {
+		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
+		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"code": 200,
+		"data": orders,
 	})
 }
 
@@ -149,8 +293,8 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	// 重新获取更新后的订单信息，包括关联数据
-	if err := tx.Preload("Items").Preload("Items.Product").First(&order, id).Error; err != nil {
+	// 重新获取更新后的订单信息
+	if err := tx.Preload("Items").First(&order, id).Error; err != nil {
 		tx.Rollback()
 		h.logger.Printf("获取更新后的订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
@@ -158,94 +302,6 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	}
 
 	tx.Commit()
-	successResponse(c, order)
-}
-
-// 获取订单列表
-func (h *Handler) GetOrders(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-
-	if page < 1 {
-		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
-		return
-	}
-
-	if pageSize < 1 || pageSize > 100 {
-		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
-		return
-	}
-
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
-
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	offset := (page - 1) * pageSize
-
-	var total int64
-	if err := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID).Count(&total).Error; err != nil {
-		h.logger.Printf("获取订单总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
-		return
-	}
-
-	var orders []models.Order
-	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
-		Preload("Items").
-		Preload("Items.Product").
-		Find(&orders).Error; err != nil {
-		h.logger.Printf("查询订单列表失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
-		return
-	}
-
-	successResponse(c, gin.H{
-		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
-		"data":     orders,
-	})
-}
-
-// 获取订单详情
-func (h *Handler) GetOrder(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
-		return
-	}
-
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
-
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	var order models.Order
-	if err := h.DB.Preload("Items").
-		Where("shop_id = ?", validShopID).
-		Preload("Items.Product").
-		Joins("User").
-		First(&order, id).Error; err != nil {
-		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "订单未找到")
-		return
-	}
-
 	successResponse(c, order)
 }
 
@@ -382,53 +438,10 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	})
 }
 
-// 查询某用户创建的所有订单
-func (h *Handler) GetOrdersByUser(c *gin.Context) {
-	userID := c.Query("user_id")
-	if userID == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
-		return
-	}
-
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-		return
-	}
-
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	var orders []models.Order
-	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID).Preload("Items").Preload("Items.Product").Find(&orders).Error; err != nil {
-		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
-		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
-		return
-	}
-
-	successResponse(c, gin.H{
-		"code": 200,
-		"data": orders,
-	})
-}
-
 // 添加状态转换验证函数
 func isValidStatusTransition(currentStatus string) bool {
 	_, exists := models.OrderStatusTransitions[currentStatus]
 	return exists
-}
-
-// 检查文件类型是否为图片
-func isValidImageType(contentType string) bool {
-	validTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/gif":  true,
-	}
-	return validTypes[contentType]
 }
 
 // 添加错误响应辅助函数

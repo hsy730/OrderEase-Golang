@@ -75,6 +75,7 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 		"valid_until":    shop.ValidUntil.Format(time.RFC3339),
 		"settings":       shop.Settings,
 		"tags":           shop.Tags,
+		"image_url":      shop.ImageURL,
 	})
 }
 
@@ -337,7 +338,8 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 // 上传店铺图片
 func (h *Handler) UploadShopImage(c *gin.Context) {
 	// 限制文件大小
-	const maxFileSize = 5 * 1024 * 1024 // 5MB
+	const maxFileSize = 2 * 1024 * 1024 // 2MB
+	const maxZipSize = 512 * 1024
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
 
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
@@ -403,6 +405,17 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		log2.Errorf("保存文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return
+	}
+	// 压缩图片
+	compressedSize, err := utils.CompressImage(filePath, maxZipSize)
+	if err != nil {
+		log2.Errorf("压缩图片失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "压缩图片失败")
+		return
+	}
+
+	if compressedSize > 0 {
+		log2.Infof("图片压缩成功，原始大小: %d 字节，压缩后: %d 字节", file.Size, compressedSize)
 	}
 
 	// 验证图片URL

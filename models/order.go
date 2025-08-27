@@ -26,7 +26,12 @@ type OrderItem struct {
 	ProductID snowflake.ID `json:"product_id"`
 	Quantity  int          `json:"quantity"`
 	Price     Price        `json:"price"`
-	Product   Product      `gorm:"foreignKey:ProductID" json:"product"`
+	// 添加商品快照字段
+	ProductName        string `gorm:"size:255" json:"product_name"`      // 商品名称
+	ProductDescription string `json:"product_description"`               // 商品描述
+	ProductImageURL    string `gorm:"size:255" json:"product_image_url"` // 商品图片URL
+	// ProductOriginalPrice Price       `json:"product_original_price"`               // 商品原价
+	// 删除Product关联字段，避免混淆和不必要的关联查询
 }
 
 const (
