@@ -7,7 +7,7 @@ import (
 )
 
 type Order struct {
-	ID         snowflake.ID `gorm:"primarykey" json:"id,omitempty"`
+	ID         snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id,omitempty"`
 	UserID     snowflake.ID `json:"user_id"`
 	ShopID     uint64       `gorm:"index;not null" json:"shop_id"`
 	User       User         `gorm:"foreignKey:UserID" json:"user"`
@@ -21,20 +21,32 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID        snowflake.ID `gorm:"primarykey" json:"id,omitempty"`
-	OrderID   snowflake.ID `json:"order_id"`
-	ProductID snowflake.ID `json:"product_id"`
-	Quantity  int          `json:"quantity"`
-	Price     Price        `json:"price"`                     // 商品基础价格
-	TotalPrice Price       `json:"total_price"`               // 包含参数调整后的总价
+	ID         snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id,omitempty"`
+	OrderID    snowflake.ID `gorm:"type:bigint unsigned" json:"order_id"`
+	ProductID  snowflake.ID `json:"product_id"`
+	Quantity   int          `json:"quantity"`
+	Price      Price        `json:"price"`       // 商品基础价格
+	TotalPrice Price        `json:"total_price"` // 包含参数调整后的总价
 	// 添加商品快照字段
 	ProductName        string `gorm:"size:255" json:"product_name"`      // 商品名称
 	ProductDescription string `json:"product_description"`               // 商品描述
 	ProductImageURL    string `gorm:"size:255" json:"product_image_url"` // 商品图片URL
 	// 删除Product关联字段，避免混淆和不必要的关联查询
-	
+
 	// 添加参数选项关联
 	Options []OrderItemOption `gorm:"foreignKey:OrderItemID;constraint:OnDelete:CASCADE" json:"options"`
+}
+
+// OrderItemOption 订单项选择的商品参数选项
+type OrderItemOption struct {
+	ID              snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id"`
+	OrderItemID     snowflake.ID `gorm:"index;not null;type:bigint unsigned" json:"order_item_id"`
+	OptionID        snowflake.ID `json:"option_id"`
+	OptionName      string       `gorm:"size:100" json:"option_name"`   // 选项名称快照
+	CategoryName    string       `gorm:"size:100" json:"category_name"` // 类别名称快照
+	PriceAdjustment float64      `json:"price_adjustment"`              // 价格调整快照
+	CreatedAt       time.Time    `json:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at"`
 }
 
 const (
@@ -59,7 +71,7 @@ var OrderStatusTransitions = map[string]string{
 // 订单状态变更日志
 type OrderStatusLog struct {
 	ID          snowflake.ID `gorm:"primarykey" json:"id"`
-	OrderID     snowflake.ID `json:"order_id"`
+	OrderID     snowflake.ID `gorm:"type:bigint unsigned" json:"order_id"`
 	OldStatus   string       `json:"old_status"`
 	NewStatus   string       `json:"new_status"`
 	ChangedTime time.Time    `json:"changed_time"`

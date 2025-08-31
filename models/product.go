@@ -14,7 +14,7 @@ const (
 )
 
 type Product struct {
-	ID          snowflake.ID `gorm:"primarykey" json:"id"`
+	ID          snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id"`
 	ShopID      uint64       `gorm:"index;not null" json:"shop_id"` // 新增店铺ID
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
