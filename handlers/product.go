@@ -20,13 +20,18 @@ const maxProductImageSize = 2048 * 1024
 const maxProductImageZipSize = 512 * 1024
 
 // 创建商品
+// 修改商品结构体以支持参数类别
 func (h *Handler) CreateProduct(c *gin.Context) {
-	var product models.Product
-	if err := c.ShouldBindJSON(&product); err != nil {
+	var request struct {
+		models.Product
+		OptionCategories []models.ProductOptionCategory `json:"option_categories"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的商品数据: "+err.Error())
 		return
 	}
 
+	product := request.Product
 	utils.SanitizeProduct(&product)
 	product.Status = models.ProductStatusPending
 	product.ID = utils.GenerateSnowflakeID()
@@ -36,43 +41,72 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	product.ShopID = validShopID // 将shopID设置为请求的店铺ID
+	product.ShopID = validShopID
 
-	if err := h.DB.Create(&product).Error; err != nil {
+	// 开启事务
+	tx := h.DB.Begin()
+
+	// 创建商品
+	if err := tx.Create(&product).Error; err != nil {
+		tx.Rollback()
 		h.logger.Printf("创建商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
 		return
 	}
 
-	successResponse(c, product)
+	// 创建商品参数类别和选项
+	for i := range request.OptionCategories {
+		category := request.OptionCategories[i]
+		category.ProductID = product.ID
+		category.ID = utils.GenerateSnowflakeID()
+
+		if err := tx.Create(&category).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("创建商品参数类别失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "创建商品参数失败")
+			return
+		}
+	}
+
+	tx.Commit()
+	// 查询创建后的商品，包含参数信息
+	var createdProduct models.Product
+	if err := h.DB.First(&createdProduct, product.ID).Error; err != nil {
+		h.logger.Printf("获取创建后的商品失败: %v", err)
+		successResponse(c, product)
+		return
+	}
+	successResponse(c, createdProduct)
 }
 
 // ToggleProductStatus 更新商品状态
 func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	// 解析请求参数
 	var req struct {
-		ID     uint64 `json:"id" binding:"required"`
+		ID     string `json:"id" binding:"required"`
 		Status string `json:"status" binding:"required,oneof=pending online offline"`
+		ShopID int64  `json:"shop_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("解析请求参数失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
 		return
 	}
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+
+	validShopID, err := h.validAndReturnShopID(c, uint64(req.ShopID))
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	productId, err := strconv.ParseUint(req.ID, 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 获取当前商品信息
-	product, err := h.productRepo.GetProductByID(req.ID, validShopID)
+	product, err := h.productRepo.GetProductByID(productId, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -113,7 +147,7 @@ func isValidProductStatusTransition(currentStatus, newStatus string) bool {
 	transitions := map[string][]string{
 		models.ProductStatusPending: {models.ProductStatusOnline},
 		models.ProductStatusOnline:  {models.ProductStatusOffline},
-		models.ProductStatusOffline: {}, // 已下架状态不能转换到其他状态
+		models.ProductStatusOffline: {models.ProductStatusOnline}, // 允许下架后重新上架
 	}
 
 	// 检查是否是允许的状态转换
@@ -181,8 +215,11 @@ func (h *Handler) GetProducts(c *gin.Context) {
 		return
 	}
 
-	// 获取分页数据
-	if err := query.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+	// 获取分页数据，并预加载参数类别和选项信息
+	if err := query.Offset(offset).Limit(pageSize).
+		Preload("OptionCategories").
+		Preload("OptionCategories.Options").
+		Find(&products).Error; err != nil {
 		log2.Errorf("查询商品列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
 		return
@@ -224,7 +261,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 	successResponse(c, product)
 }
 
-// 更新商品信息
+// 更新商品信息，支持参数类别更新
 func (h *Handler) UpdateProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
@@ -250,28 +287,61 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	var updateData models.Product
-	if err := c.ShouldBindJSON(&updateData); err != nil {
+	var request struct {
+		models.Product
+		OptionCategories []models.ProductOptionCategory `json:"option_categories"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
 		return
 	}
 
-	utils.SanitizeProduct(&updateData)
+	utils.SanitizeProduct(&request.Product)
 
-	if err := h.DB.Model(&product).Updates(updateData).Error; err != nil {
+	// 开启事务
+	tx := h.DB.Begin()
+
+	// 更新商品基本信息
+	if err := tx.Model(&product).Updates(request.Product).Error; err != nil {
+		tx.Rollback()
 		log2.Errorf("更新商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品失败")
 		return
 	}
 
+	// 如果有提供参数类别，则先删除旧的参数类别和选项，再创建新的
+	// if len(request.OptionCategories) > 0 {
+	// 删除旧的参数类别
+	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("删除旧商品参数类别失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新商品参数失败")
+		return
+	}
+
+	// 创建新的参数类别和选项
+	for i := range request.OptionCategories {
+		category := request.OptionCategories[i]
+		category.ProductID = product.ID
+		category.ID = utils.GenerateSnowflakeID()
+
+		if err := tx.Create(&category).Error; err != nil {
+			tx.Rollback()
+			log2.Errorf("创建商品参数类别失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新商品参数失败")
+			return
+		}
+	}
+	// }
+
+	tx.Commit()
 	// 重新获取更新后的商品信息
-	product, err = h.productRepo.GetProductByID(id, validShopID)
+	updatedProduct, err := h.productRepo.GetProductByID(id, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
-
-	successResponse(c, product)
+	successResponse(c, updatedProduct)
 }
 
 // 删除商品
@@ -325,6 +395,24 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
 			log2.Errorf("删除商品图片失败: %v", err)
 		}
+	}
+
+	// 删除商品参数选项 (先删除选项，再删除类别)
+	if err := tx.Where(`category_id IN (
+		SELECT id FROM product_option_categories WHERE product_id = ?
+	)`, product.ID).Delete(&models.ProductOption{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("删除商品参数选项失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		return
+	}
+
+	// 删除商品参数类别
+	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("删除商品参数类别失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		return
 	}
 
 	// 删除商品记录

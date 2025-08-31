@@ -21,7 +21,10 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 // 根据ID和店铺ID查询商品
 func (r *ProductRepository) GetProductByID(id uint64, shopID uint64) (*models.Product, error) {
 	var product models.Product
-	err := r.DB.Where("shop_id = ?", shopID).First(&product, id).Error
+	// 使用嵌套Preload预加载商品的选项类别及其选项
+	err := r.DB.Where("shop_id = ?", shopID).
+		Preload("OptionCategories.Options"). // 嵌套预加载选项类别及其选项
+		First(&product, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("商品不存在")
 	}

@@ -24,6 +24,9 @@ type Product struct {
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 	Status      string       `json:"status"`
+	
+	// 可选：添加参数类别关联，方便查询
+	OptionCategories []ProductOptionCategory `gorm:"foreignKey:ProductID;constraint:OnDelete:CASCADE" json:"option_categories,omitempty"`
 }
 
 // ProductTag 商品和标签的多对多关系表

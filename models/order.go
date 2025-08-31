@@ -25,13 +25,16 @@ type OrderItem struct {
 	OrderID   snowflake.ID `json:"order_id"`
 	ProductID snowflake.ID `json:"product_id"`
 	Quantity  int          `json:"quantity"`
-	Price     Price        `json:"price"`
+	Price     Price        `json:"price"`                     // 商品基础价格
+	TotalPrice Price       `json:"total_price"`               // 包含参数调整后的总价
 	// 添加商品快照字段
 	ProductName        string `gorm:"size:255" json:"product_name"`      // 商品名称
 	ProductDescription string `json:"product_description"`               // 商品描述
 	ProductImageURL    string `gorm:"size:255" json:"product_image_url"` // 商品图片URL
-	// ProductOriginalPrice Price       `json:"product_original_price"`               // 商品原价
 	// 删除Product关联字段，避免混淆和不必要的关联查询
+	
+	// 添加参数选项关联
+	Options []OrderItemOption `gorm:"foreignKey:OrderItemID;constraint:OnDelete:CASCADE" json:"options"`
 }
 
 const (

@@ -21,10 +21,11 @@ type CreateOrderRequest struct {
 	Remark string             `json:"remark"`
 }
 
+// 创建订单请求结构体，添加参数支持
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
+		errorResponse(c, http.StatusBadRequest, "无效的订单数据: " + err.Error())
 		return
 	}
 
@@ -83,9 +84,49 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		order.Items[i].ProductImageURL = product.ImageURL
 		order.Items[i].Price = models.Price(product.Price) // 使用当前价格
 
+		// 处理订单项参数选项
+		itemTotalPrice := float64(order.Items[i].Quantity) * product.Price
+		for j := range order.Items[i].Options {
+			// 获取参数选项信息
+			var option models.ProductOption
+			if err := tx.First(&option, order.Items[i].Options[j].OptionID).Error; err != nil {
+				tx.Rollback()
+				h.logger.Printf("商品参数选项不存在, ID: %d, 错误: %v", order.Items[i].Options[j].OptionID, err)
+				errorResponse(c, http.StatusBadRequest, "无效的商品参数选项")
+				return
+			}
+
+			// 获取参数类别信息
+			var category models.ProductOptionCategory
+			if err := tx.First(&category, option.CategoryID).Error; err != nil {
+				tx.Rollback()
+				h.logger.Printf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
+				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
+				return
+			}
+
+			// 验证参数所属商品
+			if category.ProductID != product.ID {
+				tx.Rollback()
+				errorResponse(c, http.StatusBadRequest, "参数选项不属于指定商品")
+				return
+			}
+
+			// 保存参数选项快照
+			order.Items[i].Options[j].OptionName = option.Name
+			order.Items[i].Options[j].CategoryName = category.Name
+			order.Items[i].Options[j].PriceAdjustment = option.PriceAdjustment
+
+			// 计算参数选项对总价的影响
+			itemTotalPrice += float64(order.Items[i].Quantity) * option.PriceAdjustment
+		}
+
+		// 设置订单项总价
+		order.Items[i].TotalPrice = models.Price(itemTotalPrice)
+
 		// 更新库存
 		product.Stock -= order.Items[i].Quantity
-		totalPrice += float64(order.Items[i].Quantity) * product.Price
+		totalPrice += itemTotalPrice
 		if err := tx.Save(&product).Error; err != nil {
 			tx.Rollback()
 			h.logger.Printf("更新商品库存失败: %v", err)
@@ -168,9 +209,10 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	}
 
 	var orders []models.Order
-	// 只预加载Items，不预加载Product
+	// 预加载Items和Items.Options
 	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
 		Preload("Items").
+		Preload("Items.Options").
 		Find(&orders).Error; err != nil {
 		h.logger.Printf("查询订单列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
@@ -206,8 +248,9 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	}
 
 	var order models.Order
-	// 只预加载Items，不预加载Product
+	// 预加载Items和Items.Options
 	if err := h.DB.Preload("Items").
+		Preload("Items.Options").
 		Where("shop_id = ?", validShopID).
 		Joins("User").
 		First(&order, id).Error; err != nil {
@@ -240,8 +283,11 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	}
 
 	var orders []models.Order
-	// 只预加载Items，不预加载Product
-	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID).Preload("Items").Find(&orders).Error; err != nil {
+	// 预加载Items和Items.Options
+	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID).
+		Preload("Items").
+		Preload("Items.Options").
+		Find(&orders).Error; err != nil {
 		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return

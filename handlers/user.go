@@ -292,20 +292,51 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	}
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-	// 	return
-	// }
+	// 校验分页参数
+	if page < 1 {
+		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
+		return
+	}
 
-	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
+	if pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+		return
+	}
 
-	if err := h.DB.Model(&models.User{}).Select("id, name").Find(&users).Error; err != nil {
+	// 获取搜索关键词
+	search := c.Query("search")
+
+	// 构建查询
+	query := h.DB.Model(&models.User{}).Select("id, name")
+
+	// 如果有搜索关键词，添加模糊搜索条件
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Model(&models.User{}).Count(&total).Error; err != nil {
+		h.logger.Printf("查询用户总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
+		return
+	}
+
+	// 计算偏移量
+	offset := (page - 1) * pageSize
+
+	// 查询分页数据
+	if err := query.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+		h.logger.Printf("查询用户列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
+		return
+	}
+
+	if err := query.Find(&users).Error; err != nil {
 		h.logger.Printf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return

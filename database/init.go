@@ -44,9 +44,12 @@ func Init() (*gorm.DB, error) {
 		&models.Product{},
 		&models.Order{},
 		&models.OrderItem{},
+		&models.OrderItemOption{}, // 添加这一行，确保order_item_options表被自动创建
 		&models.User{},
 		&models.Tag{},
 		&models.ProductTag{},
+		&models.ProductOption{},
+		&models.ProductOptionCategory{},
 		&models.Shop{},
 
 		&models.OrderStatusLog{},   // 不需要迁移数据
