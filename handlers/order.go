@@ -382,41 +382,108 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	var updateData models.Order
+	var updateData CreateOrderRequest
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
 		return
 	}
 
-	utils.SanitizeOrder(&updateData)
-
-	validShopID, err := h.validAndReturnShopID(c, order.ShopID)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-	order.ShopID = validShopID // 更新订单的shopID
-
 	// 开启事务
 	tx := h.DB.Begin()
 
-	if err := tx.Model(&order).Updates(updateData).Error; err != nil {
+	// 更新订单基本信息
+	order.ShopID = updateData.ShopID
+	order.Remark = updateData.Remark
+	order.Status = updateData.Status
+
+	// 删除原有的订单项和选项
+	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("更新订单失败: %v", err)
+		h.logger.Printf("删除原有订单项失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
 		return
 	}
 
-	// 重新获取更新后的订单信息
-	if err := tx.Preload("Items").First(&order, id).Error; err != nil {
+	// 创建新的订单项
+	var orderItems []models.OrderItem
+	for _, itemReq := range updateData.Items {
+		orderItem := models.OrderItem{
+			OrderID:   order.ID,
+			ProductID: itemReq.ProductID,
+			Quantity:  itemReq.Quantity,
+			Price:     models.Price(itemReq.Price),
+		}
+
+		// 处理选中的选项
+		var options []models.OrderItemOption
+		for _, optionReq := range itemReq.Options {
+			option := models.OrderItemOption{
+				OrderItemID: orderItem.ID,
+				OptionID:    optionReq.OptionID,
+				CategoryID:  optionReq.CategoryID,
+			}
+			options = append(options, option)
+		}
+		orderItem.Options = options
+		orderItems = append(orderItems, orderItem)
+	}
+
+	// 保存新的订单项
+	if err := tx.Create(&orderItems).Error; err != nil {
 		tx.Rollback()
+		h.logger.Printf("创建新订单项失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
+		return
+	}
+
+	// 更新订单信息
+	if err := tx.Save(&order).Error; err != nil {
+		tx.Rollback()
+		h.logger.Printf("更新订单信息失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
+		return
+	}
+
+	tx.Commit()
+
+	// 重新获取更新后的订单信息
+	if err := h.DB.Preload("Items").Preload("Items.Options").First(&order, id).Error; err != nil {
 		h.logger.Printf("获取更新后的订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
 		return
 	}
 
-	tx.Commit()
-	successResponse(c, order)
+	// 转换为响应格式
+	var responseItems []CreateOrderItemRequest
+	for _, item := range order.Items {
+		var responseOptions []CreateOrderItemOption
+		for _, option := range item.Options {
+			responseOption := CreateOrderItemOption{
+				CategoryID: option.CategoryID,
+				OptionID:   option.OptionID,
+			}
+			responseOptions = append(responseOptions, responseOption)
+		}
+
+		responseItem := CreateOrderItemRequest{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+			Price:     float64(item.Price),
+			Options:   responseOptions,
+		}
+		responseItems = append(responseItems, responseItem)
+	}
+
+	response := CreateOrderRequest{
+		ID:     order.ID,
+		UserID: order.UserID,
+		ShopID: order.ShopID,
+		Items:  responseItems,
+		Remark: order.Remark,
+		Status: order.Status,
+	}
+
+	successResponse(c, response)
 }
 
 // 删除订单
