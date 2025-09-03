@@ -41,6 +41,7 @@ type OrderItem struct {
 type OrderItemOption struct {
 	ID              snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id"`
 	OrderItemID     snowflake.ID `gorm:"index;not null;type:bigint unsigned" json:"order_item_id"`
+	CategoryID      snowflake.ID `gorm:"index;not null;type:bigint unsigned" json:"category_id"`   // 类别ID快照
 	OptionID        snowflake.ID `json:"option_id"`
 	OptionName      string       `gorm:"size:100" json:"option_name"`   // 选项名称快照
 	CategoryName    string       `gorm:"size:100" json:"category_name"` // 类别名称快照

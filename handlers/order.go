@@ -15,24 +15,63 @@ import (
 
 // 创建订单
 type CreateOrderRequest struct {
-	UserID snowflake.ID       `json:"user_id"`
-	ShopID uint64             `json:"shop_id"`
-	Items  []models.OrderItem `json:"items"`
-	Remark string             `json:"remark"`
+	UserID snowflake.ID             `json:"user_id"`
+	ShopID uint64                   `json:"shop_id"`
+	Items  []CreateOrderItemRequest `json:"items"`
+	Remark string                   `json:"remark"`
+}
+
+type CreateOrderItemRequest struct {
+	ProductID       snowflake.ID        `json:"product_id"`
+	Quantity        int                 `json:"quantity"`
+	SelectedOptions map[string][]string `json:"selected_options"` // key: option category ID, value: option IDs
 }
 
 // 创建订单请求结构体，添加参数支持
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的订单数据: " + err.Error())
+		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
 		return
+	}
+
+	var orderItems []models.OrderItem
+	for _, itemReq := range req.Items {
+		orderItem := models.OrderItem{
+			ProductID: itemReq.ProductID,
+			Quantity:  itemReq.Quantity,
+		}
+
+		// 处理选中的选项
+		var options []models.OrderItemOption
+		for categoryID, optionIDs := range itemReq.SelectedOptions {
+			categoryIDInt, err := strconv.ParseUint(categoryID, 10, 64)
+			if err != nil {
+				errorResponse(c, http.StatusBadRequest, "无效的选项类别ID")
+				return
+			}
+			for _, optionID := range optionIDs {
+				optionIDInt, err := strconv.ParseUint(optionID, 10, 64)
+				if err != nil {
+					errorResponse(c, http.StatusBadRequest, "无效的选项ID")
+					return
+				}
+
+				option := models.OrderItemOption{
+					OptionID:   snowflake.ID(optionIDInt),
+					CategoryID: snowflake.ID(categoryIDInt),
+				}
+				options = append(options, option)
+			}
+			orderItem.Options = options
+			orderItems = append(orderItems, orderItem)
+		}
 	}
 
 	order := models.Order{
 		UserID: req.UserID,
 		ShopID: req.ShopID,
-		Items:  req.Items,
+		Items:  orderItems,
 		Remark: req.Remark,
 	}
 	utils.SanitizeOrder(&order)
@@ -113,6 +152,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			}
 
 			// 保存参数选项快照
+			order.Items[i].Options[j].CategoryID = category.ID
 			order.Items[i].Options[j].OptionName = option.Name
 			order.Items[i].Options[j].CategoryName = category.Name
 			order.Items[i].Options[j].PriceAdjustment = option.PriceAdjustment
@@ -147,6 +187,28 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		log2.Errorf("创建订单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
 		return
+	}
+
+	// 更新订单项选项的OrderItemID
+	for i := range order.Items {
+		for j := range order.Items[i].Options {
+			order.Items[i].Options[j].OrderItemID = order.Items[i].ID
+			if err := tx.Save(&order.Items[i].Options[j]).Error; err != nil {
+				tx.Rollback()
+				log2.Errorf("更新订单项选项失败: %v", err)
+				errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+				return
+			}
+		}
+	}
+
+	// 添加日志，打印创建的订单信息
+	log2.Infof("创建的订单信息: %+v", order)
+	for _, item := range order.Items {
+		log2.Infof("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
+		for _, option := range item.Options {
+			log2.Infof("选项ID: %s, 名称: %s", option.ID, option.OptionName)
+		}
 	}
 
 	// 创建订单状态日志
@@ -257,6 +319,15 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
+	}
+
+	// 添加日志，打印查询到的订单信息
+	h.logger.Printf("查询到的订单信息: %+v", order)
+	for _, item := range order.Items {
+		h.logger.Printf("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
+		for _, option := range item.Options {
+			h.logger.Printf("选项ID: %s, 名称: %s", option.ID, option.OptionName)
+		}
 	}
 
 	successResponse(c, order)
