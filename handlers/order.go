@@ -15,16 +15,24 @@ import (
 
 // 创建订单
 type CreateOrderRequest struct {
+	ID     snowflake.ID             `json:"id"`
 	UserID snowflake.ID             `json:"user_id"`
 	ShopID uint64                   `json:"shop_id"`
 	Items  []CreateOrderItemRequest `json:"items"`
 	Remark string                   `json:"remark"`
+	Status string                   `json:"status"`
 }
 
 type CreateOrderItemRequest struct {
-	ProductID       snowflake.ID        `json:"product_id"`
-	Quantity        int                 `json:"quantity"`
-	SelectedOptions map[string][]string `json:"selected_options"` // key: option category ID, value: option IDs
+	ProductID snowflake.ID            `json:"product_id"`
+	Quantity  int                     `json:"quantity"`
+	Price     float64                 `json:"price"`
+	Options   []CreateOrderItemOption `json:"options"`
+}
+
+type CreateOrderItemOption struct {
+	CategoryID snowflake.ID `json:"category_id"`
+	OptionID   snowflake.ID `json:"option_id"`
 }
 
 // 创建订单请求结构体，添加参数支持
@@ -44,35 +52,24 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 		// 处理选中的选项
 		var options []models.OrderItemOption
-		for categoryID, optionIDs := range itemReq.SelectedOptions {
-			categoryIDInt, err := strconv.ParseUint(categoryID, 10, 64)
-			if err != nil {
-				errorResponse(c, http.StatusBadRequest, "无效的选项类别ID")
-				return
+		for _, optionReq := range itemReq.Options {
+			option := models.OrderItemOption{
+				OptionID:   optionReq.OptionID,
+				CategoryID: optionReq.CategoryID,
 			}
-			for _, optionID := range optionIDs {
-				optionIDInt, err := strconv.ParseUint(optionID, 10, 64)
-				if err != nil {
-					errorResponse(c, http.StatusBadRequest, "无效的选项ID")
-					return
-				}
-
-				option := models.OrderItemOption{
-					OptionID:   snowflake.ID(optionIDInt),
-					CategoryID: snowflake.ID(categoryIDInt),
-				}
-				options = append(options, option)
-			}
-			orderItem.Options = options
-			orderItems = append(orderItems, orderItem)
+			options = append(options, option)
 		}
+		orderItem.Options = options
+		orderItems = append(orderItems, orderItem)
 	}
 
 	order := models.Order{
+		ID:     req.ID,
 		UserID: req.UserID,
 		ShopID: req.ShopID,
 		Items:  orderItems,
 		Remark: req.Remark,
+		Status: req.Status,
 	}
 	utils.SanitizeOrder(&order)
 
