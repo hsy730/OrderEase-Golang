@@ -333,7 +333,7 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	}
 
 	// 查询所有标签
-	if err := h.DB.Where("shop_id = ?", validShopID).Find(&tags).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).Order("created_at DESC").Find(&tags).Error; err != nil {
 		h.logger.Printf("获取标签列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取标签列表失败")
 		return
@@ -344,7 +344,7 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 		log2.Debugf("GetTags isFront: %v ", isFront)
 		var unbindCount int64
 		h.DB.Raw(`SELECT COUNT(*) FROM products 
-        WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
+        WHERE shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
 
 		// 如果存在未绑定商品，添加虚拟标签
 		if unbindCount > 0 {
@@ -399,7 +399,7 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		WHERE id NOT IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ? AND shop_id =?
-		) LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
 		h.logger.Printf("查询未绑定商品失败: %v", err)
@@ -413,7 +413,7 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		WHERE id NOT IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ? AND shop_id =?
-		)`, tagID).Scan(&total)
+		) ORDER BY created_at DESC`, tagID, validShopID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -449,7 +449,7 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 		SELECT * FROM tags
 		WHERE shop_id = ? ANS id NOT IN (
 			SELECT DISTINCT tag_id FROM product_tags
-		) LIMIT ? OFFSET ?`, validShopID, pageSize, offset).Scan(&tags).Error
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, validShopID, pageSize, offset).Scan(&tags).Error
 
 	if err != nil {
 		h.logger.Printf("查询未绑定商品标签失败: %v", err)
@@ -462,7 +462,7 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 		SELECT COUNT(*) FROM tags
 		WHERE shop_id = ? AND id NOT IN (
 			SELECT DISTINCT tag_id FROM product_tags
-		)`, validShopID).Scan(&total)
+		) ORDER BY created_at DESC`, validShopID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -522,7 +522,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		WHERE id IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ? AND shop_id =?
-		) LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
 		h.logger.Printf("查询已绑定商品失败: %v", err)
@@ -536,7 +536,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		WHERE id IN (
 			SELECT product_id FROM product_tags
 			WHERE tag_id = ?
-		)`, tagID).Scan(&total)
+		) ORDER BY created_at DESC`, tagID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -557,14 +557,18 @@ func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]m
 		SELECT * FROM products
 		WHERE shop_id = ? AND id NOT IN (
 			SELECT product_id FROM product_tags
-		) LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&products).Error
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 获取总数
-	h.DB.Raw(`SELECT COUNT(*) FROM products WHERE id NOT IN (SELECT product_id FROM product_tags)`).Scan(&total)
+	h.DB.Raw(`
+		SELECT COUNT(*) FROM products 
+		WHERE shop_id = ?  AND id NOT IN (
+			SELECT product_id FROM product_tags
+		) ORDER BY created_at DESC`, shopID).Scan(&total)
 
 	return products, total, nil
 }

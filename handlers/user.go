@@ -118,7 +118,7 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	}
 
 	offset := (page - 1) * pageSize
-	if err := baseQuery.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+	if err := baseQuery.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error; err != nil {
 		h.logger.Printf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return

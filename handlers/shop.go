@@ -110,7 +110,7 @@ func (h *Handler) GetShopList(c *gin.Context) {
 	// 执行分页查询
 	var shops []models.Shop
 	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("id DESC").Find(&shops).Error; err != nil {
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&shops).Error; err != nil {
 		h.logger.Printf("查询店铺列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return

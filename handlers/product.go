@@ -217,6 +217,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	// 获取分页数据，并预加载参数类别和选项信息
 	if err := query.Offset(offset).Limit(pageSize).
+		Order("created_at DESC").
 		Preload("OptionCategories").
 		Preload("OptionCategories.Options").
 		Find(&products).Error; err != nil {
