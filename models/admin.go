@@ -8,11 +8,11 @@ import (
 
 type Admin struct {
 	// 管理员只有几个，可以不使用雪花算法
-	ID        uint64    `gorm:"primarykey" json:"id"`
-	Username  string    `gorm:"unique" json:"username"`
-	Password  string    `json:"-"` // 密码不会在JSON中返回
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64    `gorm:"primarykey;column:id" json:"id"`
+	Username  string    `gorm:"column:username;unique" json:"username"`
+	Password  string    `json:"-" gorm:"column:password"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
 // 密码加密

@@ -7,7 +7,12 @@ import (
 	"strconv"
 )
 
-type Price float64
+type Price float64 // gorm:"type:double"
+
+// String implements the Stringer interface.
+func (p Price) String() string {
+	return fmt.Sprintf("%.2f", p)
+}
 
 // GORM's Scanner interface for mapping database value to custom type
 func (p *Price) Scan(value interface{}) error {
@@ -16,6 +21,12 @@ func (p *Price) Scan(value interface{}) error {
 		*p = Price(v)
 	case int64:
 		*p = Price(float64(v))
+	case []uint8:
+		if f, err := strconv.ParseFloat(string(v), 64); err == nil {
+			*p = Price(f)
+		} else {
+			return fmt.Errorf("failed to parse Price from string: %v", err)
+		}
 	default:
 		return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type *Price", value)
 	}

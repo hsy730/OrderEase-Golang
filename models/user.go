@@ -10,15 +10,15 @@ import (
 )
 
 type User struct {
-	ID        snowflake.ID `gorm:"primarykey" json:"id"`
-	Name      string       `json:"name"`
-	Role      string       `gorm:"size:50;default:'user'" json:"role"` // 使用UserRole枚举值
-	Password  string       `gorm:"size:255" json:"-"`
-	Phone     string       `json:"phone"`
-	Address   string       `json:"address"`
-	Type      string       `json:"type"` // delivery:邮寄, pickup:自提, system:系统用户
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID        snowflake.ID `gorm:"column:id;primarykey" json:"id"`
+	Name      string       `gorm:"column:name" json:"name"`
+	Role      string       `gorm:"column:role;size:50;default:'user'" json:"role"` // 使用UserRole枚举值
+	Password  string       `gorm:"column:password;size:255" json:"-"`
+	Phone     string       `gorm:"column:phone" json:"phone"`
+	Address   string       `gorm:"column:address" json:"address"`
+	Type      string       `gorm:"column:type" json:"type"` // delivery:邮寄, pickup:自提, system:系统用户
+	CreatedAt time.Time    `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time    `gorm:"column:updated_at" json:"updated_at"`
 	Orders    []Order      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 }
 

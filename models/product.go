@@ -14,16 +14,16 @@ const (
 )
 
 type Product struct {
-	ID          snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id"`
-	ShopID      uint64       `gorm:"index;not null" json:"shop_id"` // 新增店铺ID
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Price       float64      `json:"price"`
-	Stock       int          `json:"stock"`
-	ImageURL    string       `json:"image_url"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	Status      string       `json:"status"`
+	ID          snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id"`
+	ShopID      uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"` // 新增店铺ID
+	Name        string       `gorm:"column:name" json:"name"`
+	Description string       `gorm:"column:description" json:"description"`
+	Price       float64      `gorm:"column:price;type:double" json:"price"`
+	Stock       int          `gorm:"column:stock" json:"stock"`
+	ImageURL    string       `gorm:"column:image_url" json:"image_url"`
+	CreatedAt   time.Time    `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt   time.Time    `gorm:"column:updated_at" json:"updated_at"`
+	Status      string       `gorm:"column:status" json:"status"`
 
 	// 可选：添加参数类别关联，方便查询
 	OptionCategories []ProductOptionCategory `gorm:"foreignKey:ProductID;constraint:OnDelete:CASCADE" json:"option_categories,omitempty"`

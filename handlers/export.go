@@ -4,13 +4,18 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"orderease/models"
 	"strconv"
+	"strings"
 	"time"
 
+	"reflect"
+
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +28,27 @@ func (h *Handler) ExportData(c *gin.Context) {
 	// 创建一个缓冲区来保存 ZIP 文件
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
+
+	// 导出管理员数据
+	if err := exportTableToCSV(h.DB, zipWriter, "admins.csv", &[]models.Admin{}); err != nil {
+		h.logger.Printf("导出管理员数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出商品选项数据
+	if err := exportTableToCSV(h.DB, zipWriter, "product_options.csv", &[]models.ProductOption{}); err != nil {
+		h.logger.Printf("导出商品选项数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出店铺数据
+	if err := exportTableToCSV(h.DB, zipWriter, "shops.csv", &[]models.Shop{}); err != nil {
+		h.logger.Printf("导出店铺数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
 
 	// 导出用户数据
 	if err := exportTableToCSV(h.DB, zipWriter, "users.csv", &[]models.User{}); err != nil {
@@ -126,105 +152,97 @@ func exportTableToCSV(db *gorm.DB, zipWriter *zip.Writer, filename string, model
 
 // 辅助函数：获取 CSV 表头
 func getCSVHeaders(model interface{}) ([]string, error) {
-	// 根据模型类型返回表头
-	switch model.(type) {
-	case *[]models.User:
-		return []string{"id", "name", "phone", "address", "type", "created_at", "updated_at"}, nil
-	case *[]models.Product:
-		return []string{"id", "name", "description", "price", "stock", "image_url", "created_at", "updated_at"}, nil
-	case *[]models.Order:
-		return []string{"id", "user_id", "total_price", "status", "remark", "created_at", "updated_at"}, nil
-	case *[]models.OrderItem:
-		return []string{"id", "order_id", "product_id", "quantity", "price"}, nil
-	case *[]models.Tag:
-		return []string{"id", "name", "description", "created_at", "updated_at"}, nil
-	case *[]models.ProductTag:
-		return []string{"id", "product_id", "tag_id", "created_at", "updated_at"}, nil
-	default:
-		return nil, fmt.Errorf("unsupported model type")
+	// 由于报错显示 reflect 未定义，需要添加 reflect 包的导入
+	// 此处仅展示选择部分的修改，实际使用时需要在文件开头添加 import "reflect"
+
+	// 原代码保持不变，需要在文件开头补充 import 语句
+	t := reflect.TypeOf(model).Elem().Elem()
+	var headers []string
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		gormTag := field.Tag.Get("gorm")
+		if column := parseColumnName(gormTag); column != "" {
+			headers = append(headers, column)
+		}
 	}
+	return headers, nil
+}
+
+func parseColumnName(tag string) string {
+	for _, part := range strings.Split(tag, ";") {
+		if strings.HasPrefix(part, "column:") {
+			return strings.TrimPrefix(part, "column:")
+		}
+	}
+	return ""
 }
 
 // 辅助函数：获取 CSV 记录
 func getCSVRecords(model interface{}) ([][]string, error) {
 	var records [][]string
 
-	switch v := model.(type) {
-	case *[]models.User:
-		for _, u := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(u.ID), 10),
-				u.Name,
-				u.Phone,
-				u.Address,
-				u.Type,
-				u.CreatedAt.Format(time.RFC3339),
-				u.UpdatedAt.Format(time.RFC3339),
-			}
-			records = append(records, record)
-		}
-	case *[]models.Product:
-		for _, p := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(p.ID), 10),
-				p.Name,
-				p.Description,
-				strconv.FormatFloat(p.Price, 'f', 2, 64),
-				strconv.Itoa(p.Stock),
-				p.ImageURL,
-				p.CreatedAt.Format(time.RFC3339),
-				p.UpdatedAt.Format(time.RFC3339),
-			}
-			records = append(records, record)
-		}
-	case *[]models.Order:
-		for _, o := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(o.ID), 10),
-				strconv.FormatUint(uint64(o.UserID), 10),
-				strconv.FormatFloat(float64(o.TotalPrice), 'f', 2, 64),
-				o.Status,
-				o.Remark,
-				o.CreatedAt.Format(time.RFC3339),
-				o.UpdatedAt.Format(time.RFC3339),
-			}
-			records = append(records, record)
-		}
-	case *[]models.OrderItem:
-		for _, item := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(item.ID), 10),
-				strconv.FormatUint(uint64(item.OrderID), 10),
-				strconv.FormatUint(uint64(item.ProductID), 10),
-				strconv.Itoa(item.Quantity),
-				strconv.FormatFloat(float64(item.Price), 'f', 2, 64),
-			}
-			records = append(records, record)
-		}
-	case *[]models.Tag:
-		for _, t := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(t.ID), 10),
-				t.Name,
-				t.Description,
-				t.CreatedAt.Format(time.RFC3339),
-				t.UpdatedAt.Format(time.RFC3339),
-			}
-			records = append(records, record)
-		}
-	case *[]models.ProductTag:
-		for _, pt := range *v {
-			record := []string{
-				strconv.FormatUint(uint64(pt.ProductID), 10),
-				strconv.FormatUint(uint64(pt.TagID), 10),
-				pt.CreatedAt.Format(time.RFC3339),
-				pt.UpdatedAt.Format(time.RFC3339),
-			}
-			records = append(records, record)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported model type")
-	}
+	headers, _ := getCSVHeaders(model)
+	v := reflect.ValueOf(model).Elem()
 
+	for i := 0; i < v.Len(); i++ {
+		var record []string
+		elem := v.Index(i)
+
+		for _, header := range headers {
+			fieldValue, err := getFieldValueByColumn(elem, header)
+			if err != nil {
+				return nil, err
+			}
+			record = append(record, fieldValue)
+		}
+		records = append(records, record)
+	}
 	return records, nil
+}
+
+func getFieldValueByColumn(v reflect.Value, column string) (string, error) {
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if parseColumnName(field.Tag.Get("gorm")) == column {
+			return convertValueToString(v.Field(i))
+		}
+	}
+	return "", fmt.Errorf("column %s not found", column)
+}
+
+func convertValueToString(fieldValue reflect.Value) (string, error) {
+	switch fieldValue.Kind() {
+	case reflect.String:
+		return fieldValue.String(), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(fieldValue.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(fieldValue.Uint(), 10), nil
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(fieldValue.Float(), 'f', -1, 64), nil
+	case reflect.Slice, reflect.Map:
+		jsonData, err := json.Marshal(fieldValue.Interface())
+		if err != nil {
+			return "", err
+		}
+		return string(jsonData), nil
+	case reflect.Struct:
+		if t := fieldValue.Type(); t == reflect.TypeOf(time.Time{}) {
+			return fieldValue.Interface().(time.Time).Format(time.RFC3339), nil
+		}
+		if t := fieldValue.Type(); t == reflect.TypeOf(datatypes.JSON{}) {
+			jsonData, err := json.Marshal(fieldValue.Interface())
+			if err != nil {
+				return "", err
+			}
+			return string(jsonData), nil
+		}
+		if stringer, ok := fieldValue.Interface().(fmt.Stringer); ok {
+			return stringer.String(), nil
+		}
+	case reflect.Bool:
+		return strconv.FormatBool(fieldValue.Bool()), nil
+	}
+	return "", fmt.Errorf("unsupported type: %s, kind: %v", fieldValue.Type(), fieldValue.Kind())
 }

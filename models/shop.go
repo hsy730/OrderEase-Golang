@@ -11,22 +11,22 @@ import (
 )
 
 type Shop struct {
-	ID            uint64 `gorm:"primarykey" json:"id"`
-	Name          string `gorm:"size:100;not null" json:"name"`                      //店名
-	OwnerUsername string `gorm:"size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
-	OwnerPassword string `gorm:"size:255;not null" json:"-"`                         // 店主登录密码
+	ID            uint64 `gorm:"column:id;primarykey" json:"id"`
+	Name          string `gorm:"column:name;size:100;not null" json:"name"`                                //店名
+	OwnerUsername string `gorm:"column:owner_username;size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
+	OwnerPassword string `gorm:"column:owner_password;size:255;not null" json:"-"`                         // 店主登录密码
 
-	ContactPhone string `gorm:"size:20" json:"contact_phone"`
-	ContactEmail string `gorm:"size:100" json:"contact_email"`
-	Address      string `gorm:"size:100" json:"address"`
-	ImageURL     string `gorm:"size:255" json:"image_url"`                           // 店铺图片URL
+	ContactPhone string `gorm:"column:contact_phone;size:20" json:"contact_phone"`
+	ContactEmail string `gorm:"column:contact_email;size:100" json:"contact_email"`
+	Address      string `gorm:"column:address;size:100" json:"address"`
+	ImageURL     string `gorm:"column:image_url;size:255" json:"image_url"` // 店铺图片URL
 
-	Description string    `gorm:"type:text" json:"description"` // 店铺描述
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	ValidUntil  time.Time `gorm:"index" json:"valid_until"` // 有效期
+	Description string    `gorm:"column:description;type:text" json:"description"` // 店铺描述
+	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updated_at"`
+	ValidUntil  time.Time `gorm:"column:valid_until;index" json:"valid_until"` // 有效期
 	// 假设使用 gorm.io/datatypes 包中的 JSON 类型
-	Settings datatypes.JSON `gorm:"type:json" json:"settings"` // 店铺设置
+	Settings datatypes.JSON `gorm:"column:settings;type:json" json:"settings"` // 店铺设置
 	Products []Product      `gorm:"foreignKey:ShopID" json:"products"`
 	Tags     []Tag          `gorm:"foreignKey:ShopID" json:"tags"`
 }
