@@ -405,17 +405,31 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
+	totalPrice := float64(0.0)
+
 	// 创建新的订单项
 	var orderItems []models.OrderItem
 	for _, itemReq := range updateData.Items {
+		var product models.Product
+		if err := tx.First(&product, itemReq.ProductID).Error; err != nil {
+			tx.Rollback()
+			h.logger.Printf("商品不存在, ID: %d, 错误: %v", itemReq.ProductID, err)
+			errorResponse(c, http.StatusBadRequest, "商品不存在")
+			return
+		}
+
 		orderItem := models.OrderItem{
 			OrderID:   order.ID,
 			ProductID: itemReq.ProductID,
 			Quantity:  itemReq.Quantity,
+			Price:     models.Price(product.Price), // 获取当前商品价格
 		}
 
 		// 处理选中的选项
 		var options []models.OrderItemOption
+
+		itemTotalPrice := float64(orderItem.Quantity) * product.Price
+
 		for _, optionReq := range itemReq.Options {
 			// 获取参数选项信息
 			var option models.ProductOption
@@ -434,7 +448,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
 				return
 			}
-
+			// 计算参数选项对总价的影响
 			// 保存参数选项快照
 			options = append(options, models.OrderItemOption{
 				OrderItemID:     orderItem.ID,
@@ -444,9 +458,13 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 				CategoryName:    category.Name,
 				PriceAdjustment: option.PriceAdjustment,
 			})
+			itemTotalPrice += float64(orderItem.Quantity) * option.PriceAdjustment
 		}
+		// 设置订单项总价
 		orderItem.Options = options
+		orderItem.TotalPrice = models.Price(itemTotalPrice)
 		orderItems = append(orderItems, orderItem)
+		totalPrice += itemTotalPrice
 	}
 
 	// 保存新的订单项
@@ -456,6 +474,8 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
 		return
 	}
+
+	order.TotalPrice = models.Price(totalPrice)
 
 	// 更新订单信息
 	if err := tx.Save(&order).Error; err != nil {
