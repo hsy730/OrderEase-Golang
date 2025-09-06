@@ -270,6 +270,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	var orders []models.Order
 	// 预加载Items和Items.Options
 	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
+		Order("created_at DESC").
 		Preload("Items").
 		Preload("Items.Options").
 		Find(&orders).Error; err != nil {
@@ -411,18 +412,38 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			OrderID:   order.ID,
 			ProductID: itemReq.ProductID,
 			Quantity:  itemReq.Quantity,
-			Price:     models.Price(itemReq.Price),
 		}
 
 		// 处理选中的选项
 		var options []models.OrderItemOption
 		for _, optionReq := range itemReq.Options {
-			option := models.OrderItemOption{
-				OrderItemID: orderItem.ID,
-				OptionID:    optionReq.OptionID,
-				CategoryID:  optionReq.CategoryID,
+			// 获取参数选项信息
+			var option models.ProductOption
+			if err := tx.First(&option, optionReq.OptionID).Error; err != nil {
+				tx.Rollback()
+				h.logger.Printf("商品参数选项不存在, ID: %d, 错误: %v", optionReq.OptionID, err)
+				errorResponse(c, http.StatusBadRequest, "无效的商品参数选项")
+				return
 			}
-			options = append(options, option)
+
+			// 获取参数类别信息
+			var category models.ProductOptionCategory
+			if err := tx.First(&category, option.CategoryID).Error; err != nil {
+				tx.Rollback()
+				h.logger.Printf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
+				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
+				return
+			}
+
+			// 保存参数选项快照
+			options = append(options, models.OrderItemOption{
+				OrderItemID:     orderItem.ID,
+				OptionID:        optionReq.OptionID,
+				CategoryID:      optionReq.CategoryID,
+				OptionName:      option.Name,
+				CategoryName:    category.Name,
+				PriceAdjustment: option.PriceAdjustment,
+			})
 		}
 		orderItem.Options = options
 		orderItems = append(orderItems, orderItem)
