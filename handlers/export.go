@@ -182,6 +182,8 @@ func getCSVRecords(model interface{}) ([][]string, error) {
 	var records [][]string
 
 	headers, _ := getCSVHeaders(model)
+	converters := getCSVColumnConverter(model, headers)
+
 	v := reflect.ValueOf(model).Elem()
 
 	for i := 0; i < v.Len(); i++ {
@@ -189,7 +191,7 @@ func getCSVRecords(model interface{}) ([][]string, error) {
 		elem := v.Index(i)
 
 		for _, header := range headers {
-			fieldValue, err := getFieldValueByColumn(elem, header)
+			fieldValue, err := converters[header](elem)
 			if err != nil {
 				return nil, err
 			}
@@ -200,49 +202,92 @@ func getCSVRecords(model interface{}) ([][]string, error) {
 	return records, nil
 }
 
-func getFieldValueByColumn(v reflect.Value, column string) (string, error) {
+type fieldConverter func(v reflect.Value) (string, error)
+
+func getCSVColumnConverter(model interface{}, headers []string) map[string]fieldConverter {
+	v := reflect.ValueOf(model).Elem()
+
+	converters := make(map[string]fieldConverter, len(headers))
+
+	if v.Len() != 0 {
+		elem := v.Index(0)
+
+		for _, header := range headers {
+			converters[header] = getFieldValueByColumn(elem, header)
+		}
+	}
+
+	return converters
+}
+
+func getFieldValueByColumn(v reflect.Value, column string) fieldConverter {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		if parseColumnName(field.Tag.Get("gorm")) == column {
-			return convertValueToString(v.Field(i))
+			return func(inputParam reflect.Value) (string, error) {
+				converter := convertValueToString(v.Field(i))
+				return converter(inputParam.FieldByName(field.Name))
+			}
 		}
 	}
-	return "", fmt.Errorf("column %s not found", column)
+	return func(v reflect.Value) (string, error) {
+		return "", fmt.Errorf("column %s not found", column)
+	}
 }
 
-func convertValueToString(fieldValue reflect.Value) (string, error) {
+func convertValueToString(fieldValue reflect.Value) fieldConverter {
 	switch fieldValue.Kind() {
 	case reflect.String:
-		return fieldValue.String(), nil
+		return func(v reflect.Value) (string, error) {
+			return v.String(), nil
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(fieldValue.Int(), 10), nil
+		return func(v reflect.Value) (string, error) {
+			return strconv.FormatInt(v.Int(), 10), nil
+		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatUint(fieldValue.Uint(), 10), nil
+		return func(v reflect.Value) (string, error) {
+			return strconv.FormatUint(v.Uint(), 10), nil
+		}
 	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(fieldValue.Float(), 'f', -1, 64), nil
+		return func(v reflect.Value) (string, error) {
+			return strconv.FormatFloat(v.Float(), 'f', -1, 64), nil
+		}
 	case reflect.Slice, reflect.Map:
-		jsonData, err := json.Marshal(fieldValue.Interface())
-		if err != nil {
-			return "", err
-		}
-		return string(jsonData), nil
-	case reflect.Struct:
-		if t := fieldValue.Type(); t == reflect.TypeOf(time.Time{}) {
-			return fieldValue.Interface().(time.Time).Format(time.RFC3339), nil
-		}
-		if t := fieldValue.Type(); t == reflect.TypeOf(datatypes.JSON{}) {
-			jsonData, err := json.Marshal(fieldValue.Interface())
+		return func(v reflect.Value) (string, error) {
+			jsonData, err := json.Marshal(v.Interface())
 			if err != nil {
 				return "", err
 			}
 			return string(jsonData), nil
 		}
+	case reflect.Struct:
+		if t := fieldValue.Type(); t == reflect.TypeOf(time.Time{}) {
+			return func(v reflect.Value) (string, error) {
+				return v.Interface().(time.Time).Format(time.RFC3339), nil
+			}
+		}
+		if t := fieldValue.Type(); t == reflect.TypeOf(datatypes.JSON{}) {
+			return func(v reflect.Value) (string, error) {
+				jsonData, err := json.Marshal(v.Interface())
+				if err != nil {
+					return "", err
+				}
+				return string(jsonData), nil
+			}
+		}
 		if stringer, ok := fieldValue.Interface().(fmt.Stringer); ok {
-			return stringer.String(), nil
+			return func(v reflect.Value) (string, error) {
+				return stringer.String(), nil
+			}
 		}
 	case reflect.Bool:
-		return strconv.FormatBool(fieldValue.Bool()), nil
+		return func(v reflect.Value) (string, error) {
+			return strconv.FormatBool(v.Bool()), nil
+		}
 	}
-	return "", fmt.Errorf("unsupported type: %s, kind: %v", fieldValue.Type(), fieldValue.Kind())
+	return func(v reflect.Value) (string, error) {
+		return "", fmt.Errorf("unsupported type: %s, kind: %v", fieldValue.Type(), fieldValue.Kind())
+	}
 }
