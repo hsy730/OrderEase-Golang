@@ -6,8 +6,11 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"orderease/models"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +93,10 @@ func (h *Handler) ExportData(c *gin.Context) {
 		h.logger.Printf("导出订单项数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
+	}
+	// 在所有CSV导出完成后添加
+	if err := addUploadsToZip(zipWriter); err != nil {
+		h.logger.Printf("图片打包失败: %v", err)
 	}
 
 	// 关闭 ZIP writer
@@ -290,4 +297,45 @@ func convertValueToString(fieldValue reflect.Value) fieldConverter {
 	return func(v reflect.Value) (string, error) {
 		return "", fmt.Errorf("unsupported type: %s, kind: %v", fieldValue.Type(), fieldValue.Kind())
 	}
+}
+
+func addUploadsToZip(zipWriter *zip.Writer) error {
+    basePath := filepath.Join("uploads")
+    return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+
+        if info.IsDir() {
+            return nil
+        }
+
+        relPath, err := filepath.Rel(basePath, path)
+        if err != nil {
+            return fmt.Errorf("获取相对路径失败: %w", err)
+        }
+
+        // 添加uploads父目录
+        zipPath := filepath.Join("uploads", relPath)
+
+        zipHeader, err := zip.FileInfoHeader(info)
+        if err != nil {
+            return err
+        }
+        zipHeader.Name = zipPath
+
+        writer, err := zipWriter.CreateHeader(zipHeader)
+        if err != nil {
+            return err
+        }
+
+        file, err := os.Open(path)
+        if err != nil {
+            return err
+        }
+        defer file.Close()
+
+        _, err = io.Copy(writer, file)
+        return err
+    })
 }
