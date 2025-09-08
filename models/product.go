@@ -31,9 +31,9 @@ type Product struct {
 
 // ProductTag 商品和标签的多对多关系表
 type ProductTag struct {
-	ProductID snowflake.ID `gorm:"primaryKey" json:"product_id"`
-	TagID     int          `gorm:"primaryKey" json:"tag_id"`
-	ShopID    uint64       `gorm:"index;not null" json:"shop_id"` // 恢复 ShopID 字段
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ProductID snowflake.ID `gorm:"column:product_id;primaryKey" json:"product_id"`
+	TagID     int          `gorm:"column:tag_id;primaryKey" json:"tag_id"`
+	ShopID    uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"` // 恢复 ShopID 字段
+	CreatedAt time.Time    `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time    `gorm:"column:updated_at" json:"updated_at"`
 }

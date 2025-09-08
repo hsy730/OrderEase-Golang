@@ -39,6 +39,13 @@ func (h *Handler) ExportData(c *gin.Context) {
 		return
 	}
 
+	// 导出商品选项类别数据
+	if err := exportTableToCSV(h.DB, zipWriter, "product_option_categories.csv", &[]models.ProductOptionCategory{}); err != nil {
+		h.logger.Printf("导出商品选项类别数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
 	// 导出商品选项数据
 	if err := exportTableToCSV(h.DB, zipWriter, "product_options.csv", &[]models.ProductOption{}); err != nil {
 		h.logger.Printf("导出商品选项数据失败: %v", err)
