@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"orderease/models"
 	"orderease/utils/log2"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -111,8 +112,105 @@ func (h *Handler) ImportData(c *gin.Context) {
 		}
 	}
 
+	h.logger.Printf("开始处理图片文件")
+	// 处理图片文件
+	if err := processImageFiles(zipReader); err != nil {
+		tx.Rollback()
+		h.logger.Printf("处理图片文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, fmt.Sprintf("处理图片文件失败: %v", err))
+		return
+	}
+	h.logger.Printf("图片文件处理完成")
+
 	tx.Commit()
 	successResponse(c, gin.H{"message": "数据导入成功"})
+}
+
+// 处理图片文件
+func processImageFiles(zipReader *zip.Reader) error {
+	// 清空uploads目录中的内容，但保留uploads目录本身
+	if err := clearUploadsDirectoryContent(); err != nil {
+		return fmt.Errorf("清空uploads目录内容失败: %w", err)
+	}
+
+	// 遍历ZIP文件中的所有文件
+	log2.Debugf("扫描到的ZIP文件数量: %d", len(zipReader.File))
+	for _, zipFile := range zipReader.File {
+		log2.Debugf("扫描到的ZIP文件: %s", zipFile.Name)
+		// 检查是否是图片文件
+		if strings.HasPrefix(zipFile.Name, "uploads"+string(os.PathSeparator)) {
+			log2.Debugf("处理图片文件: %s", zipFile.Name)
+			// 创建目标目录
+			targetPath := filepath.Dir(zipFile.Name)
+			log2.Debugf("创建目标目录: %s", targetPath)
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				return fmt.Errorf("创建目录失败 %s: %w", targetPath, err)
+			}
+			log2.Debugf("成功创建目标目录: %s", targetPath)
+
+			// 打开ZIP中的文件
+			zipFileReader, err := zipFile.Open()
+			if err != nil {
+				return fmt.Errorf("打开ZIP文件失败 %s: %w", zipFile.Name, err)
+			}
+			defer zipFileReader.Close()
+
+			// 创建目标文件
+			targetFile, err := os.Create(zipFile.Name)
+			if err != nil {
+				return fmt.Errorf("创建文件失败 %s: %w", zipFile.Name, err)
+			}
+			defer targetFile.Close()
+
+			// 复制文件内容
+			log2.Debugf("开始复制文件: %s", zipFile.Name)
+			written, err := io.Copy(targetFile, zipFileReader)
+			if err != nil {
+				return fmt.Errorf("复制文件失败 %s: %w", zipFile.Name, err)
+			}
+			log2.Debugf("成功复制文件: %s, 复制字节数: %d", zipFile.Name, written)
+
+			log2.Debugf("成功处理图片文件: %s", zipFile.Name)
+		}
+	}
+
+	return nil
+}
+
+// 清空uploads目录内容
+func clearUploadsDirectoryContent() error {
+	log2.Debugf("检查uploads目录是否存在")
+	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
+		// 目录不存在，创建目录
+		log2.Debugf("uploads目录不存在，创建目录")
+		if err := os.MkdirAll("uploads", 0755); err != nil {
+			return fmt.Errorf("创建uploads目录失败: %w", err)
+		}
+		return nil
+	} else if err != nil {
+		// 其他错误
+		return fmt.Errorf("检查uploads目录失败: %w", err)
+	}
+
+	// 读取目录内容
+	log2.Debugf("读取uploads目录内容")
+	entries, err := os.ReadDir("uploads")
+	if err != nil {
+		return fmt.Errorf("读取uploads目录失败: %w", err)
+	}
+
+	// 删除目录中的所有文件和子目录
+	log2.Debugf("开始删除uploads目录中的文件和子目录")
+	for _, entry := range entries {
+		entryPath := filepath.Join("uploads", entry.Name())
+		log2.Debugf("删除文件或目录: %s", entryPath)
+		if err := os.RemoveAll(entryPath); err != nil {
+			// 记录错误但继续处理其他文件
+			log2.Debugf("警告: 删除 %s 失败: %v", entryPath, err)
+		}
+	}
+
+	return nil
 }
 
 // 修改 importCSVFile 函数，添加错误处理和日志
