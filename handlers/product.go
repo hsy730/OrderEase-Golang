@@ -490,7 +490,8 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		time.Now().Unix(),
 		filepath.Ext(file.Filename))
 
-	imageURL := fmt.Sprintf("/uploads/products/%s", filename)
+	// 修改：只保存文件名
+	imageURL := filename
 	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
 
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
@@ -542,23 +543,16 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 
 // 获取商品图片
 func (h *Handler) GetProductImage(c *gin.Context) {
-	imagePath := c.Query("path")
-	if imagePath == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少图片路径")
-		return
-	}
+	// 添加路径前缀
+	fileName := c.Query("path")
 
-	if !strings.HasPrefix(imagePath, "/") {
-		imagePath = "/" + imagePath
-	}
-
-	if err := utils.ValidateImageURL(imagePath, "product"); err != nil {
+	if err := utils.ValidateImageURL(fileName, "product"); err != nil {
 		log2.Errorf("图片路径验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
 		return
 	}
 
-	imagePath = "." + imagePath
+	imagePath := fmt.Sprintf("./uploads/products/%s", fileName)
 
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		log2.Errorf("图片文件不存在: %s", imagePath)

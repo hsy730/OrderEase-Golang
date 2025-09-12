@@ -397,7 +397,6 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		filepath.Ext(file.Filename))
 
 	// 构建图片URL和文件路径
-	imageURL := fmt.Sprintf("/uploads/shops/%s", filename)
 	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
 
 	// 保存上传文件
@@ -418,15 +417,8 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		log2.Infof("图片压缩成功，原始大小: %d 字节，压缩后: %d 字节", file.Size, compressedSize)
 	}
 
-	// 验证图片URL
-	if err := utils.ValidateImageURL(imageURL, "shop"); err != nil {
-		log2.Errorf("图片URL验证失败: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
-		return
-	}
-
 	// 更新店铺图片URL
-	if err := h.DB.Model(&shop).Update("image_url", imageURL).Error; err != nil {
+	if err := h.DB.Model(&shop).Update("image_url", filename).Error; err != nil {
 		log2.Errorf("更新店铺图片失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新店铺图片失败")
 		return
@@ -445,30 +437,26 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": message,
-		"url":     imageURL,
+		"url":     filename,
 		"type":    operationType,
 	})
 }
 
 // 获取店铺图片
 func (h *Handler) GetShopImage(c *gin.Context) {
-	imagePath := c.Query("path")
-	if imagePath == "" {
+	fileName := c.Query("path")
+	if fileName == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少图片路径")
 		return
 	}
 
-	if !strings.HasPrefix(imagePath, "/") {
-		imagePath = "/" + imagePath
-	}
-
-	if err := utils.ValidateImageURL(imagePath, "shop"); err != nil {
+	if err := utils.ValidateImageURL(fileName, "shop"); err != nil {
 		log2.Errorf("图片路径验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
 		return
 	}
 
-	imagePath = "." + imagePath
+	imagePath := fmt.Sprintf("./uploads/shops/%s", fileName)
 
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		log2.Errorf("图片文件不存在: %s", imagePath)

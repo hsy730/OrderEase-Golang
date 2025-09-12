@@ -19,7 +19,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 	shopOwner := r.Group(basePath + "/shopOwner")
 	shopOwner.Use(middleware.RateLimitMiddleware())
 
-	shopOwner.Use(middleware.AuthMiddleware(false))
+	shopOwner.Use(middleware.BackendAuthMiddleware(false))
 	{
 		shopOwner.POST("/logout", h.Logout) // 添加登出接口
 		// 商户基础接口

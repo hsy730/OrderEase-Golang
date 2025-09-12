@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(isAdmin bool) gin.HandlerFunc {
+func BackendAuthMiddleware(isAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		db := database.GetDB()
 		token := c.GetHeader("Authorization")

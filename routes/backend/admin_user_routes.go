@@ -16,7 +16,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 需要认证的路由组
 	admin := r.Group(basePath + "/admin")
 	admin.Use(middleware.RateLimitMiddleware())
-	admin.Use(middleware.AuthMiddleware(true))
+	admin.Use(middleware.BackendAuthMiddleware(true))
 	{
 		admin.POST("/logout", h.Logout) // 添加登出接口
 		// 管理员基础接口

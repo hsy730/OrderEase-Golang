@@ -30,5 +30,6 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 		public.GET("/tag/bound-products", h.GetTagBoundProducts) // 获取标签已绑定的商品列表
 		public.GET("/shop/:shopId/tags", h.GetShopTags)
 		public.GET("/shop/detail", h.GetShopInfo)
+		public.GET("/shop/image", h.GetShopImage)
 	}
 }

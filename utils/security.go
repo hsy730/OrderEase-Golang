@@ -5,9 +5,7 @@ import (
 	"html"
 	"orderease/models"
 	"orderease/utils/log2"
-	"path/filepath"
 	"regexp"
-	"strings"
 )
 
 // 防止XSS的字符串清理函数
@@ -23,39 +21,22 @@ func SanitizeString(input string) string {
 
 // 验证图片URL
 func ValidateImageURL(imageURL string, folder string) error {
-	// 检查是否为空
 	if imageURL == "" {
 		return nil
 	}
 
-	// 确保路径以 /uploads/products/ 开头
-	if !strings.HasPrefix(imageURL, fmt.Sprintf("/uploads/%ss/", folder)) {
-		return fmt.Errorf("invalid image path prefix:" + imageURL)
+	// 添加文件夹类型白名单校验
+	validFolders := map[string]bool{"product": true, "shop": true}
+	if !validFolders[folder] {
+		return fmt.Errorf("invalid folder type: %s", folder)
 	}
 
-	// 验证文件扩展名
-	ext := strings.ToLower(filepath.Ext(imageURL))
-	validExts := map[string]bool{
-		".jpg":  true,
-		".jpeg": true,
-		".png":  true,
-		".gif":  true,
-	}
-	if !validExts[ext] {
-		return fmt.Errorf("invalid image extension: %s", ext)
-	}
+	pattern := fmt.Sprintf(`^%s_\d+_\d+\.(jpg|jpeg|png|gif)$`, folder)
+	re := regexp.MustCompile(pattern)
 
-	// 检查路径中是否包含危险字符
-	if strings.Contains(imageURL, "..") {
-		return fmt.Errorf("path traversal attempt detected")
+	if !re.MatchString(imageURL) {
+		return fmt.Errorf("invalid image url format: %s", imageURL)
 	}
-
-	// 验证文件名格式
-	validName := regexp.MustCompile(fmt.Sprintf(`^/uploads/%ss/%s_\d+_\d+\.(jpg|jpeg|png|gif)$`, folder, folder))
-	if !validName.MatchString(imageURL) {
-		return fmt.Errorf("invalid image filename format")
-	}
-
 	return nil
 }
 
