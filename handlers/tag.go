@@ -513,30 +513,46 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		return
 	}
 	// 原有绑定标签商品的查询逻辑保持不变...
-	var products []models.Product = []models.Product{}
 	var total int64
 
-	// 查询已绑定该标签的商品
+	// 获取已绑定商品的ID列表
+	var productIDs []snowflake.ID
 	err = h.DB.Raw(`
-		SELECT * FROM products
-		WHERE id IN (
-			SELECT product_id FROM product_tags
-			WHERE tag_id = ? AND shop_id =?
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
+		SELECT product_id FROM product_tags
+		WHERE tag_id = ? AND shop_id = ?`, tagID, validShopID).Pluck("product_id", &productIDs).Error
 
 	if err != nil {
-		h.logger.Printf("查询已绑定商品失败: %v", err)
+		h.logger.Printf("获取商品ID列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	log2.Debugf("获取商品ID列表: %v", productIDs)
+
+	// 查询完整商品数据并预加载选项
+	var products []models.Product
+	err = h.DB.Where("id IN (?)", productIDs).
+		Preload("OptionCategories.Options").
+		Order("created_at DESC").
+		Limit(pageSize).Offset(offset).
+		Find(&products).Error
+
+	if err != nil {
+		h.logger.Printf("查询商品详情失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
 	// 获取总数
-	h.DB.Raw(`
-		SELECT COUNT(*) FROM products
-		WHERE id IN (
-			SELECT product_id FROM product_tags
-			WHERE tag_id = ?
-		) ORDER BY created_at DESC`, tagID).Scan(&total)
+	err = h.DB.Model(&models.Product{}).
+		Where("id IN (?)", productIDs).
+		Count(&total).Error
+
+	if err != nil {
+		h.logger.Printf("获取商品总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -552,23 +568,22 @@ func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]m
 	var products []models.Product
 	var total int64
 
-	// 执行未绑定商品查询
-	err := h.DB.Raw(`
-		SELECT * FROM products
-		WHERE shop_id = ? AND id NOT IN (
-			SELECT product_id FROM product_tags
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&products).Error
+	query := h.DB.Model(&models.Product{}).
+		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)", shopID)
 
-	if err != nil {
+	// 获取总数
+	if err := query.
+		Model(&models.Product{}).
+		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 获取总数
-	h.DB.Raw(`
-		SELECT COUNT(*) FROM products 
-		WHERE shop_id = ?  AND id NOT IN (
-			SELECT product_id FROM product_tags
-		) ORDER BY created_at DESC`, shopID).Scan(&total)
+	if err := query.Offset(offset).
+		Limit(pageSize).Order("created_at DESC").
+		Preload("OptionCategories.Options").
+		Find(&products).Error; err != nil {
+		return nil, 0, err
+	}
 
 	return products, total, nil
 }

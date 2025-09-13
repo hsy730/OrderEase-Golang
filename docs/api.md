@@ -571,3 +571,8 @@
     "message": "Shops not found"
   }
   ```
+// 商品图片示例
+"image_url": "product_1966495020227760128_1757684275.jpg"
+
+// 订单项示例
+"image_url": "product_123456789_987654321.jpg"
