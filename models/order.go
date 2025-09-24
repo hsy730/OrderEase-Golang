@@ -76,3 +76,14 @@ type OrderStatusLog struct {
 	NewStatus   string       `json:"new_status"`
 	ChangedTime time.Time    `json:"changed_time"`
 }
+
+type OrderElement struct {
+	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
+	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
+	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
+	Status     string       `gorm:"column:status" json:"status"`
+	Remark     string       `gorm:"column:remark" json:"remark"`
+	CreatedAt  time.Time    `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt  time.Time    `gorm:"column:updated_at" json:"updated_at"`
+}

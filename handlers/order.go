@@ -271,19 +271,31 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	// 预加载Items和Items.Options
 	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
 		Order("created_at DESC").
-		Preload("Items").
-		Preload("Items.Options").
 		Find(&orders).Error; err != nil {
 		h.logger.Printf("查询订单列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
 
+	var simpleOrders []models.OrderElement
+	for _, order := range orders {
+		simpleOrders = append(simpleOrders, models.OrderElement{
+			ID:         order.ID,
+			UserID:     order.UserID,
+			ShopID:     order.ShopID,
+			TotalPrice: order.TotalPrice,
+			Status:     order.Status,
+			Remark:     order.Remark,
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+		})
+	}
+
 	successResponse(c, gin.H{
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
-		"data":     orders,
+		"data":     simpleOrders,
 	})
 }
 
@@ -351,20 +363,57 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		return
 	}
 
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100 // 限制最大页面大小
+	}
+	offset := (page - 1) * pageSize
+
 	var orders []models.Order
 	// 预加载Items和Items.Options
-	if err := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID).
-		Preload("Items").
-		Preload("Items.Options").
+	query := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID)
+
+	// 获取总数
+	var total int64
+	if err := query.Model(&models.Order{}).Count(&total).Error; err != nil {
+		log2.Errorf("查询订单总数失败, 用户ID: %s, 错误: %v", userID, err)
+		errorResponse(c, http.StatusInternalServerError, "查询订单总数失败")
+		return
+	}
+
+	// 分页查询订单
+	if err := query.Order("created_at DESC").
+		Offset(offset).Limit(pageSize).
+		// Preload("Items").
+		// Preload("Items.Options").
 		Find(&orders).Error; err != nil {
 		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
 	}
 
+	var simpleOrders []models.OrderElement
+	for _, order := range orders {
+		simpleOrders = append(simpleOrders, models.OrderElement{
+			ID:         order.ID,
+			UserID:     order.UserID,
+			ShopID:     order.ShopID,
+			TotalPrice: order.TotalPrice,
+			Status:     order.Status,
+			Remark:     order.Remark,
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+		})
+	}
+
 	successResponse(c, gin.H{
-		"code": 200,
-		"data": orders,
+		"code":     200,
+		"data":     simpleOrders,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
 	})
 }
 
