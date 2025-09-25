@@ -139,14 +139,15 @@ func (h *Handler) GetShopList(c *gin.Context) {
 // CreateShop 创建店铺
 func (h *Handler) CreateShop(c *gin.Context) {
 	var shopData struct {
-		Name          string `json:"name" binding:"required"`
-		OwnerUsername string `json:"owner_username" binding:"required"`
-		OwnerPassword string `json:"owner_password" binding:"required"`
-		ContactPhone  string `json:"contact_phone"`
-		ContactEmail  string `json:"contact_email"`
-		Description   string `json:"description"`
-		ValidUntil    string `json:"valid_until"`
-		Address       string `json:"address"`
+		Name          string         `json:"name" binding:"required"`
+		OwnerUsername string         `json:"owner_username" binding:"required"`
+		OwnerPassword string         `json:"owner_password" binding:"required"`
+		ContactPhone  string         `json:"contact_phone"`
+		ContactEmail  string         `json:"contact_email"`
+		Description   string         `json:"description"`
+		ValidUntil    string         `json:"valid_until"`
+		Address       string         `json:"address"`
+		Settings      datatypes.JSON `json:"settings"`
 	}
 
 	if err := c.ShouldBindJSON(&shopData); err != nil {
@@ -183,7 +184,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		Description:   shopData.Description,
 		ValidUntil:    validUntil,
 		Address:       shopData.Address,
-		Settings:      datatypes.JSON(`{}`), // 初始化为空对象
+		Settings:      shopData.Settings, // 初始化为空对象
 	}
 
 	if err := h.DB.Create(&newShop).Error; err != nil {
@@ -211,14 +212,16 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID            uint64  `json:"id" binding:"required"`
-		OwnerUsername string  `json:"owner_username" binding:"required"`
-		OwnerPassword *string `json:"owner_password"` // 使用指针类型以区分null和空字符串
-		Name          string  `json:"name"`
-		ContactPhone  string  `json:"contact_phone"`
-		ContactEmail  string  `json:"contact_email"`
-		Description   string  `json:"description"`
-		ValidUntil    string  `json:"valid_until"`
+		ID            uint64         `json:"id" binding:"required"`
+		OwnerUsername string         `json:"owner_username" binding:"required"`
+		OwnerPassword *string        `json:"owner_password"` // 使用指针类型以区分null和空字符串
+		Name          string         `json:"name"`
+		ContactPhone  string         `json:"contact_phone"`
+		ContactEmail  string         `json:"contact_email"`
+		Description   string         `json:"description"`
+		ValidUntil    string         `json:"valid_until"`
+		Address       string         `json:"address"`
+		Settings      datatypes.JSON `json:"settings"`
 	}
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
@@ -251,6 +254,12 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 	if updateData.Description != "" {
 		shop.Description = updateData.Description
+	}
+	if updateData.Address != "" {
+		shop.Address = updateData.Address
+	}
+	if updateData.Settings != nil {
+		shop.Settings = updateData.Settings
 	}
 	if updateData.ValidUntil != "" {
 		validUntil, err := time.Parse(time.RFC3339, updateData.ValidUntil)
