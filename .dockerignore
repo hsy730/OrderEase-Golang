@@ -1,0 +1,44 @@
+# 排除Git相关文件
+.git/
+.gitignore
+
+# 排除IDE和编辑器配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 排除构建产物
+bin/
+out/
+
+# 排除日志文件
+logs/
+*.log
+
+# 排除测试文件
+*_test.go
+
+# 排除临时文件和缓存
+*.tmp
+*.temp
+.cache/
+
+# 排除操作系统文件
+.DS_Store
+Thumbs.db
+
+# 排除文档
+*.md
+docs/
+
+# 排除上传的文件（运行时会重新创建uploads目录）
+# 但我们会在Dockerfile中特别复制必要的目录结构
+src/uploads/
+
+# 排除其他可能不需要的文件
+*.txt
+*.csv
+*.json
+*.xml

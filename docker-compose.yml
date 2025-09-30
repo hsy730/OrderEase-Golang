@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=123456
+      - DB_NAME=orderease
+      - JWT_SECRET=e6jf493kdhbms9ew6mv2v1a4dx2
+      - JWT_EXPIRATION=7200
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - orderease-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=orderease
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - orderease-network
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+volumes:
+  mysql-data:
+
+networks:
+  orderease-network:
+    driver: bridge
