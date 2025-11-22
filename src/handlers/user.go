@@ -169,8 +169,9 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		ID       string `json:"id"`
 		Type     string `json:"type"`
 		Phone    string `json:"phone"`
-		Password string `json:"password"` // 使用指针类型以区分null和空字符串
+		Password string `json:"password"`
 		Address  string `json:"address"`
+		Role     string `json:"role"`
 		// 其他需要更新的字段
 	}
 
@@ -197,6 +198,12 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// 验证角色
+	if updateData.Role != "" && updateData.Role != models.UserRolePrivate && updateData.Role != models.UserRolePublic {
+		errorResponse(c, http.StatusBadRequest, "无效的角色")
+		return
+	}
+
 	// 查询现有用户
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
@@ -218,6 +225,9 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	// 处理密码更新：如果密码不为空字符串，则更新密码
 	if updateData.Password != "" {
 		user.Password = updateData.Password
+	}
+	if updateData.Role != "" {
+		user.Role = updateData.Role
 	}
 
 	if err := h.DB.Save(&user).Error; err != nil {

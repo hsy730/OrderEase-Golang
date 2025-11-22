@@ -27,8 +27,8 @@ const (
 	UserTypePickup   = "pickup"
 
 	// 用户角色枚举
-	UserRoleRegular = "user"   // 普通用户
-	UserRoleSystem  = "system" // 系统用户
+	UserRolePrivate = "private_user" // 普通用户
+	UserRolePublic  = "public_user"  // 公共用户
 )
 
 func (u *User) BeforeSave(tx *gorm.DB) error {
