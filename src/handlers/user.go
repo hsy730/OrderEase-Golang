@@ -46,7 +46,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	if user.Phone != "" { // 电话选填
 		// 增强版手机号验证
 		if !utils.ValidatePhoneWithRegex(user.Phone) {
-			h.logger.Printf("无效的手机号格式: %s", user.Phone)
+			h.logger.Errorf("无效的手机号格式: %s", user.Phone)
 			errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
 			return
 		}
@@ -63,7 +63,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	user.ID = utils.GenerateSnowflakeID()
 
 	if err := h.DB.Create(&user).Error; err != nil {
-		h.logger.Printf("创建用户失败: %v", err)
+		h.logger.Errorf("创建用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
 		return
 	}
@@ -112,14 +112,14 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	baseQuery := h.DB.Model(&models.User{})
 
 	if err := baseQuery.Count(&total).Error; err != nil {
-		h.logger.Printf("获取用户总数失败: %v", err)
+		h.logger.Errorf("获取用户总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
 
 	offset := (page - 1) * pageSize
 	if err := baseQuery.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error; err != nil {
-		h.logger.Printf("查询用户列表失败: %v", err)
+		h.logger.Errorf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
@@ -154,7 +154,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Printf("查询用户失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("查询用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
 	}
@@ -200,7 +200,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	// 查询现有用户
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Printf("更新用户失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("更新用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
 	}
@@ -221,14 +221,14 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	}
 
 	if err := h.DB.Save(&user).Error; err != nil {
-		h.logger.Printf("更新用户失败: %v", err)
+		h.logger.Errorf("更新用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新用户失败")
 		return
 	}
 
 	// 重新获取更新后的用户信息
 	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Printf("获取更新后的用户信息失败: %v", err)
+		h.logger.Errorf("获取更新后的用户信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的用户信息失败")
 		return
 	}
@@ -258,13 +258,13 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 
 	var user models.User
 	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Printf("删除用户失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("删除用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
 	if err := h.DB.Delete(&user).Error; err != nil {
-		h.logger.Printf("删除用户记录失败: %v", err)
+		h.logger.Errorf("删除用户记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除用户失败")
 		return
 	}
@@ -321,7 +321,7 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	// 获取总数
 	var total int64
 	if err := query.Model(&models.User{}).Count(&total).Error; err != nil {
-		h.logger.Printf("查询用户总数失败: %v", err)
+		h.logger.Errorf("查询用户总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
@@ -331,13 +331,13 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 
 	// 查询分页数据
 	if err := query.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
-		h.logger.Printf("查询用户列表失败: %v", err)
+		h.logger.Errorf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
 
 	if err := query.Find(&users).Error; err != nil {
-		h.logger.Printf("查询用户列表失败: %v", err)
+		h.logger.Errorf("查询用户列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}

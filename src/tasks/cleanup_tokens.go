@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"log"
 	"orderease/models"
 	"orderease/utils/log2"
 	"time"
@@ -12,14 +11,14 @@ import (
 // TokenCleanupTask token清理任务
 type TokenCleanupTask struct {
 	db     *gorm.DB
-	logger *log.Logger
+	logger *log2.Logger
 }
 
 // NewTokenCleanupTask 创建token清理任务
 func NewTokenCleanupTask(db *gorm.DB) *TokenCleanupTask {
 	return &TokenCleanupTask{
 		db:     db,
-		logger: log2.Logger,
+		logger: log2.GetLogger(),
 	}
 }
 
@@ -33,11 +32,11 @@ func (t *TokenCleanupTask) StartTokenCleanup() {
 			next := time.Date(now.Year(), now.Month(), now.Day()+1, 2, 0, 0, 0, now.Location())
 			time.Sleep(next.Sub(now))
 
-			t.logger.Printf("开始清理过期token黑名单")
+			t.logger.Infof("开始清理过期token黑名单")
 			if err := t.cleanupExpiredTokens(); err != nil {
-				t.logger.Printf("清理过期token失败: %v", err)
+				t.logger.Errorf("清理过期token失败: %v", err)
 			}
-			t.logger.Printf("清理过期token完成")
+			t.logger.Infof("清理过期token完成")
 
 			<-ticker.C
 		}

@@ -39,7 +39,7 @@ func (h *Handler) ImportData(c *gin.Context) {
 
 	f, err := file.Open()
 	if err != nil {
-		h.logger.Printf("打开上传文件失败: %v", err)
+		h.logger.Errorf("打开上传文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "文件处理失败")
 		return
 	}
@@ -48,7 +48,7 @@ func (h *Handler) ImportData(c *gin.Context) {
 	// 读取 ZIP 文件
 	zipReader, err := zip.NewReader(f, file.Size)
 	if err != nil {
-		h.logger.Printf("读取ZIP文件失败: %v", err)
+		h.logger.Errorf("读取ZIP文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "文件处理失败")
 		return
 	}
@@ -86,7 +86,7 @@ func (h *Handler) ImportData(c *gin.Context) {
 	for _, table := range tablesToClean {
 		if err := tx.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(table).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("清空表失败: %v", err)
+			h.logger.Errorf("清空表失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "清空数据失败")
 			return
 		}
@@ -103,24 +103,24 @@ func (h *Handler) ImportData(c *gin.Context) {
 		if zipFile, ok := fileMap[fileName]; ok {
 			if err := importCSVFile(tx, zipFile); err != nil {
 				tx.Rollback()
-				h.logger.Printf("导入数据失败: %v", err)
+				h.logger.Errorf("导入数据失败: %v", err)
 				errorResponse(c, http.StatusInternalServerError, fmt.Sprintf("导入 %s 失败: %v", fileName, err))
 				return
 			}
 		} else {
-			h.logger.Printf("警告: 未找到文件 %s", fileName)
+			h.logger.Errorf("警告: 未找到文件 %s", fileName)
 		}
 	}
 
-	h.logger.Printf("开始处理图片文件")
+	h.logger.Infof("开始处理图片文件")
 	// 处理图片文件
 	if err := processImageFiles(zipReader); err != nil {
 		tx.Rollback()
-		h.logger.Printf("处理图片文件失败: %v", err)
+		h.logger.Errorf("处理图片文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, fmt.Sprintf("处理图片文件失败: %v", err))
 		return
 	}
-	h.logger.Printf("图片文件处理完成")
+	h.logger.Infof("图片文件处理完成")
 
 	tx.Commit()
 	successResponse(c, gin.H{"message": "数据导入成功"})

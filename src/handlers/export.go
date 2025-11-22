@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"orderease/utils/log2"
 	"reflect"
 
 	"github.com/gin-gonic/gin"
@@ -34,81 +35,81 @@ func (h *Handler) ExportData(c *gin.Context) {
 
 	// 导出管理员数据
 	if err := exportTableToCSV(h.DB, zipWriter, "admins.csv", &[]models.Admin{}); err != nil {
-		h.logger.Printf("导出管理员数据失败: %v", err)
+		h.logger.Errorf("导出管理员数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出商品选项类别数据
 	if err := exportTableToCSV(h.DB, zipWriter, "product_option_categories.csv", &[]models.ProductOptionCategory{}); err != nil {
-		h.logger.Printf("导出商品选项类别数据失败: %v", err)
+		log2.Errorf("导出商品选项类别数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出商品选项数据
 	if err := exportTableToCSV(h.DB, zipWriter, "product_options.csv", &[]models.ProductOption{}); err != nil {
-		h.logger.Printf("导出商品选项数据失败: %v", err)
+		h.logger.Errorf("导出商品选项数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出店铺数据
 	if err := exportTableToCSV(h.DB, zipWriter, "shops.csv", &[]models.Shop{}); err != nil {
-		h.logger.Printf("导出店铺数据失败: %v", err)
+		h.logger.Errorf("导出店铺数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出用户数据
 	if err := exportTableToCSV(h.DB, zipWriter, "users.csv", &[]models.User{}); err != nil {
-		h.logger.Printf("导出用户数据失败: %v", err)
+		h.logger.Errorf("导出用户数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出商品数据
 	if err := exportTableToCSV(h.DB, zipWriter, "products.csv", &[]models.Product{}); err != nil {
-		h.logger.Printf("导出商品数据失败: %v", err)
+		h.logger.Errorf("导出商品数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出标签数据
 	if err := exportTableToCSV(h.DB, zipWriter, "tags.csv", &[]models.Tag{}); err != nil {
-		h.logger.Printf("导出标签数据失败: %v", err)
+		h.logger.Errorf("导出标签数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出产品标签关联数据
 	if err := exportTableToCSV(h.DB, zipWriter, "product_tags.csv", &[]models.ProductTag{}); err != nil {
-		h.logger.Printf("导出产品标签关联数据失败: %v", err)
+		h.logger.Errorf("导出产品标签关联数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出订单数据
 	if err := exportTableToCSV(h.DB, zipWriter, "orders.csv", &[]models.Order{}); err != nil {
-		h.logger.Printf("导出订单数据失败: %v", err)
+		h.logger.Errorf("导出订单数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 
 	// 导出订单项数据
 	if err := exportTableToCSV(h.DB, zipWriter, "order_items.csv", &[]models.OrderItem{}); err != nil {
-		h.logger.Printf("导出订单项数据失败: %v", err)
+		h.logger.Errorf("导出订单项数据失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
 	// 在所有CSV导出完成后添加
 	if err := addUploadsToZip(zipWriter); err != nil {
-		h.logger.Printf("图片打包失败: %v", err)
+		h.logger.Errorf("图片打包失败: %v", err)
 	}
 
 	// 关闭 ZIP writer
 	if err := zipWriter.Close(); err != nil {
-		h.logger.Printf("关闭 ZIP writer 失败: %v", err)
+		h.logger.Errorf("关闭 ZIP writer 失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
@@ -307,42 +308,42 @@ func convertValueToString(fieldValue reflect.Value) fieldConverter {
 }
 
 func addUploadsToZip(zipWriter *zip.Writer) error {
-    basePath := filepath.Join("uploads")
-    return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
+	basePath := filepath.Join("uploads")
+	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-        if info.IsDir() {
-            return nil
-        }
+		if info.IsDir() {
+			return nil
+		}
 
-        relPath, err := filepath.Rel(basePath, path)
-        if err != nil {
-            return fmt.Errorf("获取相对路径失败: %w", err)
-        }
+		relPath, err := filepath.Rel(basePath, path)
+		if err != nil {
+			return fmt.Errorf("获取相对路径失败: %w", err)
+		}
 
-        // 添加uploads父目录
-        zipPath := filepath.Join("uploads", relPath)
+		// 添加uploads父目录
+		zipPath := filepath.Join("uploads", relPath)
 
-        zipHeader, err := zip.FileInfoHeader(info)
-        if err != nil {
-            return err
-        }
-        zipHeader.Name = zipPath
+		zipHeader, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		zipHeader.Name = zipPath
 
-        writer, err := zipWriter.CreateHeader(zipHeader)
-        if err != nil {
-            return err
-        }
+		writer, err := zipWriter.CreateHeader(zipHeader)
+		if err != nil {
+			return err
+		}
 
-        file, err := os.Open(path)
-        if err != nil {
-            return err
-        }
-        defer file.Close()
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
 
-        _, err = io.Copy(writer, file)
-        return err
-    })
+		_, err = io.Copy(writer, file)
+		return err
+	})
 }

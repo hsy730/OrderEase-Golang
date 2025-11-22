@@ -29,7 +29,7 @@ func (h *Handler) GetShopTags(c *gin.Context) {
 
 	tags, err := h.productRepo.GetShopTagsByID(shopID)
 	if err != nil {
-		h.logger.Printf("查询店铺标签失败，ID: %d，错误: %v", shopID, err)
+		h.logger.Errorf("查询店铺标签失败，ID: %d，错误: %v", shopID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -57,7 +57,7 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
-		h.logger.Printf("查询店铺失败，ID: %d，错误: %v", shopIDInt, err)
+		h.logger.Errorf("查询店铺失败，ID: %d，错误: %v", shopIDInt, err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -102,7 +102,7 @@ func (h *Handler) GetShopList(c *gin.Context) {
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		h.logger.Printf("查询店铺总数失败: %v", err)
+		h.logger.Errorf("查询店铺总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -111,7 +111,7 @@ func (h *Handler) GetShopList(c *gin.Context) {
 	var shops []models.Shop
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&shops).Error; err != nil {
-		h.logger.Printf("查询店铺列表失败: %v", err)
+		h.logger.Errorf("查询店铺列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -188,7 +188,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&newShop).Error; err != nil {
-		h.logger.Printf("创建店铺失败: %v", err)
+		h.logger.Errorf("创建店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建店铺失败")
 		return
 	}
@@ -279,7 +279,7 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 
 	if err := h.DB.Save(&shop).Error; err != nil {
-		h.logger.Printf("更新店铺失败: %v", err)
+		h.logger.Errorf("更新店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
 		return
 	}
@@ -321,7 +321,7 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 	var productCount int64
 	if err := tx.Model(&models.Product{}).Where("shop_id = ?", shopID).Count(&productCount).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("查询关联商品失败: %v", err)
+		h.logger.Errorf("查询关联商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
 		return
 	}
@@ -335,7 +335,7 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 	// 删除店铺记录
 	if err := tx.Where("id = ?", shopID).Delete(&models.Shop{}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除店铺失败: %v", err)
+		h.logger.Errorf("删除店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
 		return
 	}
@@ -364,7 +364,7 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
-		h.logger.Printf("查询店铺失败，ID: %d，错误: %v", id, err)
+		h.logger.Errorf("查询店铺失败，ID: %d，错误: %v", id, err)
 		errorResponse(c, http.StatusInternalServerError, "查询店铺失败")
 		return
 	}

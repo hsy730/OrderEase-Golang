@@ -59,12 +59,12 @@ func Init() (*gorm.DB, error) {
 	// 自动迁移数据库表结构
 	for _, table := range tables {
 		if err := db.AutoMigrate(table); err != nil {
-			log2.Logger.Fatalf("迁移表 %T 失败: %v", table, err)
+			log2.Fatalf("迁移表 %T 失败: %v", table, err)
 		}
-		log2.Logger.Printf("表 %T 迁移成功", table)
+		log2.Infof("表 %T 迁移成功", table)
 	}
 
-	log2.Logger.Println("所有数据库表迁移完成")
+	log2.Infof("所有数据库表迁移完成")
 
 	// 初始化管理员账户
 	if err := InitAdminAccount(db); err != nil {

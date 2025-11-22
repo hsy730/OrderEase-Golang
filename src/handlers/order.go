@@ -101,14 +101,14 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		var product models.Product
 		if err := tx.First(&product, order.Items[i].ProductID).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("商品不存在, ID: %d, 错误: %v", order.Items[i].ProductID, err)
+			h.logger.Errorf("商品不存在, ID: %d, 错误: %v", order.Items[i].ProductID, err)
 			errorResponse(c, http.StatusBadRequest, "商品不存在")
 			return
 		}
 
 		if product.Stock < order.Items[i].Quantity {
 			tx.Rollback()
-			h.logger.Printf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
+			h.logger.Errorf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
 				order.Items[i].ProductID, product.Stock, order.Items[i].Quantity)
 			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("商品 %s 库存不足", product.Name))
 			return
@@ -127,7 +127,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			var option models.ProductOption
 			if err := tx.First(&option, order.Items[i].Options[j].OptionID).Error; err != nil {
 				tx.Rollback()
-				h.logger.Printf("商品参数选项不存在, ID: %d, 错误: %v", order.Items[i].Options[j].OptionID, err)
+				h.logger.Errorf("商品参数选项不存在, ID: %d, 错误: %v", order.Items[i].Options[j].OptionID, err)
 				errorResponse(c, http.StatusBadRequest, "无效的商品参数选项")
 				return
 			}
@@ -136,7 +136,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			var category models.ProductOptionCategory
 			if err := tx.First(&category, option.CategoryID).Error; err != nil {
 				tx.Rollback()
-				h.logger.Printf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
+				h.logger.Errorf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
 				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
 				return
 			}
@@ -166,7 +166,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		totalPrice += itemTotalPrice
 		if err := tx.Save(&product).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("更新商品库存失败: %v", err)
+			h.logger.Errorf("更新商品库存失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "更新商品库存失败")
 			return
 		}
@@ -262,7 +262,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 
 	var total int64
 	if err := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID).Count(&total).Error; err != nil {
-		h.logger.Printf("获取订单总数失败: %v", err)
+		h.logger.Errorf("获取订单总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
@@ -272,7 +272,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
 		Order("created_at DESC").
 		Find(&orders).Error; err != nil {
-		h.logger.Printf("查询订单列表失败: %v", err)
+		h.logger.Errorf("查询订单列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
@@ -326,17 +326,17 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		Where("shop_id = ?", validShopID).
 		Joins("User").
 		First(&order, id).Error; err != nil {
-		h.logger.Printf("查询订单失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("查询订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
 	}
 
 	// 添加日志，打印查询到的订单信息
-	h.logger.Printf("查询到的订单信息: %+v", order)
+	h.logger.Infof("查询到的订单信息: %+v", order)
 	for _, item := range order.Items {
-		h.logger.Printf("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
+		h.logger.Infof("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
 		for _, option := range item.Options {
-			h.logger.Printf("选项ID: %s, 名称: %s", option.ID, option.OptionName)
+			h.logger.Infof("选项ID: %s, 名称: %s", option.ID, option.OptionName)
 		}
 	}
 
@@ -427,7 +427,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 
 	var order models.Order
 	if err := h.DB.First(&order, id).Error; err != nil {
-		h.logger.Printf("更新订单失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("更新订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
 	}
@@ -449,7 +449,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	// 删除原有的订单项和选项
 	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除原有订单项失败: %v", err)
+		h.logger.Errorf("删除原有订单项失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
 		return
 	}
@@ -462,7 +462,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		var product models.Product
 		if err := tx.First(&product, itemReq.ProductID).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("商品不存在, ID: %d, 错误: %v", itemReq.ProductID, err)
+			h.logger.Errorf("商品不存在, ID: %d, 错误: %v", itemReq.ProductID, err)
 			errorResponse(c, http.StatusBadRequest, "商品不存在")
 			return
 		}
@@ -484,7 +484,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			var option models.ProductOption
 			if err := tx.First(&option, optionReq.OptionID).Error; err != nil {
 				tx.Rollback()
-				h.logger.Printf("商品参数选项不存在, ID: %d, 错误: %v", optionReq.OptionID, err)
+				h.logger.Errorf("商品参数选项不存在, ID: %d, 错误: %v", optionReq.OptionID, err)
 				errorResponse(c, http.StatusBadRequest, "无效的商品参数选项")
 				return
 			}
@@ -493,7 +493,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			var category models.ProductOptionCategory
 			if err := tx.First(&category, option.CategoryID).Error; err != nil {
 				tx.Rollback()
-				h.logger.Printf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
+				h.logger.Errorf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
 				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
 				return
 			}
@@ -519,7 +519,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	// 保存新的订单项
 	if err := tx.Create(&orderItems).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("创建新订单项失败: %v", err)
+		h.logger.Errorf("创建新订单项失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
 		return
 	}
@@ -529,7 +529,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	// 更新订单信息
 	if err := tx.Save(&order).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("更新订单信息失败: %v", err)
+		h.logger.Errorf("更新订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
 		return
 	}
@@ -538,7 +538,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 
 	// 重新获取更新后的订单信息
 	if err := h.DB.Preload("Items").Preload("Items.Options").First(&order, id).Error; err != nil {
-		h.logger.Printf("获取更新后的订单信息失败: %v", err)
+		h.logger.Errorf("获取更新后的订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
 		return
 	}
@@ -598,7 +598,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 	var order models.Order
 	if err := h.DB.Where("shop_id = ?", validShopID).First(&order, id).Error; err != nil {
-		h.logger.Printf("删除订单失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("删除订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
 	}
@@ -609,7 +609,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	// 删除订单项
 	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除订单项失败: %v", err)
+		h.logger.Errorf("删除订单项失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
 		return
 	}
@@ -617,7 +617,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	// 删除订单状态日志
 	if err := tx.Where("order_id = ?", id).Delete(&models.OrderStatusLog{}).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除订单状态日志失败: %v", err)
+		h.logger.Errorf("删除订单状态日志失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
 		return
 	}
@@ -625,7 +625,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	// 删除订单
 	if err := tx.Delete(&order).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("删除订单记录失败: %v", err)
+		h.logger.Errorf("删除订单记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
 		return
 	}

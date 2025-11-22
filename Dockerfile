@@ -31,6 +31,9 @@ COPY src/config/ ./config/
 # 创建uploads目录
 RUN mkdir -p uploads/products
 
+# 创建日志目录
+RUN mkdir -p logs
+
 # 暂时移除时区配置以解决构建问题
 
 # 暴露端口（与配置文件中的port一致）

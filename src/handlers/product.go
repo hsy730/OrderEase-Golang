@@ -49,7 +49,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	// 创建商品
 	if err := tx.Create(&product).Error; err != nil {
 		tx.Rollback()
-		h.logger.Printf("创建商品失败: %v", err)
+		h.logger.Errorf("创建商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
 		return
 	}
@@ -62,7 +62,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 
 		if err := tx.Create(&category).Error; err != nil {
 			tx.Rollback()
-			h.logger.Printf("创建商品参数类别失败: %v", err)
+			h.logger.Errorf("创建商品参数类别失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "创建商品参数失败")
 			return
 		}
@@ -72,7 +72,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	// 查询创建后的商品，包含参数信息
 	var createdProduct models.Product
 	if err := h.DB.First(&createdProduct, product.ID).Error; err != nil {
-		h.logger.Printf("获取创建后的商品失败: %v", err)
+		h.logger.Errorf("获取创建后的商品失败: %v", err)
 		successResponse(c, product)
 		return
 	}

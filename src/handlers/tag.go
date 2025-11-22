@@ -29,7 +29,7 @@ func (h *Handler) CreateTag(c *gin.Context) {
 	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	if err := h.DB.Create(&tag).Error; err != nil {
-		h.logger.Printf("创建标签失败: %v", err)
+		h.logger.Errorf("创建标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建标签失败")
 		return
 	}
@@ -64,7 +64,7 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		Find(&products).Error
 
 	if err != nil {
-		h.logger.Printf("查询标签关联商品失败: %v", err)
+		h.logger.Errorf("查询标签关联商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -103,7 +103,7 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 		AND tags.shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
 
 	if err != nil {
-		h.logger.Printf("查询已绑定标签失败: %v", err)
+		h.logger.Errorf("查询已绑定标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -144,7 +144,7 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 		AND shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
 
 	if err != nil {
-		h.logger.Printf("查询未绑定标签失败: %v", err)
+		h.logger.Errorf("查询未绑定标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -180,7 +180,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	// 检查标签是否存在
 	var tag models.Tag
 	if err := h.DB.Where("shop_id = ?", req.ShopID).First(&tag, req.TagID).Error; err != nil {
-		h.logger.Printf("标签不存在, ID: %d", req.TagID)
+		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
@@ -191,7 +191,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	// 批量查询商品的店铺信息
 	var validProducts []models.Product
 	if err := h.DB.Select("id").Where("id IN (?) AND shop_id = ?", req.ProductIDs, tag.ShopID).Find(&validProducts).Error; err != nil {
-		h.logger.Printf("批量查询商品失败: %v", err)
+		h.logger.Errorf("批量查询商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量操作失败")
 		return
 	}
@@ -216,7 +216,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&productTags).Error; err != nil {
-		h.logger.Printf("批量打标签失败: %v", err)
+		h.logger.Errorf("批量打标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量打标签失败")
 		return
 	}
@@ -245,7 +245,7 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	if err := h.DB.Save(&tag).Error; err != nil {
-		h.logger.Printf("更新标签失败: %v", err)
+		h.logger.Errorf("更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新标签失败")
 		return
 	}
@@ -276,7 +276,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	// 检查标签是否存在
 	var tag models.Tag
 	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
-		h.logger.Printf("标签不存在, ID: %s", id)
+		h.logger.Errorf("标签不存在, ID: %s", id)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
@@ -284,7 +284,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	// 检查是否有关联的商品
 	var count int64
 	if err := h.DB.Model(&models.ProductTag{}).Where("tag_id = ?", id).Count(&count).Error; err != nil {
-		h.logger.Printf("检查标签关联商品失败: %v", err)
+		h.logger.Errorf("检查标签关联商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除标签失败")
 		return
 	}
@@ -298,7 +298,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 
 	// 删除标签
 	if err := h.DB.Delete(&tag).Error; err != nil {
-		h.logger.Printf("删除标签失败: %v", err)
+		h.logger.Errorf("删除标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除标签失败")
 		return
 	}
@@ -334,7 +334,7 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 
 	// 查询所有标签
 	if err := h.DB.Where("shop_id = ?", validShopID).Order("created_at DESC").Find(&tags).Error; err != nil {
-		h.logger.Printf("获取标签列表失败: %v", err)
+		h.logger.Errorf("获取标签列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取标签列表失败")
 		return
 	}
@@ -402,7 +402,7 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
 
 	if err != nil {
-		h.logger.Printf("查询未绑定商品失败: %v", err)
+		h.logger.Errorf("查询未绑定商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -452,7 +452,7 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, validShopID, pageSize, offset).Scan(&tags).Error
 
 	if err != nil {
-		h.logger.Printf("查询未绑定商品标签失败: %v", err)
+		h.logger.Errorf("查询未绑定商品标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -500,7 +500,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	if tagID == "-1" {
 		products, total, err := h.getUnboundProducts(validShopID, page, pageSize)
 		if err != nil {
-			h.logger.Printf("查询未绑定商品失败: %v", err)
+			h.logger.Errorf("查询未绑定商品失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "查询失败")
 			return
 		}
@@ -522,7 +522,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		WHERE tag_id = ? AND shop_id = ?`, tagID, validShopID).Pluck("product_id", &productIDs).Error
 
 	if err != nil {
-		h.logger.Printf("获取商品ID列表失败: %v", err)
+		h.logger.Errorf("获取商品ID列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -538,7 +538,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		Find(&products).Error
 
 	if err != nil {
-		h.logger.Printf("查询商品详情失败: %v", err)
+		h.logger.Errorf("查询商品详情失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -549,7 +549,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		Count(&total).Error
 
 	if err != nil {
-		h.logger.Printf("获取商品总数失败: %v", err)
+		h.logger.Errorf("获取商品总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -610,7 +610,7 @@ func (h *Handler) GetTag(c *gin.Context) {
 
 	var tag models.Tag
 	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
-		h.logger.Printf("获取标签详情失败: %v", err)
+		h.logger.Errorf("获取标签详情失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
@@ -627,7 +627,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 
 	var req request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Printf("批量解绑标签, 数据绑定错误: %v", err)
+		h.logger.Errorf("批量解绑标签, 数据绑定错误: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
@@ -642,7 +642,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	// 检查标签是否存在
 	var tag models.Tag
 	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, req.TagID).Error; err != nil {
-		h.logger.Printf("标签不存在, ID: %d", req.TagID)
+		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
@@ -652,7 +652,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		Delete(&models.ProductTag{})
 
 	if result.Error != nil {
-		h.logger.Printf("批量解绑标签失败: %v", result.Error)
+		h.logger.Errorf("批量解绑标签失败: %v", result.Error)
 		errorResponse(c, http.StatusInternalServerError, "批量解绑标签失败")
 		return
 	}
@@ -695,7 +695,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	// 替换原有计算和更新逻辑
 	added, deleted, err := h.updateProductTags(currentTags, req.TagIDs, req.ProductID, req.ShopID)
 	if err != nil {
-		h.logger.Printf("批量更新标签失败: %v", err)
+		h.logger.Errorf("批量更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量更新标签失败")
 		return
 	}

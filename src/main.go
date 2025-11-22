@@ -58,13 +58,13 @@ func init() {
 func main() {
 	// 初始化日志
 	log2.InitLogger()
-	log2.Logger.Println("服务启动...")
+	log2.Info("服务启动...")
 
 	// 加载配置文件
 	if err := config.LoadConfig("config/config.yaml"); err != nil {
-		log2.Logger.Fatal("加载配置文件失败:", err)
+		log2.Fatal("加载配置文件失败:", err)
 	}
-	log2.Logger.Println("配置加载成功")
+	log2.Info("配置加载成功")
 
 	// 设置 Gin 模式
 	gin.SetMode(gin.ReleaseMode)
@@ -95,7 +95,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
-	log2.Logger.Println("数据库连接成功")
+	log2.Info("数据库连接成功")
 
 	// 创建处理器
 	h := handlers.NewHandler(db)
@@ -108,9 +108,9 @@ func main() {
 
 	// 确保上传目录存在
 	if err := os.MkdirAll("./uploads/products", 0755); err != nil {
-		log2.Logger.Fatal("创建上传目录失败:", err)
+		log2.Fatal("创建上传目录失败:", err)
 	}
-	log2.Logger.Println("上传目录创建成功")
+	log2.Info("上传目录创建成功")
 
 	// 初始化清理任务
 	cleanupTask := tasks.NewCleanupTask(db)
@@ -118,6 +118,6 @@ func main() {
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
-	log2.Logger.Printf("服务器启动在 %s", serverAddr)
-	log2.Logger.Fatal(r.Run(serverAddr))
+	log2.Info("服务器启动在 %s", serverAddr)
+	log2.Fatal(r.Run(serverAddr))
 }

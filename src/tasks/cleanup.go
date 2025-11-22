@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"log"
 	"orderease/models"
 	"orderease/utils/log2"
 	"os"
@@ -13,13 +12,13 @@ import (
 
 type CleanupTask struct {
 	db     *gorm.DB
-	logger *log.Logger
+	logger *log2.Logger
 }
 
 func NewCleanupTask(db *gorm.DB) *CleanupTask {
 	return &CleanupTask{
 		db:     db,
-		logger: log2.Logger,
+		logger: log2.GetLogger(),
 	}
 }
 
@@ -33,11 +32,11 @@ func (t *CleanupTask) StartCleanupTask() {
 			next := time.Date(now.Year(), now.Month(), now.Day()+1, 3, 0, 0, 0, now.Location())
 			time.Sleep(next.Sub(now))
 
-			t.logger.Printf("开始执行清理任务")
+			t.logger.Infof("开始执行清理任务")
 			if err := t.Cleanup(); err != nil {
-				t.logger.Printf("清理任务执行失败: %v", err)
+				t.logger.Errorf("清理任务执行失败: %v", err)
 			}
-			t.logger.Printf("清理任务执行完成")
+			t.logger.Infof("清理任务执行完成")
 
 			<-ticker.C
 		}
@@ -75,7 +74,7 @@ func (t *CleanupTask) cleanupOrders(tx *gorm.DB) error {
 	}
 
 	// 记录要删除的订单数量
-	t.logger.Printf("将删除 %d 个过期订单", len(orders))
+	t.logger.Infof("将删除 %d 个过期订单", len(orders))
 
 	// 删除订单项
 	if err := tx.Where("order_id IN (?)",
@@ -102,14 +101,14 @@ func (t *CleanupTask) cleanupProducts(tx *gorm.DB) error {
 		return err
 	}
 
-	t.logger.Printf("将删除 %d 个下架商品", len(products))
+	t.logger.Infof("将删除 %d 个下架商品", len(products))
 
 	// 删除商品图片
 	for _, product := range products {
 		if product.ImageURL != "" {
 			imagePath := strings.TrimPrefix(product.ImageURL, "/")
 			if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
-				t.logger.Printf("删除商品图片失败: %v", err)
+				t.logger.Errorf("删除商品图片失败: %v", err)
 				// 继续执行，不中断流程
 			}
 		}
