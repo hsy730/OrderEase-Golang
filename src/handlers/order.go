@@ -223,6 +223,10 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	tx.Commit()
+	
+	// 触发SSE通知
+	go h.NotifyNewOrder(order)
+	
 	successResponse(c, gin.H{
 		"order_id":    order.ID,
 		"total_price": order.TotalPrice,
