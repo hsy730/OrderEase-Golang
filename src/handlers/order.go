@@ -20,7 +20,7 @@ type CreateOrderRequest struct {
 	ShopID uint64                   `json:"shop_id"`
 	Items  []CreateOrderItemRequest `json:"items"`
 	Remark string                   `json:"remark"`
-	Status string                   `json:"status"`
+	Status int                      `json:"status"`
 }
 
 type CreateOrderItemRequest struct {
@@ -69,7 +69,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		ShopID: req.ShopID,
 		Items:  orderItems,
 		Remark: req.Remark,
-		Status: req.Status,
+		Status: 0,
 	}
 	utils.SanitizeOrder(&order)
 
@@ -211,7 +211,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	// 创建订单状态日志
 	statusLog := models.OrderStatusLog{
 		OrderID:     order.ID,
-		OldStatus:   "",
+		OldStatus:   0,
 		NewStatus:   order.Status,
 		ChangedTime: time.Now(),
 	}
@@ -223,10 +223,10 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	tx.Commit()
-	
+
 	// 触发SSE通知
 	go h.NotifyNewOrder(order)
-	
+
 	successResponse(c, gin.H{
 		"order_id":    order.ID,
 		"total_price": order.TotalPrice,
@@ -282,6 +282,9 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	}
 
 	var simpleOrders []models.OrderElement
+	// 初始化为空切片，确保即使没有订单也会返回[]
+	simpleOrders = make([]models.OrderElement, 0)
+	
 	for _, order := range orders {
 		simpleOrders = append(simpleOrders, models.OrderElement{
 			ID:         order.ID,
@@ -399,6 +402,9 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	}
 
 	var simpleOrders []models.OrderElement
+	// 初始化为空切片，确保即使没有订单也会返回[]
+	simpleOrders = make([]models.OrderElement, 0)
+	
 	for _, order := range orders {
 		simpleOrders = append(simpleOrders, models.OrderElement{
 			ID:         order.ID,
@@ -714,7 +720,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 }
 
 // 添加状态转换验证函数
-func isValidStatusTransition(currentStatus string) bool {
+func isValidStatusTransition(currentStatus int) bool {
 	_, exists := models.OrderStatusTransitions[currentStatus]
 	return exists
 }

@@ -42,7 +42,6 @@ func ValidateImageURL(imageURL string, folder string) error {
 
 // 清理订单数据
 func SanitizeOrder(order *models.Order) {
-	order.Status = SanitizeString(order.Status)
 	order.Remark = SanitizeString(order.Remark)
 }
 

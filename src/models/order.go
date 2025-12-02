@@ -11,7 +11,7 @@ type Order struct {
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
 	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
-	Status     string       `gorm:"column:status" json:"status"`
+	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`
 	CreatedAt  time.Time    `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt  time.Time    `gorm:"column:updated_at" json:"updated_at"`
@@ -50,15 +50,15 @@ type OrderItemOption struct {
 }
 
 const (
-	OrderStatusPending  = "pending"   // 待处理
-	OrderStatusAccepted = "accepted"  // 已接单
-	OrderStatusRejected = "rejected"  // 已拒绝
-	OrderStatusShipped  = "shipped"   // 已发货
-	OrderStatusComplete = "completed" // 已完成
-	OrderStatusCanceled = "canceled"  // 已取消
+	OrderStatusPending  = 1  // 待处理
+	OrderStatusAccepted = 2  // 已接单
+	OrderStatusRejected = 3  // 已拒绝
+	OrderStatusShipped  = 4  // 已发货
+	OrderStatusComplete = 10 // 已完成，保留冗余的状态码
+	OrderStatusCanceled = -1 // 已取消
 )
 
-var OrderStatusTransitions = map[string]string{
+var OrderStatusTransitions = map[int]int{
 	OrderStatusPending:  OrderStatusAccepted, // 待处理 -> 已接单
 	OrderStatusAccepted: OrderStatusShipped,  // 已接单 -> 已发货
 	OrderStatusShipped:  OrderStatusComplete, // 已发货 -> 已完成
@@ -72,8 +72,8 @@ var OrderStatusTransitions = map[string]string{
 type OrderStatusLog struct {
 	ID          snowflake.ID `gorm:"primarykey" json:"id"`
 	OrderID     snowflake.ID `gorm:"type:bigint unsigned" json:"order_id"`
-	OldStatus   string       `json:"old_status"`
-	NewStatus   string       `json:"new_status"`
+	OldStatus   int          `json:"old_status"`
+	NewStatus   int          `json:"new_status"`
 	ChangedTime time.Time    `json:"changed_time"`
 }
 
@@ -82,7 +82,7 @@ type OrderElement struct {
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
 	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
-	Status     string       `gorm:"column:status" json:"status"`
+	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`
 	CreatedAt  time.Time    `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt  time.Time    `gorm:"column:updated_at" json:"updated_at"`
