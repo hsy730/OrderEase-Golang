@@ -162,6 +162,30 @@ func (h *Handler) GetUser(c *gin.Context) {
 	successResponse(c, user)
 }
 
+// 检查用户名是否存在
+func (h *Handler) CheckUsernameExists(c *gin.Context) {
+	username := c.Query("username")
+	if username == "" {
+		errorResponse(c, http.StatusBadRequest, "用户名不能为空")
+		return
+	}
+
+	var user models.User
+	err := h.DB.Where("name = ?", username).First(&user).Error
+	if err != nil {
+		// 用户不存在，返回false
+		successResponse(c, gin.H{
+			"exists": false,
+		})
+		return
+	}
+
+	// 用户存在，返回true
+	successResponse(c, gin.H{
+		"exists": true,
+	})
+}
+
 // 更新用户信息
 func (h *Handler) UpdateUser(c *gin.Context) {
 	// 定义更新数据结构体

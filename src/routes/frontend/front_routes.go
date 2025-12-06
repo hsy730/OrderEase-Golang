@@ -31,5 +31,6 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 		public.GET("/shop/:shopId/tags", h.GetShopTags)
 		public.GET("/shop/detail", h.GetShopInfo)
 		public.GET("/shop/image", h.GetShopImage)
+		public.GET("/user/check-username", h.CheckUsernameExists)
 	}
 }
