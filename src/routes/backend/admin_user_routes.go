@@ -31,6 +31,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.DELETE("/delete", h.DeleteShop) // 新增删除店铺接口
 			shop.POST("/upload-image", h.UploadShopImage)
 			shop.GET("/check-name", h.CheckShopNameExists) // 检查商店名称是否存在
+			shop.GET("/image", h.GetShopImage)
 		}
 
 		// 商品管理接口
@@ -43,6 +44,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			product.DELETE("/delete", h.DeleteProduct)
 			product.POST("/upload-image", h.UploadProductImage)
 			product.PUT("/toggle-status", h.ToggleProductStatus)
+			product.GET("/image", h.GetProductImage)
 		}
 
 		// 用户管理接口

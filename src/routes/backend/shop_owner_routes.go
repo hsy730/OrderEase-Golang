@@ -35,6 +35,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 			product.DELETE("/delete", h.DeleteProduct)
 			product.POST("/upload-image", h.UploadProductImage)
 			product.PUT("/toggle-status", h.ToggleProductStatus)
+			product.GET("/image", h.GetProductImage)
 		}
 
 		// 订单管理接口
@@ -71,6 +72,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 		shop := shopOwner.Group("/shop")
 		{
 			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
+			shop.GET("/image", h.GetShopImage)
 		}
 
 		// 用户管理接口
