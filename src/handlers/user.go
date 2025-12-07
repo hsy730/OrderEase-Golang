@@ -83,6 +83,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 func (h *Handler) GetUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	search := c.Query("search") // 获取用户名搜索参数
 
 	if page < 1 {
 		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
@@ -97,19 +98,12 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	var users []models.User
 	var total int64
 
-	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-	// 	return
-	// }
-
-	// _, err = h.validAndReturnShopID(c, requestShopID)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-
 	baseQuery := h.DB.Model(&models.User{})
+
+	// 如果提供了用户名参数，则添加模糊匹配条件
+	if search != "" {
+		baseQuery = baseQuery.Where("name LIKE ?", "%"+search+"%")
+	}
 
 	if err := baseQuery.Count(&total).Error; err != nil {
 		h.logger.Errorf("获取用户总数失败: %v", err)

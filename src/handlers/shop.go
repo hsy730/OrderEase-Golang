@@ -344,6 +344,26 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 	successResponse(c, gin.H{"message": "店铺删除成功"})
 }
 
+// CheckShopNameExists 检查商店名称是否存在
+func (h *Handler) CheckShopNameExists(c *gin.Context) {
+	shopName := c.Query("name")
+	if shopName == "" {
+		errorResponse(c, http.StatusBadRequest, "商店名称不能为空")
+		return
+	}
+
+	var count int64
+	if err := h.DB.Model(&models.Shop{}).Where("name = ?", shopName).Count(&count).Error; err != nil {
+		h.logger.Errorf("检查商店名称失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "检查商店名称失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"exists": count > 0,
+	})
+}
+
 // 上传店铺图片
 func (h *Handler) UploadShopImage(c *gin.Context) {
 	// 限制文件大小
