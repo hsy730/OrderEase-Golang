@@ -14,4 +14,5 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handler) {
 	backend.SetupShopRoutes(r, h)
 
 	frontend.SetupFrontRoutes(r, h)
+	frontend.SetupFrontNoAuthRoutes(r, h)
 }

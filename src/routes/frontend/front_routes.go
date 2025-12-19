@@ -15,6 +15,7 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 公开路由组 - 不需要认证
 	public := r.Group(basePath)
 	public.Use(middleware.RateLimitMiddleware())
+	public.Use(middleware.FrontendAuthMiddleware())
 
 	{
 		public.GET("/product/image", h.GetProductImage)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // 创建用户请求结构体
@@ -371,4 +372,142 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	}
 
 	successResponse(c, users)
+}
+
+// 前端用户注册请求结构体
+type FrontendUserRegisterRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required,min=6,max=6"`
+}
+
+// 前端用户注册
+// @Summary 前端用户注册
+// @Description 前端用户注册接口，密码为6位字母或数字
+// @Tags 前端用户
+// @Accept json
+// @Produce json
+// @Param request body FrontendUserRegisterRequest true "注册信息"
+// @Success 200 {object} map[string]interface{} "注册成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "用户名或手机号已存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /user/register [post]
+func (h *Handler) FrontendUserRegister(c *gin.Context) {
+	req := FrontendUserRegisterRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的注册数据: "+err.Error())
+		return
+	}
+
+	// 验证密码格式：6位字母或数字
+	if !isValidPassword(req.Password) {
+		errorResponse(c, http.StatusBadRequest, "密码必须为6位字母或数字")
+		return
+	}
+
+	// 检查用户名是否已存在
+	var existingUser models.User
+	if h.DB.Where("name = ?", req.Username).First(&existingUser).Error == nil {
+		errorResponse(c, http.StatusConflict, "用户名已存在")
+		return
+	}
+
+	// 创建用户对象
+	user := models.User{
+		ID:       utils.GenerateSnowflakeID(),
+		Name:     req.Username,
+		Password: req.Password,            // 存储明文密码（6位字母或数字）
+		Type:     models.UserTypeDelivery, // 默认邮寄配送
+		Role:     models.UserRolePublic,   // 默认公开用户
+	}
+
+	if err := h.DB.Create(&user).Error; err != nil {
+		h.logger.Errorf("创建用户失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "注册失败")
+		return
+	}
+
+	// 返回注册成功信息，移除敏感字段
+	responseData := gin.H{
+		"message": "注册成功",
+		"user": gin.H{
+			"id":   user.ID,
+			"name": user.Name,
+			"type": user.Type,
+		},
+	}
+	successResponse(c, responseData)
+}
+
+// 前端用户登录请求结构体
+type FrontendUserLoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// 前端用户登录
+// @Summary 前端用户登录
+// @Description 前端用户登录接口
+// @Tags 前端用户
+// @Accept json
+// @Produce json
+// @Param request body FrontendUserLoginRequest true "登录信息"
+// @Success 200 {object} map[string]interface{} "登录成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 401 {object} map[string]interface{} "用户名或密码错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /user/login [post]
+func (h *Handler) FrontendUserLogin(c *gin.Context) {
+	req := FrontendUserLoginRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的登录数据: "+err.Error())
+		return
+	}
+
+	// 查询用户
+	var user models.User
+	if err := h.DB.Where("name = ?", req.Username).First(&user).Error; err != nil {
+		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+		return
+	}
+
+	// 验证密码（使用bcrypt验证加密后的密码）
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+		return
+	}
+
+	// 生成token
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name)
+	if err != nil {
+		h.logger.Errorf("生成token失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "登录失败")
+		return
+	}
+
+	// 返回登录成功信息
+	responseData := gin.H{
+		"message": "登录成功",
+		"user": gin.H{
+			"id":   user.ID,
+			"name": user.Name,
+			"type": user.Type,
+		},
+		"token":     token,
+		"expiredAt": expiredAt.Unix(),
+	}
+	successResponse(c, responseData)
+}
+
+// 验证密码格式：6位字母或数字
+func isValidPassword(password string) bool {
+	if len(password) != 6 {
+		return false
+	}
+	for _, c := range password {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			return false
+		}
+	}
+	return true
 }
