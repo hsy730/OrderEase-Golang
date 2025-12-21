@@ -47,7 +47,8 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 			order.PUT("/update", h.UpdateOrder)
 			order.DELETE("/delete", h.DeleteOrder)
 			order.PUT("/toggle-status", h.ToggleOrderStatus)
-			order.GET("/sse", h.SSEConnection)
+			// 添加新的未完成订单查询接口
+			order.GET("/unfinished-list", h.GetUnfinishedOrders)
 		}
 
 		// 标签管理接口

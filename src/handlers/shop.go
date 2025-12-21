@@ -495,3 +495,34 @@ func (h *Handler) GetShopImage(c *gin.Context) {
 
 	c.File(imagePath)
 }
+
+// GetShopTempToken 获取店铺的临时令牌
+func (h *Handler) GetShopTempToken(c *gin.Context) {
+	// 从URL参数中获取shopID
+	shopIDStr := c.Query("shop_id")
+	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	// 验证店铺是否存在
+	var shop models.Shop
+	if err := h.DB.Where("id = ?", shopID).First(&shop).Error; err != nil {
+		errorResponse(c, http.StatusNotFound, "店铺不存在")
+		return
+	}
+
+	// 获取有效令牌
+	token, err := h.tempTokenService.GetValidTempToken(shopID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "获取临时令牌失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"shop_id":    token.ShopID,
+		"token":      token.Token,
+		"expires_at": token.ExpiresAt,
+	})
+}

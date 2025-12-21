@@ -51,6 +51,7 @@ func Init() (*gorm.DB, error) {
 		&models.ProductOption{},
 		&models.ProductOptionCategory{},
 		&models.Shop{},
+		&models.TempToken{}, // 添加临时令牌表
 
 		&models.OrderStatusLog{},   // 不需要迁移数据
 		&models.Admin{},            // 不需要迁移数据

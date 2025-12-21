@@ -298,3 +298,44 @@ type UserInfo struct {
 	Username string
 	IsAdmin  bool
 }
+
+// TempTokenLogin 使用临时令牌登录
+func (h *Handler) TempTokenLogin(c *gin.Context) {
+	var loginData struct {
+		ShopID uint64 `json:"shop_id" binding:"required"`
+		Token  string `json:"token" binding:"required,len=6"`
+	}
+
+	if err := c.ShouldBindJSON(&loginData); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的登录数据")
+		return
+	}
+
+	// 验证临时令牌
+	valid, user, err := h.tempTokenService.ValidateTempToken(loginData.ShopID, loginData.Token)
+	if err != nil || !valid {
+		errorResponse(c, http.StatusUnauthorized, "无效的临时令牌")
+		return
+	}
+
+	// 生成JWT令牌
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "生成令牌失败")
+		return
+	}
+
+	// 获取店铺信息
+	var shop models.Shop
+	if err := h.DB.Where("id = ?", loginData.ShopID).First(&shop).Error; err != nil {
+		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"role":      "user",
+		"user_info": gin.H{"id": user.ID, "name": user.Name, "shop_id": loginData.ShopID, "shop_name": shop.Name},
+		"token":     token,
+		"expiredAt": expiredAt.Unix(),
+	})
+}

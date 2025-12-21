@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"orderease/models"
+	"orderease/services"
 	"orderease/utils/log2"
 
 	"orderease/repositories"
@@ -18,17 +19,19 @@ const (
 )
 
 type Handler struct {
-	DB          *gorm.DB
-	logger      *log2.Logger
-	productRepo *repositories.ProductRepository
+	DB               *gorm.DB
+	logger           *log2.Logger
+	productRepo      *repositories.ProductRepository
+	tempTokenService *services.TempTokenService
 }
 
 // 创建处理器实例
 func NewHandler(db *gorm.DB) *Handler {
 	return &Handler{
-		DB:          db,
-		productRepo: repositories.NewProductRepository(db),
-		logger:      log2.GetLogger(),
+		DB:               db,
+		productRepo:      repositories.NewProductRepository(db),
+		logger:           log2.GetLogger(),
+		tempTokenService: services.NewTempTokenService(),
 	}
 }
 

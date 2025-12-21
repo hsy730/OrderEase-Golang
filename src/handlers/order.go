@@ -7,13 +7,27 @@ import (
 	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
+// 高级查询订单请求
+
+type AdvanceSearchOrderRequest struct {
+	Page      int    `json:"page"`
+	PageSize  int    `json:"pageSize"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"`
+	StartTime string `json:"start_time"`
+	EndTime   string `json:"end_time"`
+	ShopID    uint64 `json:"shop_id"`
+}
+
 // 创建订单
+
 type CreateOrderRequest struct {
 	ID     snowflake.ID             `json:"id"`
 	UserID snowflake.ID             `json:"user_id"`
@@ -284,7 +298,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	var simpleOrders []models.OrderElement
 	// 初始化为空切片，确保即使没有订单也会返回[]
 	simpleOrders = make([]models.OrderElement, 0)
-	
+
 	for _, order := range orders {
 		simpleOrders = append(simpleOrders, models.OrderElement{
 			ID:         order.ID,
@@ -404,7 +418,7 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	var simpleOrders []models.OrderElement
 	// 初始化为空切片，确保即使没有订单也会返回[]
 	simpleOrders = make([]models.OrderElement, 0)
-	
+
 	for _, order := range orders {
 		simpleOrders = append(simpleOrders, models.OrderElement{
 			ID:         order.ID,
@@ -756,9 +770,170 @@ func validateOrder(order *models.Order) error {
 	return nil
 }
 
+// 高级查询订单
+func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
+	var req AdvanceSearchOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的查询参数: "+err.Error())
+		return
+	}
+
+	// 验证分页参数
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 || req.PageSize > 100 {
+		req.PageSize = 10
+	}
+
+	// 验证并获取有效的店铺ID
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 构建查询
+	query := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID)
+
+	// 添加用户ID筛选
+	if req.UserID != "" {
+		query = query.Where("user_id = ?", req.UserID)
+	}
+
+	// 添加状态筛选（支持多个状态，用逗号分隔）
+	if req.Status != "" {
+		statuses := strings.Split(req.Status, ",")
+		query = query.Where("status IN (?)", statuses)
+	}
+
+	// 添加时间范围筛选
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		h.logger.Errorf("获取订单总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	// 分页查询
+	offset := (req.Page - 1) * req.PageSize
+	var orders []models.Order
+	if err := query.Offset(offset).Limit(req.PageSize).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		h.logger.Errorf("查询订单列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
+		return
+	}
+
+	// 转换为响应格式
+	var simpleOrders []models.OrderElement
+	simpleOrders = make([]models.OrderElement, 0, len(orders))
+
+	for _, order := range orders {
+		simpleOrders = append(simpleOrders, models.OrderElement{
+			ID:         order.ID,
+			UserID:     order.UserID,
+			ShopID:     order.ShopID,
+			TotalPrice: order.TotalPrice,
+			Status:     order.Status,
+			Remark:     order.Remark,
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+		})
+	}
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     req.Page,
+		"pageSize": req.PageSize,
+		"data":     simpleOrders,
+	})
+}
+
 // 验证用户ID的合法性
 func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 	var user models.User
 	err := h.DB.First(&user, userID).Error
 	return err == nil
+}
+
+// 获取未完成的订单列表
+func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	if page < 1 {
+		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
+		return
+	}
+
+	if pageSize < 1 || pageSize > 100 {
+		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+		return
+	}
+
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	offset := (page - 1) * pageSize
+
+	var total int64
+	// 查询未完成订单总数，status != 10
+	if err := h.DB.Model(&models.Order{}).Where("shop_id = ? AND status != ?", validShopID, models.OrderStatusComplete).Count(&total).Error; err != nil {
+		h.logger.Errorf("获取未完成订单总数失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
+		return
+	}
+
+	var orders []models.Order
+	// 预加载Items和Items.Options
+	if err := h.DB.Where("shop_id = ? AND status != ?", validShopID, models.OrderStatusComplete).Offset(offset).Limit(pageSize).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		h.logger.Errorf("查询未完成订单列表失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
+		return
+	}
+
+	var simpleOrders []models.OrderElement
+	// 初始化为空切片，确保即使没有订单也会返回[]
+	simpleOrders = make([]models.OrderElement, 0)
+
+	for _, order := range orders {
+		simpleOrders = append(simpleOrders, models.OrderElement{
+			ID:         order.ID,
+			UserID:     order.UserID,
+			ShopID:     order.ShopID,
+			TotalPrice: order.TotalPrice,
+			Status:     order.Status,
+			Remark:     order.Remark,
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+		})
+	}
+
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     simpleOrders,
+	})
 }

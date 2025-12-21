@@ -32,6 +32,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.POST("/upload-image", h.UploadShopImage)
 			shop.GET("/check-name", h.CheckShopNameExists) // 检查商店名称是否存在
 			shop.GET("/image", h.GetShopImage)
+			shop.GET("/temp-token", h.GetShopTempToken)
 		}
 
 		// 商品管理接口
@@ -68,6 +69,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			order.DELETE("/delete", h.DeleteOrder)
 			order.PUT("/toggle-status", h.ToggleOrderStatus)
 			order.GET("/sse", h.SSEConnection)
+			order.POST("/advance-search", h.GetAdvanceSearchOrders)
 		}
 
 		// 标签管理接口

@@ -7,6 +7,7 @@ import (
 	"orderease/config"
 	"orderease/handlers"
 	"orderease/routes"
+	"orderease/services"
 	"orderease/utils/log2"
 	"os"
 	"time"
@@ -115,6 +116,11 @@ func main() {
 	// 初始化清理任务
 	cleanupTask := tasks.NewCleanupTask(db)
 	cleanupTask.StartCleanupTask()
+
+	// 初始化临时令牌服务并启动定时刷新任务
+	tempTokenService := services.NewTempTokenService()
+	tempTokenService.SetupCronJob()
+	log2.Info("临时令牌定时刷新任务已启动")
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)

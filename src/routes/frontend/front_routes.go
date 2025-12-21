@@ -12,26 +12,26 @@ func SetupFrontRoutes(r *gin.Engine, h *handlers.Handler) {
 	// 获取基础路径
 	basePath := config.AppConfig.Server.BasePath
 
-	// 公开路由组 - 不需要认证
-	public := r.Group(basePath)
-	public.Use(middleware.RateLimitMiddleware())
-	public.Use(middleware.FrontendAuthMiddleware())
+	// 需要认证的路由组
+	protected := r.Group(basePath)
+	protected.Use(middleware.RateLimitMiddleware())
+	protected.Use(middleware.FrontendAuthMiddleware())
 
 	{
-		public.GET("/product/image", h.GetProductImage)
-		public.GET("/product/list", h.GetProducts)
-		public.GET("/product/detail", h.GetProduct)
-		public.POST("/order/create", h.CreateOrder)
-		public.GET("/order/user/list", h.GetOrdersByUser)
-		public.GET("/order/detail", h.GetOrder)
-		public.DELETE("/order/delete", h.DeleteOrder)
-		// public.POST("/order/pay", h.PayOrder)
-		public.GET("/tag/list", h.GetTagsForFront)
-		public.GET("/tag/detail", h.GetTag)
-		public.GET("/tag/bound-products", h.GetTagBoundProducts) // 获取标签已绑定的商品列表
-		public.GET("/shop/:shopId/tags", h.GetShopTags)
-		public.GET("/shop/detail", h.GetShopInfo)
-		public.GET("/shop/image", h.GetShopImage)
-		public.GET("/user/check-username", h.CheckUsernameExists)
+		protected.GET("/product/image", h.GetProductImage)
+		protected.GET("/product/list", h.GetProducts)
+		protected.GET("/product/detail", h.GetProduct)
+		protected.POST("/order/create", h.CreateOrder)
+		protected.GET("/order/user/list", h.GetOrdersByUser)
+		protected.GET("/order/detail", h.GetOrder)
+		protected.DELETE("/order/delete", h.DeleteOrder)
+		// protected.POST("/order/pay", h.PayOrder)
+		protected.GET("/tag/list", h.GetTagsForFront)
+		protected.GET("/tag/detail", h.GetTag)
+		protected.GET("/tag/bound-products", h.GetTagBoundProducts) // 获取标签已绑定的商品列表
+		protected.GET("/shop/:shopId/tags", h.GetShopTags)
+		protected.GET("/shop/detail", h.GetShopInfo)
+		protected.GET("/shop/image", h.GetShopImage)
+		protected.GET("/user/check-username", h.CheckUsernameExists)
 	}
 }

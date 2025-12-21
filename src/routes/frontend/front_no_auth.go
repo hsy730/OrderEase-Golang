@@ -17,4 +17,6 @@ func SetupFrontNoAuthRoutes(r *gin.Engine, h *handlers.Handler) {
 	public.Use(middleware.RateLimitMiddleware())
 	public.POST("/user/login", h.FrontendUserLogin)       // 前端用户登录
 	public.POST("/user/register", h.FrontendUserRegister) // 前端用户注册
+	public.POST("/shop/temp-login", h.TempTokenLogin)
+
 }
