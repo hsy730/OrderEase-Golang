@@ -236,11 +236,19 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		return
 	}
 
-	// 验证店主用户名
-	// if shop.OwnerUsername != updateData.OwnerUsername {
-	// 	errorResponse(c, http.StatusUnauthorized, "用户名不匹配")
-	// 	return
-	// }
+	// 获取用户信息
+	userInfo, exists := c.Get("userInfo")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未获取到用户信息")
+		return
+	}
+
+	user := userInfo.(models.UserInfo)
+
+	// 检查是否在修改店铺过期时间，如果是，需要管理员权限
+	if updateData.ValidUntil != "" && !user.IsAdmin {
+		updateData.ValidUntil = ""
+	}
 
 	// 更新字段
 	if updateData.Name != "" {
