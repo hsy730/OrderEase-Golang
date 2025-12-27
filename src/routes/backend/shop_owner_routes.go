@@ -49,6 +49,8 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 			order.PUT("/toggle-status", h.ToggleOrderStatus)
 			// 添加新的未完成订单查询接口
 			order.GET("/unfinished-list", h.GetUnfinishedOrders)
+			order.GET("/sse", h.SSEConnection)
+			order.POST("/advance-search", h.GetAdvanceSearchOrders)
 		}
 
 		// 标签管理接口
@@ -75,6 +77,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
 			shop.GET("/image", h.GetShopImage)
 			shop.PUT("/update", h.UpdateShop)
+			shop.PUT("/update-order-status-flow", h.UpdateOrderStatusFlow) // 新增修改订单流转状态接口
 		}
 
 		// 用户管理接口

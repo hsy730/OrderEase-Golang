@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -63,19 +64,20 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{
-		"id":             shop.ID,
-		"name":           shop.Name,
-		"owner_username": shop.OwnerUsername,
-		"contact_phone":  shop.ContactPhone,
-		"contact_email":  shop.ContactEmail,
-		"address":        shop.Address,
-		"description":    shop.Description,
-		"created_at":     shop.CreatedAt.Format(time.RFC3339),
-		"updated_at":     shop.UpdatedAt.Format(time.RFC3339),
-		"valid_until":    shop.ValidUntil.Format(time.RFC3339),
-		"settings":       shop.Settings,
-		"tags":           shop.Tags,
-		"image_url":      shop.ImageURL,
+		"id":                shop.ID,
+		"name":              shop.Name,
+		"owner_username":    shop.OwnerUsername,
+		"contact_phone":     shop.ContactPhone,
+		"contact_email":     shop.ContactEmail,
+		"address":           shop.Address,
+		"description":       shop.Description,
+		"created_at":        shop.CreatedAt.Format(time.RFC3339),
+		"updated_at":        shop.UpdatedAt.Format(time.RFC3339),
+		"valid_until":       shop.ValidUntil.Format(time.RFC3339),
+		"settings":          shop.Settings,
+		"tags":              shop.Tags,
+		"image_url":         shop.ImageURL,
+		"order_status_flow": shop.OrderStatusFlow,
 	})
 }
 
@@ -139,15 +141,16 @@ func (h *Handler) GetShopList(c *gin.Context) {
 // CreateShop 创建店铺
 func (h *Handler) CreateShop(c *gin.Context) {
 	var shopData struct {
-		Name          string         `json:"name" binding:"required"`
-		OwnerUsername string         `json:"owner_username" binding:"required"`
-		OwnerPassword string         `json:"owner_password" binding:"required"`
-		ContactPhone  string         `json:"contact_phone"`
-		ContactEmail  string         `json:"contact_email"`
-		Description   string         `json:"description"`
-		ValidUntil    string         `json:"valid_until"`
-		Address       string         `json:"address"`
-		Settings      datatypes.JSON `json:"settings"`
+		Name            string                  `json:"name" binding:"required"`
+		OwnerUsername   string                  `json:"owner_username" binding:"required"`
+		OwnerPassword   string                  `json:"owner_password" binding:"required"`
+		ContactPhone    string                  `json:"contact_phone"`
+		ContactEmail    string                  `json:"contact_email"`
+		Description     string                  `json:"description"`
+		ValidUntil      string                  `json:"valid_until"`
+		Address         string                  `json:"address"`
+		Settings        datatypes.JSON          `json:"settings"`
+		OrderStatusFlow *models.OrderStatusFlow `json:"order_status_flow"`
 	}
 
 	if err := c.ShouldBindJSON(&shopData); err != nil {
@@ -175,16 +178,30 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		validUntil = parsedValidUntil
 	}
 
+	// 解析默认订单流转配置
+	var orderStatusFlow models.OrderStatusFlow
+	if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &orderStatusFlow); err != nil {
+		h.logger.Errorf("解析默认订单流转配置失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "解析默认订单流转配置失败")
+		return
+	}
+
+	// 如果提供了订单流转配置，则使用提供的配置
+	if shopData.OrderStatusFlow != nil {
+		orderStatusFlow = *shopData.OrderStatusFlow
+	}
+
 	newShop := models.Shop{
-		Name:          shopData.Name,
-		OwnerUsername: shopData.OwnerUsername,
-		OwnerPassword: shopData.OwnerPassword, // 密码将在BeforeSave钩子中加密
-		ContactPhone:  shopData.ContactPhone,
-		ContactEmail:  shopData.ContactEmail,
-		Description:   shopData.Description,
-		ValidUntil:    validUntil,
-		Address:       shopData.Address,
-		Settings:      shopData.Settings, // 初始化为空对象
+		Name:            shopData.Name,
+		OwnerUsername:   shopData.OwnerUsername,
+		OwnerPassword:   shopData.OwnerPassword, // 密码将在BeforeSave钩子中加密
+		ContactPhone:    shopData.ContactPhone,
+		ContactEmail:    shopData.ContactEmail,
+		Description:     shopData.Description,
+		ValidUntil:      validUntil,
+		Address:         shopData.Address,
+		Settings:        json.RawMessage(shopData.Settings), // 转换为json.RawMessage
+		OrderStatusFlow: orderStatusFlow,
 	}
 
 	if err := h.DB.Create(&newShop).Error; err != nil {
@@ -196,15 +213,16 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	successResponse(c, gin.H{
 		"code": 200,
 		"data": gin.H{
-			"id":             newShop.ID,
-			"name":           newShop.Name,
-			"description":    newShop.Description,
-			"owner_username": newShop.OwnerUsername,
-			"contact_phone":  newShop.ContactPhone,
-			"address":        newShop.Address,
-			"contact_email":  newShop.ContactEmail,
-			"valid_until":    newShop.ValidUntil.Format(time.RFC3339),
-			"settings":       newShop.Settings,
+			"id":                newShop.ID,
+			"name":              newShop.Name,
+			"description":       newShop.Description,
+			"owner_username":    newShop.OwnerUsername,
+			"contact_phone":     newShop.ContactPhone,
+			"address":           newShop.Address,
+			"contact_email":     newShop.ContactEmail,
+			"valid_until":       newShop.ValidUntil.Format(time.RFC3339),
+			"settings":          newShop.Settings,
+			"order_status_flow": newShop.OrderStatusFlow,
 		},
 	})
 }
@@ -212,21 +230,27 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID            uint64         `json:"id" binding:"required"`
-		OwnerUsername string         `json:"owner_username" binding:"required"`
-		OwnerPassword *string        `json:"owner_password"` // 使用指针类型以区分null和空字符串
-		Name          string         `json:"name"`
-		ContactPhone  string         `json:"contact_phone"`
-		ContactEmail  string         `json:"contact_email"`
-		Description   string         `json:"description"`
-		ValidUntil    string         `json:"valid_until"`
-		Address       string         `json:"address"`
-		Settings      datatypes.JSON `json:"settings"`
+		ID              uint64                  `json:"id" binding:"required"`
+		OwnerUsername   string                  `json:"owner_username" binding:"required"`
+		OwnerPassword   *string                 `json:"owner_password"` // 使用指针类型以区分null和空字符串
+		Name            string                  `json:"name"`
+		ContactPhone    string                  `json:"contact_phone"`
+		ContactEmail    string                  `json:"contact_email"`
+		Description     string                  `json:"description"`
+		ValidUntil      string                  `json:"valid_until"`
+		Address         string                  `json:"address"`
+		Settings        datatypes.JSON          `json:"settings"`
+		OrderStatusFlow *models.OrderStatusFlow `json:"order_status_flow"`
 	}
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
 		return
+	}
+
+	// 检查OrderStatusFlow的Statuses是否为null，如果是则将整个OrderStatusFlow设为nil
+	if updateData.OrderStatusFlow != nil && updateData.OrderStatusFlow.Statuses == nil {
+		updateData.OrderStatusFlow = nil
 	}
 
 	// 查询现有店铺
@@ -254,20 +278,41 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	if updateData.Name != "" {
 		shop.Name = updateData.Name
 	}
+
 	if updateData.ContactPhone != "" {
 		shop.ContactPhone = updateData.ContactPhone
 	}
+
 	if updateData.ContactEmail != "" {
 		shop.ContactEmail = updateData.ContactEmail
 	}
+
 	if updateData.Description != "" {
 		shop.Description = updateData.Description
 	}
+
 	if updateData.Address != "" {
 		shop.Address = updateData.Address
 	}
+
 	if updateData.Settings != nil {
-		shop.Settings = updateData.Settings
+		shop.Settings = json.RawMessage(updateData.Settings)
+	}
+
+	// 如果提供了订单流转配置，则更新
+	if updateData.OrderStatusFlow != nil {
+		shop.OrderStatusFlow = *updateData.OrderStatusFlow
+	} else {
+		// 如果数据库中也没有订单流转信息，则填充默认配置
+		if len(shop.OrderStatusFlow.Statuses) == 0 {
+			var defaultOrderStatusFlow models.OrderStatusFlow
+			if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &defaultOrderStatusFlow); err != nil {
+				h.logger.Errorf("解析默认订单流转配置失败: %v", err)
+				errorResponse(c, http.StatusInternalServerError, "解析默认订单流转配置失败")
+				return
+			}
+			shop.OrderStatusFlow = defaultOrderStatusFlow
+		}
 	}
 	if updateData.ValidUntil != "" {
 		validUntil, err := time.Parse(time.RFC3339, updateData.ValidUntil)
@@ -296,15 +341,16 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	successResponse(c, gin.H{
 		"code": 200,
 		"data": gin.H{
-			"id":             shop.ID,
-			"name":           shop.Name,
-			"description":    shop.Description,
-			"owner_username": shop.OwnerUsername,
-			"contact_phone":  shop.ContactPhone,
-			"address":        shop.Address,
-			"contact_email":  shop.ContactEmail,
-			"valid_until":    shop.ValidUntil.Format(time.RFC3339),
-			"settings":       shop.Settings,
+			"id":                shop.ID,
+			"name":              shop.Name,
+			"description":       shop.Description,
+			"owner_username":    shop.OwnerUsername,
+			"contact_phone":     shop.ContactPhone,
+			"address":           shop.Address,
+			"contact_email":     shop.ContactEmail,
+			"valid_until":       shop.ValidUntil.Format(time.RFC3339),
+			"settings":          shop.Settings,
+			"order_status_flow": shop.OrderStatusFlow,
 		},
 	})
 }
@@ -532,5 +578,43 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 		"shop_id":    token.ShopID,
 		"token":      token.Token,
 		"expires_at": token.ExpiresAt,
+	})
+}
+
+// UpdateOrderStatusFlow 更新店铺订单流转状态配置
+func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
+	var req struct {
+		ShopID          uint64                 `json:"shop_id" binding:"required"`
+		OrderStatusFlow models.OrderStatusFlow `json:"order_status_flow" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		return
+	}
+
+	// 查询店铺是否存在
+	shop, err := h.productRepo.GetShopByID(req.ShopID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, "店铺不存在")
+		return
+	}
+
+	// 更新订单流转状态配置
+	shop.OrderStatusFlow = req.OrderStatusFlow
+
+	if err := h.DB.Save(&shop).Error; err != nil {
+		h.logger.Errorf("更新店铺订单流转状态配置失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新店铺订单流转状态配置失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"code":    200,
+		"message": "店铺订单流转状态配置更新成功",
+		"data": gin.H{
+			"shop_id":           shop.ID,
+			"order_status_flow": shop.OrderStatusFlow,
+		},
 	})
 }

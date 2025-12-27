@@ -26,7 +26,7 @@
 *.log
 
 # 上传的文件
-/uploads/
+src/uploads/
 
 # 编译输出目录
 /bin/

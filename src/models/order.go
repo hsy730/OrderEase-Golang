@@ -68,6 +68,115 @@ var OrderStatusTransitions = map[int]int{
 	OrderStatusCanceled: OrderStatusCanceled, // 已取消状态不变
 }
 
+// DefaultOrderStatusFlow 默认订单流转状态配置
+var DefaultOrderStatusFlow = `{
+  "statuses": [
+    {
+      "value": 1,
+      "label": "待处理",
+      "type": "warning",
+      "isFinal": false,
+      "actions": [
+        {
+          "name": "接单",
+          "nextStatus": 2,
+          "nextStatusLabel": "已接单"
+        },
+        {
+          "name": "拒绝",
+          "nextStatus": 3,
+          "nextStatusLabel": "已拒绝"
+        },
+        {
+          "name": "取消",
+          "nextStatus": -1,
+          "nextStatusLabel": "已取消"
+        }
+      ]
+    },
+    {
+      "value": 2,
+      "label": "已接单",
+      "type": "primary",
+      "isFinal": false,
+      "actions": [
+        {
+          "name": "备货",
+          "nextStatus": 5,
+          "nextStatusLabel": "已备货"
+        },
+        {
+          "name": "发货",
+          "nextStatus": 4,
+          "nextStatusLabel": "已发货"
+        },
+        {
+          "name": "取消",
+          "nextStatus": -1,
+          "nextStatusLabel": "已取消"
+        }
+      ]
+    },
+    {
+      "value": 3,
+      "label": "已拒绝",
+      "type": "danger",
+      "isFinal": true,
+      "actions": []
+    },
+    {
+      "value": 4,
+      "label": "已发货",
+      "type": "info",
+      "isFinal": false,
+      "actions": [
+        {
+          "name": "完成",
+          "nextStatus": 10,
+          "nextStatusLabel": "已完成"
+        },
+        {
+          "name": "取消",
+          "nextStatus": -1,
+          "nextStatusLabel": "已取消"
+        }
+      ]
+    },
+    {
+      "value": 5,
+      "label": "已备货",
+      "type": "info",
+      "isFinal": false,
+      "actions": [
+        {
+          "name": "发货",
+          "nextStatus": 4,
+          "nextStatusLabel": "已发货"
+        },
+        {
+          "name": "取消",
+          "nextStatus": -1,
+          "nextStatusLabel": "已取消"
+        }
+      ]
+    },
+    {
+      "value": 10,
+      "label": "已完成",
+      "type": "success",
+      "isFinal": true,
+      "actions": []
+    },
+    {
+      "value": -1,
+      "label": "已取消",
+      "type": "info",
+      "isFinal": true,
+      "actions": []
+    }
+  ]
+}`
+
 // 订单状态变更日志
 type OrderStatusLog struct {
 	ID          snowflake.ID `gorm:"primarykey" json:"id"`
