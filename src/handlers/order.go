@@ -660,48 +660,62 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 // 翻转订单状态
 func (h *Handler) ToggleOrderStatus(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
-	if err != nil {
-		log2.Errorf("无效的订单ID: %v", err)
-		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+	// 定义请求结构体
+	type ToggleOrderStatusRequest struct {
+		ID         string `json:"id" binding:"required"`
+		ShopID     uint64 `json:"shop_id" binding:"required"`
+		NextStatus int    `json:"next_status" binding:"required"`
+	}
+
+	// 绑定请求体
+	var req ToggleOrderStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log2.Errorf("无效的请求参数: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	// 将字符串ID转换为uint64
+	orderID, err := strconv.ParseUint(req.ID, 10, 64)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		log2.Errorf("无效的订单ID格式: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的订单ID格式")
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	// 验证店铺ID
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	order, err := h.productRepo.GetOrderByIDAndShopID(id, validShopID)
+	// 获取店铺信息，包括OrderStatusFlow
+	var shop models.Shop
+	if err := h.DB.First(&shop, validShopID).Error; err != nil {
+		log2.Errorf("获取店铺信息失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
+		return
+	}
+
+	// 获取订单信息
+	order, err := h.productRepo.GetOrderByIDAndShopID(orderID, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
-	// 检查当前状态是否允许转换
-	if !isValidStatusTransition(order.Status) {
-		errorResponse(c, http.StatusBadRequest, "当前状态不允许转换")
+	// 验证请求的next_status是否在店铺的订单流转定义中允许
+	if err := validateNextStatus(order.Status, req.NextStatus, shop.OrderStatusFlow); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	// 获取下一个状态
-	nextStatus, exists := models.OrderStatusTransitions[order.Status]
-	if !exists {
-		nextStatus = models.OrderStatusPending // 如果当前状态未定义转换，重置为待处理
 	}
 
 	// 开启事务
 	tx := h.DB.Begin()
 
 	// 更新订单状态
-	if err := tx.Model(&order).Update("status", nextStatus).Error; err != nil {
+	if err := tx.Model(&order).Update("status", req.NextStatus).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("更新订单状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新订单状态失败")
@@ -712,7 +726,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	if err := tx.Create(&models.OrderStatusLog{
 		OrderID:     order.ID,
 		OldStatus:   order.Status,
-		NewStatus:   nextStatus,
+		NewStatus:   req.NextStatus,
 		ChangedTime: time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
@@ -724,19 +738,40 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	tx.Commit()
 
 	// 返回更新后的订单信息
-	order.Status = nextStatus
+	order.Status = req.NextStatus
 	successResponse(c, gin.H{
 		"message":    "订单状态更新成功",
 		"old_status": order.Status,
-		"new_status": nextStatus,
+		"new_status": req.NextStatus,
 		"order":      order,
 	})
 }
 
-// 添加状态转换验证函数
-func isValidStatusTransition(currentStatus int) bool {
-	_, exists := models.OrderStatusTransitions[currentStatus]
-	return exists
+// validateNextStatus 验证请求的next_status是否在店铺的订单流转定义中允许
+func validateNextStatus(currentStatus int, nextStatus int, flow models.OrderStatusFlow) error {
+	// 查找当前状态在店铺流转定义中的配置
+	for _, status := range flow.Statuses {
+		if status.Value == currentStatus {
+			// 检查是否为终态
+			if status.IsFinal {
+				return fmt.Errorf("当前状态为终态，不允许转换")
+			}
+
+			// 检查请求的next_status是否在当前状态允许的动作列表中
+			for _, action := range status.Actions {
+				if action.NextStatus == nextStatus {
+					// 找到匹配的动作，允许转换
+					return nil
+				}
+			}
+
+			// 没有找到匹配的动作
+			return fmt.Errorf("当前状态不允许转换到指定的下一个状态")
+		}
+	}
+
+	// 如果在店铺流转定义中找不到当前状态
+	return fmt.Errorf("当前状态不允许转换")
 }
 
 // 添加错误响应辅助函数
@@ -864,6 +899,36 @@ func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 	var user models.User
 	err := h.DB.First(&user, userID).Error
 	return err == nil
+}
+
+// 获取订单状态流转配置
+func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
+	// 获取并验证shop_id参数
+	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	// 验证店铺ID是否有效
+	validShopID, err := h.validAndReturnShopID(c, requestShopID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 查询店铺信息，获取OrderStatusFlow
+	var shop models.Shop
+	if err := h.DB.Select("order_status_flow").First(&shop, validShopID).Error; err != nil {
+		h.logger.Errorf("获取店铺订单状态流转配置失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取订单状态流转配置失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"shop_id":           validShopID,
+		"order_status_flow": shop.OrderStatusFlow,
+	})
 }
 
 // 获取未完成的订单列表

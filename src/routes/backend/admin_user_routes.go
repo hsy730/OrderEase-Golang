@@ -33,6 +33,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			shop.GET("/check-name", h.CheckShopNameExists) // 检查商店名称是否存在
 			shop.GET("/image", h.GetShopImage)
 			shop.GET("/temp-token", h.GetShopTempToken)
+			shop.PUT("/update-order-status-flow", h.UpdateOrderStatusFlow) // 新增修改订单流转状态接口
 		}
 
 		// 商品管理接口
@@ -68,6 +69,7 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 			order.PUT("/update", h.UpdateOrder)
 			order.DELETE("/delete", h.DeleteOrder)
 			order.PUT("/toggle-status", h.ToggleOrderStatus)
+			order.GET("/status-flow", h.GetOrderStatusFlow)
 			order.GET("/sse", h.SSEConnection)
 			order.POST("/advance-search", h.GetAdvanceSearchOrders)
 		}
