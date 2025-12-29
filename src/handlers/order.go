@@ -7,7 +7,6 @@ import (
 	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
@@ -20,7 +19,7 @@ type AdvanceSearchOrderRequest struct {
 	Page      int    `json:"page"`
 	PageSize  int    `json:"pageSize"`
 	UserID    string `json:"user_id"`
-	Status    string `json:"status"`
+	Status    []int  `json:"status"`
 	StartTime string `json:"start_time"`
 	EndTime   string `json:"end_time"`
 	ShopID    uint64 `json:"shop_id"`
@@ -836,10 +835,9 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 		query = query.Where("user_id = ?", req.UserID)
 	}
 
-	// 添加状态筛选（支持多个状态，用逗号分隔）
-	if req.Status != "" {
-		statuses := strings.Split(req.Status, ",")
-		query = query.Where("status IN (?)", statuses)
+	// 添加状态筛选（支持多个状态，直接使用数组）
+	if len(req.Status) > 0 {
+		query = query.Where("status IN (?)", req.Status)
 	}
 
 	// 添加时间范围筛选
@@ -958,19 +956,46 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 		return
 	}
 
+	// 获取店铺的订单状态流转配置
+	var shop models.Shop
+	if err := h.DB.Select("order_status_flow").First(&shop, validShopID).Error; err != nil {
+		h.logger.Errorf("获取店铺订单状态流转配置失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
+		return
+	}
+
+	// 收集所有isFinal为false的状态值
+	var unfinishedStatuses []int
+	for _, status := range shop.OrderStatusFlow.Statuses {
+		if !status.IsFinal {
+			unfinishedStatuses = append(unfinishedStatuses, status.Value)
+		}
+	}
+
+	// 如果没有未完成状态，直接返回空列表
+	if len(unfinishedStatuses) == 0 {
+		successResponse(c, gin.H{
+			"total":    0,
+			"page":     page,
+			"pageSize": pageSize,
+			"data":     []models.OrderElement{},
+		})
+		return
+	}
+
 	offset := (page - 1) * pageSize
 
 	var total int64
-	// 查询未完成订单总数，status != 10
-	if err := h.DB.Model(&models.Order{}).Where("shop_id = ? AND status != ?", validShopID, models.OrderStatusComplete).Count(&total).Error; err != nil {
+	// 查询未完成订单总数，status在未完成状态列表中
+	if err := h.DB.Model(&models.Order{}).Where("shop_id = ? AND status IN (?)", validShopID, unfinishedStatuses).Count(&total).Error; err != nil {
 		h.logger.Errorf("获取未完成订单总数失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
 		return
 	}
 
 	var orders []models.Order
-	// 预加载Items和Items.Options
-	if err := h.DB.Where("shop_id = ? AND status != ?", validShopID, models.OrderStatusComplete).Offset(offset).Limit(pageSize).
+	// 查询未完成订单列表
+	if err := h.DB.Where("shop_id = ? AND status IN (?)", validShopID, unfinishedStatuses).Offset(offset).Limit(pageSize).
 		Order("created_at DESC").
 		Find(&orders).Error; err != nil {
 		h.logger.Errorf("查询未完成订单列表失败: %v", err)
