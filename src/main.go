@@ -10,6 +10,7 @@ import (
 	"orderease/services"
 	"orderease/utils/log2"
 	"os"
+	"strings"
 	"time"
 
 	"orderease/database"
@@ -106,6 +107,29 @@ func main() {
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
+
+	// 前后台UI静态文件服务
+	r.Static("/order-ease-iui", "./static/order-ease-iui")
+	r.Static("/order-ease-adminiui", "./static/order-ease-adminiui")
+
+	// 根路径重定向到前台UI
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/order-ease-iui/")
+	})
+
+	// SPA fallback - 处理前端路由
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/order-ease-iui/") && !strings.Contains(path, ".") {
+			c.File("./static/order-ease-iui/index.html")
+			return
+		}
+		if strings.HasPrefix(path, "/order-ease-adminiui/") && !strings.Contains(path, ".") {
+			c.File("./static/order-ease-adminiui/index.html")
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+	})
 
 	// 确保上传目录存在
 	if err := os.MkdirAll("./uploads/products", 0755); err != nil {

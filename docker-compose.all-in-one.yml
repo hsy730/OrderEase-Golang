@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # 合一版应用容器 - 包含Go后端、前台UI、后台UI
+  orderease-all-in-one:
+    build:
+      context: ..
+      dockerfile: OrderEase-Golang/Dockerfile.all-in-one
+    container_name: orderease-all-in-one
+    ports:
+      - "8080:8080"  # Go后端提供所有服务（API + 前后UI）
+    depends_on:
+      - db
+    environment:
+      # 数据库配置
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=123456
+      - DB_NAME=orderease
+      
+      # JWT配置
+      - JWT_SECRET=e6jf493kdhbms9ew6mv2v1a4dx2
+      - JWT_EXPIRATION=7200
+      
+      # 服务器配置
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      
+      # 时区配置
+      - TZ=Asia/Shanghai
+    volumes:
+      # 持久化上传文件
+      - ./uploads:/app/uploads
+      # 持久化日志
+      - ./logs:/app/logs
+      # 持久化配置文件（可选，如需动态修改配置）
+      - ./src/config/config.yaml:/app/config/config.yaml
+    networks:
+      - orderease-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/order-ease-iui/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MySQL数据库
+  db:
+    image: mysql:8.0
+    container_name: orderease-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=orderease
+      - TZ=Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - orderease-network
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  orderease-network:
+    driver: bridge
