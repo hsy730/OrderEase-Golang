@@ -3,22 +3,47 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
+	stdhttp "net/http"
 	"orderease/config"
+	"orderease/database"
 	"orderease/handlers"
 	"orderease/routes"
-	"orderease/services"
+	_ "orderease/routes/backend"
+	_ "orderease/routes/frontend"
+	oldservices "orderease/services"
+	"orderease/tasks"
 	"orderease/utils/log2"
 	"os"
 	"strings"
 	"time"
 
-	"orderease/database"
-	"orderease/tasks"
+	_ "orderease/docs"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// @title OrderEase API 文档
+// @version 1.0
+// @description OrderEase 点餐系统 API 接口文档
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description 请输入 Bearer {token} 格式的 JWT token
 
 // 日志中间件
 func LoggerMiddleware() gin.HandlerFunc {
@@ -85,7 +110,7 @@ func main() {
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusOK)
+			c.AbortWithStatus(stdhttp.StatusOK)
 			return
 		}
 
@@ -99,11 +124,14 @@ func main() {
 	}
 	log2.Info("数据库连接成功")
 
-	// 创建处理器
-	h := handlers.NewHandler(db)
+	// 初始化 handlers
+	handler := handlers.NewHandler(db)
 
 	// 设置路由
-	routes.SetupRoutes(r, h)
+	routes.SetupRoutes(r, handler)
+
+	// Swagger 文档路由
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
@@ -114,7 +142,7 @@ func main() {
 
 	// 根路径重定向到前台UI
 	r.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "/order-ease-iui/")
+		c.Redirect(stdhttp.StatusMovedPermanently, "/order-ease-iui/")
 	})
 
 	// SPA fallback - 处理前端路由
@@ -128,7 +156,7 @@ func main() {
 			c.File("./static/order-ease-adminiui/index.html")
 			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+		c.JSON(stdhttp.StatusNotFound, gin.H{"error": "Not Found"})
 	})
 
 	// 确保上传目录存在
@@ -142,7 +170,7 @@ func main() {
 	cleanupTask.StartCleanupTask()
 
 	// 初始化临时令牌服务并启动定时刷新任务
-	tempTokenService := services.NewTempTokenService()
+	tempTokenService := oldservices.NewTempTokenService()
 	tempTokenService.SetupCronJob()
 	log2.Info("临时令牌定时刷新任务已启动")
 

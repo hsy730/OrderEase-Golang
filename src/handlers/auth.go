@@ -11,7 +11,40 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 管理员登录
+// UniversalLoginRequest 通用登录请求
+type UniversalLoginRequest struct {
+	Username string `json:"username" binding:"required" example:"admin"`
+	Password string `json:"password" binding:"required" example:"password123"`
+}
+
+// ChangePasswordRequest 修改密码请求
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required" example:"oldpass123"`
+	NewPassword string `json:"new_password" binding:"required" example:"newpass123"`
+}
+
+// RefreshTokenRequest 刷新令牌请求
+type RefreshTokenRequest struct {
+	Token string `json:"token" binding:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+}
+
+// TempTokenRequest 临时令牌请求
+type TempTokenRequest struct {
+	ShopID uint64 `json:"shop_id" binding:"required" example:"1"`
+	Token  string `json:"token" binding:"required,len=6" example:"123456"`
+}
+
+// UniversalLogin 通用登录接口
+// @Summary 通用登录接口
+// @Description 管理员和商家通用登录接口
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param loginRequest body UniversalLoginRequest true "登录信息"
+// @Success 200 {object} map[string]interface{} "登录成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 401 {object} map[string]interface{} "用户名或密码错误"
+// @Router /login [post]
 func (h *Handler) UniversalLogin(c *gin.Context) {
 	log2.Debugf("开始处理统一登录请求")
 
@@ -35,7 +68,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 			return
 		}
 
-		token, expiredAt, err := utils.GenerateToken(admin.ID, admin.Username)
+		token, expiredAt, err := utils.GenerateToken(admin.ID, admin.Username, true)
 		if err != nil {
 			log2.Errorf("生成token失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "登录失败")
@@ -70,7 +103,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
-	token, expiredAt, err := utils.GenerateToken(shop.ID, "shop_"+shop.OwnerUsername)
+	token, expiredAt, err := utils.GenerateToken(shop.ID, "shop_"+shop.OwnerUsername, false)
 	if err != nil {
 		log2.Errorf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")
@@ -85,7 +118,16 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	})
 }
 
-// 修改管理员密码
+// ChangeAdminPassword 修改管理员密码
+// @Summary 修改管理员密码
+// @Description 修改管理员登录密码
+// @Tags 管理员基础
+// @Accept json
+// @Produce json
+// @Param passwordRequest body ChangePasswordRequest true "密码信息"
+// @Success 200 {object} map[string]interface{} "修改成功"
+// @Security BearerAuth
+// @Router /admin/change-password [post]
 func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	log2.Debugf("开始处理管理员修改密码请求")
 
@@ -136,6 +178,16 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	successResponse(c, gin.H{"message": "密码修改成功"})
 }
 
+// ChangeShopPassword 修改商家密码
+// @Summary 修改商家密码
+// @Description 修改商家登录密码
+// @Tags 商家基础
+// @Accept json
+// @Produce json
+// @Param passwordRequest body ChangePasswordRequest true "密码信息"
+// @Success 200 {object} map[string]interface{} "修改成功"
+// @Security BearerAuth
+// @Router /shopOwner/change-password [post]
 func (h *Handler) ChangeShopPassword(c *gin.Context) {
 	log2.Debugf("开始处理店主密码修改请求")
 
@@ -193,10 +245,29 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 
 	successResponse(c, gin.H{"message": "密码修改成功"})
 }
+
+// RefreshAdminToken 刷新管理员令牌
+// @Summary 刷新管理员令牌
+// @Description 刷新管理员访问令牌
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param refreshTokenRequest body RefreshTokenRequest true "刷新令牌信息"
+// @Success 200 {object} map[string]interface{} "刷新成功"
+// @Router /admin/refresh-token [post]
 func (h *Handler) RefreshAdminToken(c *gin.Context) {
 	h.RefreshToken(c, false)
 }
 
+// RefreshShopToken 刷新商家令牌
+// @Summary 刷新商家令牌
+// @Description 刷新商家访问令牌
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param refreshTokenRequest body RefreshTokenRequest true "刷新令牌信息"
+// @Success 200 {object} map[string]interface{} "刷新成功"
+// @Router /shop/refresh-token [post]
 func (h *Handler) RefreshShopToken(c *gin.Context) {
 	h.RefreshToken(c, true)
 }
@@ -241,7 +312,8 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 	}
 
 	// 生成新token
-	newToken, expiredAt, err := utils.GenerateToken(claims.UserID, claims.Username)
+	isAdmin := !isShopOwner
+	newToken, expiredAt, err := utils.GenerateToken(claims.UserID, claims.Username, isAdmin)
 	if err != nil {
 		log2.Errorf("生成新token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "刷新token失败")
@@ -255,7 +327,16 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 	})
 }
 
-// Logout 管理员登出
+// Logout 登出
+// @Summary 登出
+// @Description 管理员或商家登出接口
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "登出成功"
+// @Security BearerAuth
+// @Router /admin/logout [post]
+// @Router /shopOwner/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	// 从请求头获取token
 	token := c.GetHeader("Authorization")
@@ -300,6 +381,14 @@ type UserInfo struct {
 }
 
 // TempTokenLogin 使用临时令牌登录
+// @Summary 临时令牌登录
+// @Description 使用临时令牌登录接口
+// @Tags 用户认证
+// @Accept json
+// @Produce json
+// @Param tempTokenRequest body TempTokenRequest true "临时令牌信息"
+// @Success 200 {object} map[string]interface{} "登录成功"
+// @Router /shop/temp-login [post]
 func (h *Handler) TempTokenLogin(c *gin.Context) {
 	var loginData struct {
 		ShopID uint64 `json:"shop_id" binding:"required"`
@@ -319,7 +408,7 @@ func (h *Handler) TempTokenLogin(c *gin.Context) {
 	}
 
 	// 生成JWT令牌
-	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name)
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name, false)
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "生成令牌失败")
 		return

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SSE订单通知测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .order {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .order-id {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .order-total {
+            color: #28a745;
+        }
+        .order-status {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <h1>SSE订单通知测试页面</h1>
+    <div>
+        <label for="shopId">店铺ID:</label>
+        <input type="text" id="shopId" value="1" />
+        <button onclick="connectSSE()">连接SSE</button>
+        <button onclick="disconnectSSE()">断开连接</button>
+    </div>
+    <div id="status">未连接</div>
+    <div id="orders"></div>
+
+    <script>
+        let eventSource = null;
+
+        function connectSSE() {
+            const shopId = document.getElementById('shopId').value;
+            if (!shopId) {
+                alert('请输入店铺ID');
+                return;
+            }
+
+            // 构建SSE连接URL
+            const url = `/api/shopOwner/sse/orders?shop_id=${shopId}`;
+            
+            // 创建EventSource连接
+            eventSource = new EventSource(url);
+
+            // 监听连接成功事件
+            eventSource.addEventListener('connected', function(event) {
+                const data = JSON.parse(event.data);
+                document.getElementById('status').innerHTML = `<span style="color: green;">已连接: ${data.message}</span>`;
+            });
+
+            // 监听新订单事件
+            eventSource.addEventListener('new_order', function(event) {
+                const order = JSON.parse(event.data);
+                displayOrder(order);
+            });
+
+            // 监听错误事件
+            eventSource.onerror = function(err) {
+                console.error('SSE连接错误:', err);
+                document.getElementById('status').innerHTML = '<span style="color: red;">连接错误</span>';
+            };
+        }
+
+        function disconnectSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                document.getElementById('status').innerHTML = '<span style="color: gray;">已断开连接</span>';
+            }
+        }
+
+        function displayOrder(order) {
+            const ordersDiv = document.getElementById('orders');
+            const orderElement = document.createElement('div');
+            orderElement.className = 'order';
+            orderElement.innerHTML = `
+                <div>新订单通知:</div>
+                <div>订单ID: <span class="order-id">${order.id}</span></div>
+                <div>用户ID: ${order.user_id}</div>
+                <div>总价: <span class="order-total">¥${order.total_price}</span></div>
+                <div>状态: <span class="order-status">${order.status}</span></div>
+                <div>创建时间: ${new Date(order.created_at).toLocaleString()}</div>
+                <div>备注: ${order.remark || '无'}</div>
+            `;
+            ordersDiv.prepend(orderElement);
+        }
+    </script>
+</body>
+</html>

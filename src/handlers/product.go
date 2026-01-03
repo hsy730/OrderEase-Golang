@@ -19,8 +19,35 @@ import (
 const maxProductImageSize = 2048 * 1024
 const maxProductImageZipSize = 512 * 1024
 
-// 创建商品
-// 修改商品结构体以支持参数类别
+// CreateProductRequest 创建商品请求
+type CreateProductRequest struct {
+	Name             string                         `json:"name" binding:"required" example:"川菜套餐"`
+	Description      string                         `json:"description" example:"美味川菜"`
+	Price            int64                          `json:"price" binding:"required" example:"5000"`
+	ShopID           uint64                         `json:"shop_id" binding:"required" example:"1"`
+	OptionCategories []models.ProductOptionCategory `json:"option_categories"`
+}
+
+// UpdateProductRequest 更新商品请求
+type UpdateProductRequest struct {
+	ID          string `json:"id" binding:"required" example:"1"`
+	Name        string `json:"name" example:"川菜套餐"`
+	Description string `json:"description" example:"美味川菜"`
+	Price       int64  `json:"price" example:"5000"`
+	ShopID      uint64 `json:"shop_id" example:"1"`
+}
+
+// CreateProduct 创建商品
+// @Summary 创建商品
+// @Description 创建新商品
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param product body CreateProductRequest true "商品信息"
+// @Success 200 {object} map[string]interface{} "创建成功"
+// @Security BearerAuth
+// @Router /admin/product/create [post]
+// @Router /shopOwner/product/create [post]
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var request struct {
 		models.Product
@@ -35,6 +62,11 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	utils.SanitizeProduct(&product)
 	product.Status = models.ProductStatusPending
 	product.ID = utils.GenerateSnowflakeID()
+
+	// 如果没有设置库存数量，设置默认值为100
+	if product.Stock <= 0 {
+		product.Stock = 100
+	}
 
 	validShopID, err := h.validAndReturnShopID(c, product.ShopID)
 	if err != nil {
@@ -80,6 +112,16 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 }
 
 // ToggleProductStatus 更新商品状态
+// @Summary 切换商品状态
+// @Description 切换商品上架/下架状态
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/product/toggle-status [put]
+// @Router /shopOwner/product/toggle-status [put]
 func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	// 解析请求参数
 	var req struct {
@@ -89,7 +131,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("解析请求参数失败: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
+		errorResponse(c, http.StatusBadRequest, "无效的请求参数："+err.Error())
 		return
 	}
 
@@ -166,7 +208,21 @@ func isValidProductStatusTransition(currentStatus, newStatus string) bool {
 	return false
 }
 
-// 获取商品列表
+// GetProducts 获取商品列表
+// @Summary 获取商品列表
+// @Description 获取商品列表，支持分页和筛选
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param shopId query string false "店铺ID"
+// @Param status query string false "商品状态"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/product/list [get]
+// @Router /shopOwner/product/list [get]
+// @Router /product/list [get]
 func (h *Handler) GetProducts(c *gin.Context) {
 	var products []models.Product
 
@@ -234,7 +290,18 @@ func (h *Handler) GetProducts(c *gin.Context) {
 	})
 }
 
-// 获取单个商品详情
+// GetProduct 获取单个商品详情
+// @Summary 获取商品详情
+// @Description 获取指定商品的详细信息
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/product/detail [get]
+// @Router /shopOwner/product/detail [get]
+// @Router /product/detail [get]
 func (h *Handler) GetProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
@@ -262,7 +329,17 @@ func (h *Handler) GetProduct(c *gin.Context) {
 	successResponse(c, product)
 }
 
-// 更新商品信息，支持参数类别更新
+// UpdateProduct 更新商品信息，支持参数类别更新
+// @Summary 更新商品信息
+// @Description 更新商品基本信息
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param product body UpdateProductRequest true "商品信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/product/update [put]
+// @Router /shopOwner/product/update [put]
 func (h *Handler) UpdateProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
@@ -345,7 +422,17 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	successResponse(c, updatedProduct)
 }
 
-// 删除商品
+// DeleteProduct 删除商品
+// @Summary 删除商品
+// @Description 删除指定商品
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Security BearerAuth
+// @Router /admin/product/delete [delete]
+// @Router /shopOwner/product/delete [delete]
 func (h *Handler) DeleteProduct(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
@@ -404,7 +491,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	)`, product.ID).Delete(&models.ProductOption{}).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("删除商品参数选项失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败: "+err.Error())
 		return
 	}
 
@@ -412,7 +499,15 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("删除商品参数类别失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败: "+err.Error())
+		return
+	}
+
+	// 删除商品标签
+	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductTag{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("删除商品标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败: "+err.Error())
 		return
 	}
 
@@ -420,7 +515,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	if err := tx.Delete(&product).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("删除商品记录失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+		errorResponse(c, http.StatusInternalServerError, "删除商品失败: "+err.Error())
 		return
 	}
 
@@ -428,7 +523,17 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	successResponse(c, gin.H{"message": "商品删除成功"})
 }
 
-// 上传商品图片
+// UploadProductImage 上传商品图片
+// @Summary 上传商品图片
+// @Description 上传商品图片
+// @Tags 商品管理
+// @Accept multipart/form-data
+// @Produce json
+// @Param image formData file true "商品图片"
+// @Success 200 {object} map[string]interface{} "上传成功"
+// @Security BearerAuth
+// @Router /admin/product/upload-image [post]
+// @Router /shopOwner/product/upload-image [post]
 func (h *Handler) UploadProductImage(c *gin.Context) {
 	// 限制文件大小
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxProductImageSize)
@@ -541,7 +646,18 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	})
 }
 
-// 获取商品图片
+// GetProductImage 获取商品图片
+// @Summary 获取商品图片
+// @Description 获取指定商品的图片
+// @Tags 商品管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/product/image [get]
+// @Router /shopOwner/product/image [get]
+// @Router /product/image [get]
 func (h *Handler) GetProductImage(c *gin.Context) {
 	// 添加路径前缀
 	fileName := c.Query("path")

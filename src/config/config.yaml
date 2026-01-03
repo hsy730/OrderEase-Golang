@@ -9,7 +9,7 @@ server:
 
 database:
   driver: mysql
-  host: 127.0.0.1
+  host: 192.168.1.3
   port: 3306
   username: root
   password: 123456
@@ -17,7 +17,7 @@ database:
   charset: utf8mb4
   parseTime: true
   loc: Local 
-  logLevel: 4 # 1=Silent, 2=Error, 3=Warn, 4=Info, 5=Debug
+  logLevel: 5 # 1=Silent, 2=Error, 3=Warn, 4=Info, 5=Debug
 
 jwt:
   secret: "e6jf493kdhbms9ew6mv2v1a4dx2"  # 建议使用随机生成的复杂字符串

@@ -20,7 +20,47 @@ import (
 	"orderease/utils/log2"
 )
 
+// CreateShopRequest 创建店铺请求
+type CreateShopRequest struct {
+	Name            string                  `json:"name" binding:"required" example:"美食店"`
+	OwnerUsername   string                  `json:"owner_username" binding:"required" example:"shopowner"`
+	OwnerPassword   string                  `json:"owner_password" binding:"required" example:"password123"`
+	ContactPhone    string                  `json:"contact_phone" example:"13800138000"`
+	ContactEmail    string                  `json:"contact_email" example:"shop@example.com"`
+	Description     string                  `json:"description" example:"专营川菜"`
+	ValidUntil      string                  `json:"valid_until" example:"2025-12-31T23:59:59Z"`
+	Address         string                  `json:"address" example:"北京市朝阳区"`
+	Settings        datatypes.JSON          `json:"settings"`
+	OrderStatusFlow *models.OrderStatusFlow `json:"order_status_flow"`
+}
+
+// UpdateShopRequest 更新店铺请求
+type UpdateShopRequest struct {
+	ID           uint64         `json:"id" binding:"required" example:"1"`
+	Name         string         `json:"name" example:"美食店"`
+	ContactPhone string         `json:"contact_phone" example:"13800138000"`
+	ContactEmail string         `json:"contact_email" example:"shop@example.com"`
+	Description  string         `json:"description" example:"专营川菜"`
+	Address      string         `json:"address" example:"北京市朝阳区"`
+	Settings     datatypes.JSON `json:"settings"`
+}
+
+// OrderStatusFlowRequest 订单状态流转请求
+type OrderStatusFlowRequest struct {
+	ShopID          uint64                  `json:"shop_id" binding:"required" example:"1"`
+	OrderStatusFlow *models.OrderStatusFlow `json:"order_status_flow" binding:"required"`
+}
+
 // GetShopTags 获取店铺标签列表
+// @Summary 获取店铺标签列表
+// @Description 获取指定店铺的标签列表
+// @Tags 标签
+// @Accept json
+// @Produce json
+// @Param shopId path string true "店铺ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /shop/{shopId}/tags [get]
 func (h *Handler) GetShopTags(c *gin.Context) {
 	shopID, err := strconv.ParseUint(c.Param("shop_id"), 10, 64)
 	if err != nil {
@@ -42,6 +82,17 @@ func (h *Handler) GetShopTags(c *gin.Context) {
 }
 
 // GetShopInfo 获取店铺详细信息
+// @Summary 获取店铺详情
+// @Description 获取指定店铺的详细信息
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shopId query string true "店铺ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/shop/detail [get]
+// @Router /shopOwner/shop/detail [get]
+// @Router /shop/detail [get]
 func (h *Handler) GetShopInfo(c *gin.Context) {
 	shopID := c.Query("shop_id")
 
@@ -82,6 +133,17 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 }
 
 // GetShopList 获取店铺列表（分页+搜索）
+// @Summary 获取店铺列表
+// @Description 获取店铺列表，支持分页和筛选
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param status query string false "店铺状态"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/shop/list [get]
 func (h *Handler) GetShopList(c *gin.Context) {
 	// 获取分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -139,6 +201,15 @@ func (h *Handler) GetShopList(c *gin.Context) {
 }
 
 // CreateShop 创建店铺
+// @Summary 创建店铺
+// @Description 创建新店铺
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shop body CreateShopRequest true "店铺信息"
+// @Success 200 {object} map[string]interface{} "创建成功"
+// @Security BearerAuth
+// @Router /admin/shop/create [post]
 func (h *Handler) CreateShop(c *gin.Context) {
 	var shopData struct {
 		Name            string                  `json:"name" binding:"required"`
@@ -155,7 +226,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&shopData); err != nil {
 		log2.Errorf("Bind Json failed: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
 		return
 	}
 
@@ -228,6 +299,16 @@ func (h *Handler) CreateShop(c *gin.Context) {
 }
 
 // UpdateShop 更新店铺信息
+// @Summary 更新店铺信息
+// @Description 更新店铺基本信息
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shop body UpdateShopRequest true "店铺信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/shop/update [put]
+// @Router /shopOwner/shop/update [put]
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
 		ID              uint64                  `json:"id" binding:"required"`
@@ -355,7 +436,16 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	})
 }
 
-// 删除店铺及关联数据
+// DeleteShop 删除店铺及关联数据
+// @Summary 删除店铺
+// @Description 删除指定店铺
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shopId query string true "店铺ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Security BearerAuth
+// @Router /admin/shop/delete [delete]
 func (h *Handler) DeleteShop(c *gin.Context) {
 	shopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 	if err != nil {
@@ -399,6 +489,16 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 }
 
 // CheckShopNameExists 检查商店名称是否存在
+// CheckShopNameExists 检查店铺名称是否存在
+// @Summary 检查店铺名称是否存在
+// @Description 检查店铺名称是否已被使用
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param name query string true "店铺名称"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/shop/check-name [get]
 func (h *Handler) CheckShopNameExists(c *gin.Context) {
 	shopName := c.Query("name")
 	if shopName == "" {
@@ -418,7 +518,16 @@ func (h *Handler) CheckShopNameExists(c *gin.Context) {
 	})
 }
 
-// 上传店铺图片
+// UploadShopImage 上传店铺图片
+// @Summary 上传店铺图片
+// @Description 上传店铺图片
+// @Tags 店铺管理
+// @Accept multipart/form-data
+// @Produce json
+// @Param image formData file true "店铺图片"
+// @Success 200 {object} map[string]interface{} "上传成功"
+// @Security BearerAuth
+// @Router /admin/shop/upload-image [post]
 func (h *Handler) UploadShopImage(c *gin.Context) {
 	// 限制文件大小
 	const maxFileSize = 2 * 1024 * 1024 // 2MB
@@ -525,7 +634,18 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 	})
 }
 
-// 获取店铺图片
+// GetShopImage 获取店铺图片
+// @Summary 获取店铺图片
+// @Description 获取指定店铺的图片
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shopId query string true "店铺ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/shop/image [get]
+// @Router /shopOwner/shop/image [get]
+// @Router /shop/image [get]
 func (h *Handler) GetShopImage(c *gin.Context) {
 	fileName := c.Query("path")
 	if fileName == "" {
@@ -551,6 +671,15 @@ func (h *Handler) GetShopImage(c *gin.Context) {
 }
 
 // GetShopTempToken 获取店铺的临时令牌
+// @Summary 获取店铺临时令牌
+// @Description 为店铺生成临时访问令牌
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param shopId query string true "店铺ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/shop/temp-token [get]
 func (h *Handler) GetShopTempToken(c *gin.Context) {
 	// 从URL参数中获取shopID
 	shopIDStr := c.Query("shop_id")
@@ -582,6 +711,16 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 }
 
 // UpdateOrderStatusFlow 更新店铺订单流转状态配置
+// @Summary 更新订单状态流转
+// @Description 更新店铺的订单状态流转配置
+// @Tags 店铺管理
+// @Accept json
+// @Produce json
+// @Param flow body OrderStatusFlowRequest true "状态流转信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/shop/update-order-status-flow [put]
+// @Router /shopOwner/shop/update-order-status-flow [put]
 func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
 		ShopID          uint64                 `json:"shop_id" binding:"required"`

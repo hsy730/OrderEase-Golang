@@ -12,7 +12,51 @@ import (
 	"gorm.io/gorm"
 )
 
+// CreateTagRequest 创建标签请求
+type CreateTagRequest struct {
+	Name   string `json:"name" binding:"required" example:"热门"`
+	ShopID uint64 `json:"shop_id" binding:"required" example:"1"`
+}
+
+// UpdateTagRequest 更新标签请求
+type UpdateTagRequest struct {
+	ID     int    `json:"id" binding:"required" example:"1"`
+	Name   string `json:"name" example:"热门"`
+	ShopID uint64 `json:"shop_id" example:"1"`
+}
+
+// BatchTagRequest 批量打标签请求
+type BatchTagRequest struct {
+	ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
+	TagID      int            `json:"tag_id" binding:"required" example:"1"`
+	ShopID     uint64         `json:"shop_id" binding:"required" example:"1"`
+}
+
+// BatchTagProductRequest 批量设置商品标签请求
+type BatchTagProductRequest struct {
+	ProductID snowflake.ID `json:"product_id" binding:"required"`
+	TagIDs    []int        `json:"tag_ids" binding:"required"`
+	ShopID    uint64       `json:"shop_id" binding:"required" example:"1"`
+}
+
+// BatchUntagRequest 批量解绑标签请求
+type BatchUntagRequest struct {
+	ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
+	TagID      int            `json:"tag_id" binding:"required" example:"1"`
+	ShopID     uint64         `json:"shop_id" binding:"required" example:"1"`
+}
+
 // CreateTag 创建标签
+// @Summary 创建标签
+// @Description 创建新标签
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tag body CreateTagRequest true "标签信息"
+// @Success 200 {object} map[string]interface{} "创建成功"
+// @Security BearerAuth
+// @Router /admin/tag/create [post]
+// @Router /shopOwner/tag/create [post]
 func (h *Handler) CreateTag(c *gin.Context) {
 	var tag models.Tag
 	if err := c.ShouldBindJSON(&tag); err != nil {
@@ -38,6 +82,16 @@ func (h *Handler) CreateTag(c *gin.Context) {
 }
 
 // GetTagOnlineProducts 获取标签关联的已上架商品
+// @Summary 获取标签关联的已上架商品
+// @Description 获取指定标签关联的已上架商品列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tagId query string true "标签ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/online-products [get]
+// @Router /shopOwner/tag/online-products [get]
 func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 	tagID := c.Query("tag_id")
 	if tagID == "" {
@@ -76,6 +130,16 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 }
 
 // GetBoundTags 获取商品已绑定的标签
+// @Summary 获取商品已绑定的标签
+// @Description 获取指定商品已绑定的标签列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/bound-tags [get]
+// @Router /shopOwner/tag/bound-tags [get]
 func (h *Handler) GetBoundTags(c *gin.Context) {
 	productID := c.Query("product_id")
 	if productID == "" {
@@ -115,6 +179,16 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 }
 
 // GetUnboundTags 获取商品未绑定的标签
+// @Summary 获取商品未绑定的标签
+// @Description 获取指定商品未绑定的标签列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param productId query string true "商品ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/unbound-tags [get]
+// @Router /shopOwner/tag/unbound-tags [get]
 func (h *Handler) GetUnboundTags(c *gin.Context) {
 	productID := c.Query("product_id")
 	if productID == "" {
@@ -156,6 +230,16 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 }
 
 // BatchTagProducts 批量打标签
+// @Summary 批量打标签
+// @Description 批量给商品打标签
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param batchTagRequest body BatchTagRequest true "批量打标签信息"
+// @Success 200 {object} map[string]interface{} "操作成功"
+// @Security BearerAuth
+// @Router /admin/tag/batch-tag [post]
+// @Router /shopOwner/tag/batch-tag [post]
 func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
@@ -165,7 +249,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 
 	var req request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
 		return
 	}
 
@@ -229,6 +313,16 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 }
 
 // UpdateTag 更新标签
+// @Summary 更新标签信息
+// @Description 更新标签基本信息
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tag body UpdateTagRequest true "标签信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/tag/update [put]
+// @Router /shopOwner/tag/update [put]
 func (h *Handler) UpdateTag(c *gin.Context) {
 	var tag models.Tag
 	if err := c.ShouldBindJSON(&tag); err != nil {
@@ -254,6 +348,16 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 }
 
 // DeleteTag 删除标签
+// @Summary 删除标签
+// @Description 删除指定标签
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tagId query string true "标签ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Security BearerAuth
+// @Router /admin/tag/delete [delete]
+// @Router /shopOwner/tag/delete [delete]
 func (h *Handler) DeleteTag(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -306,10 +410,31 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	successResponse(c, gin.H{"message": "标签删除成功"})
 }
 
+// GetTagsForFront 获取前端标签列表
+// @Summary 获取标签列表
+// @Description 获取标签列表
+// @Tags 标签
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /api/tag/list [get]
 func (h *Handler) GetTagsForFront(c *gin.Context) {
 	h.GetTags(c, true)
 }
 
+// GetTagsForBackend 获取后端标签列表
+// @Summary 获取标签列表
+// @Description 获取标签列表，支持分页和筛选
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/list [get]
+// @Router /shopOwner/tag/list [get]
 func (h *Handler) GetTagsForBackend(c *gin.Context) {
 	h.GetTags(c, false)
 }
@@ -367,6 +492,16 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 }
 
 // GetUnboundProductsForTag 获取标签未绑定的商品列表
+// @Summary 获取标签未绑定的商品列表
+// @Description 获取指定标签未绑定的商品列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tagId query string true "标签ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/unbound-products [get]
+// @Router /shopOwner/tag/unbound-products [get]
 func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 	tagID := c.Query("tag_id")
 	if tagID == "" {
@@ -424,6 +559,15 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 }
 
 // GetUnboundTagsList 获取没有绑定商品的标签列表
+// @Summary 获取没有绑定商品的标签列表
+// @Description 获取没有绑定任何商品的标签列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/unbound-list [get]
+// @Router /shopOwner/tag/unbound-list [get]
 func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -473,6 +617,17 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 }
 
 // GetTagBoundProducts 获取标签已绑定的商品列表（分页）
+// @Summary 获取标签已绑定的商品列表
+// @Description 获取指定标签已绑定的商品列表
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param tagId query string true "标签ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/tag/bound-products [get]
+// @Router /shopOwner/tag/bound-products [get]
+// @Router /api/tag/bound-products [get]
 func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	tagID := c.Query("tag_id")
 	if tagID == "" {
@@ -618,6 +773,16 @@ func (h *Handler) GetTag(c *gin.Context) {
 }
 
 // BatchUntagProducts 批量解绑商品标签
+// @Summary 批量解绑商品标签
+// @Description 批量解绑商品的标签
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param batchUntagRequest body BatchUntagRequest true "批量解绑标签信息"
+// @Success 200 {object} map[string]interface{} "操作成功"
+// @Security BearerAuth
+// @Router /admin/tag/batch-untag [delete]
+// @Router /shopOwner/tag/batch-untag [delete]
 func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
@@ -665,6 +830,16 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 }
 
 // BatchTagProduct 批量设置商品标签
+// @Summary 批量设置商品标签
+// @Description 批量设置商品的标签
+// @Tags 标签管理
+// @Accept json
+// @Produce json
+// @Param batchTagProductRequest body BatchTagProductRequest true "批量设置标签信息"
+// @Success 200 {object} map[string]interface{} "操作成功"
+// @Security BearerAuth
+// @Router /admin/tag/batch-tag-product [post]
+// @Router /shopOwner/tag/batch-tag-product [post]
 func (h *Handler) BatchTagProduct(c *gin.Context) {
 	type request struct {
 		ProductID snowflake.ID `json:"product_id" binding:"required"`
@@ -674,7 +849,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 
 	var req request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
 		return
 	}
 

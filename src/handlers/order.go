@@ -48,7 +48,18 @@ type CreateOrderItemOption struct {
 	OptionID   snowflake.ID `json:"option_id"`
 }
 
-// 创建订单请求结构体，添加参数支持
+// CreateOrder 创建订单请求结构体，添加参数支持
+// @Summary 创建订单
+// @Description 创建新订单
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param order body CreateOrderRequest true "订单信息"
+// @Success 200 {object} map[string]interface{} "创建成功"
+// @Security BearerAuth
+// @Router /admin/order/create [post]
+// @Router /shopOwner/order/create [post]
+// @Router /order/create [post]
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -95,7 +106,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	// 假设存在一个 IsValidUserID 函数来验证用户ID的合法性
 	if !h.IsValidUserID(order.UserID) {
 		log2.Errorf("创建订单失败: 非法用户")
-		errorResponse(c, http.StatusBadRequest, "创建订单失败")
+		errorResponse(c, http.StatusBadRequest, "创建订单失败: 非法用户")
 		return
 	}
 
@@ -195,7 +206,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("创建订单失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+		errorResponse(c, http.StatusInternalServerError, "创建订单失败: 创建订单项识别失败")
 		return
 	}
 
@@ -206,7 +217,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			if err := tx.Save(&order.Items[i].Options[j]).Error; err != nil {
 				tx.Rollback()
 				log2.Errorf("更新订单项选项失败: %v", err)
-				errorResponse(c, http.StatusInternalServerError, "创建订单失败")
+				errorResponse(c, http.StatusInternalServerError, "创建订单失败: 更新订单项选项失败")
 				return
 			}
 		}
@@ -248,7 +259,20 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	})
 }
 
-// 获取订单列表
+// GetOrders 获取订单列表
+// @Summary 获取订单列表
+// @Description 获取订单列表，支持分页和筛选
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param status query string false "订单状态"
+// @Param shopId query string false "店铺ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/order/list [get]
+// @Router /shopOwner/order/list [get]
 func (h *Handler) GetOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -319,7 +343,18 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	})
 }
 
-// 获取订单详情
+// GetOrder 获取订单详情
+// @Summary 获取订单详情
+// @Description 获取指定订单的详细信息
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param orderId query string true "订单ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/order/detail [get]
+// @Router /shopOwner/order/detail [get]
+// @Router /order/detail [get]
 func (h *Handler) GetOrder(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -363,7 +398,18 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	successResponse(c, order)
 }
 
-// 查询某用户创建的所有订单
+// GetOrdersByUser 查询某用户创建的所有订单
+// @Summary 获取用户订单列表
+// @Description 获取当前用户的订单列表
+// @Tags 订单
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param status query string false "订单状态"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /order/user/list [get]
 func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -440,7 +486,17 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	})
 }
 
-// 更新订单
+// UpdateOrder 更新订单
+// @Summary 更新订单信息
+// @Description 更新订单基本信息
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param order body CreateOrderRequest true "订单信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/order/update [put]
+// @Router /shopOwner/order/update [put]
 func (h *Handler) UpdateOrder(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -599,7 +655,18 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	successResponse(c, response)
 }
 
-// 删除订单
+// DeleteOrder 删除订单
+// @Summary 删除订单
+// @Description 删除指定的订单
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param orderId query string true "订单ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Security BearerAuth
+// @Router /admin/order/delete [delete]
+// @Router /shopOwner/order/delete [delete]
+// @Router /order/delete [delete]
 func (h *Handler) DeleteOrder(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -657,7 +724,18 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	successResponse(c, gin.H{"message": "订单删除成功"})
 }
 
-// 翻转订单状态
+// ToggleOrderStatus 翻转订单状态
+// @Summary 切换订单状态
+// @Description 切换订单状态
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param orderId query string true "订单ID"
+// @Param status query string true "目标状态"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/order/toggle-status [put]
+// @Router /shopOwner/order/toggle-status [put]
 func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	// 定义请求结构体
 	type ToggleOrderStatusRequest struct {
@@ -670,7 +748,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	var req ToggleOrderStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("无效的请求参数: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
+		errorResponse(c, http.StatusBadRequest, "无效的请求参数："+err.Error())
 		return
 	}
 
@@ -753,7 +831,7 @@ func validateNextStatus(currentStatus int, nextStatus int, flow models.OrderStat
 		if status.Value == currentStatus {
 			// 检查是否为终态
 			if status.IsFinal {
-				return fmt.Errorf("当前状态为终态，不允许转换")
+				return fmt.Errorf("当前状态%d为终态，不允许转换", currentStatus)
 			}
 
 			// 检查请求的next_status是否在当前状态允许的动作列表中
@@ -765,12 +843,12 @@ func validateNextStatus(currentStatus int, nextStatus int, flow models.OrderStat
 			}
 
 			// 没有找到匹配的动作
-			return fmt.Errorf("当前状态不允许转换到指定的下一个状态")
+			return fmt.Errorf("当前状态%d不允许转换到指定的下一个状态: %d", currentStatus, nextStatus)
 		}
 	}
 
 	// 如果在店铺流转定义中找不到当前状态
-	return fmt.Errorf("当前状态不允许转换")
+	return fmt.Errorf("当前状态%d不允许转换", currentStatus)
 }
 
 // 添加错误响应辅助函数
@@ -804,7 +882,17 @@ func validateOrder(order *models.Order) error {
 	return nil
 }
 
-// 高级查询订单
+// GetAdvanceSearchOrders 高级查询订单
+// @Summary 高级搜索订单
+// @Description 使用多种条件高级搜索订单
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param searchRequest body AdvanceSearchOrderRequest true "搜索条件"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/order/advance-search [post]
+// @Router /shopOwner/order/advance-search [post]
 func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 	var req AdvanceSearchOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -899,7 +987,17 @@ func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 	return err == nil
 }
 
-// 获取订单状态流转配置
+// GetOrderStatusFlow 获取订单状态流转配置
+// @Summary 获取订单状态流转
+// @Description 获取订单状态流转信息
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Param orderId query string true "订单ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/order/status-flow [get]
+// @Router /shopOwner/order/status-flow [get]
 func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 	// 获取并验证shop_id参数
 	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
@@ -929,7 +1027,15 @@ func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 	})
 }
 
-// 获取未完成的订单列表
+// GetUnfinishedOrders 获取未完成订单列表
+// @Summary 获取未完成订单列表
+// @Description 获取未完成的订单列表
+// @Tags 订单管理
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /shopOwner/order/unfinished-list [get]
 func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))

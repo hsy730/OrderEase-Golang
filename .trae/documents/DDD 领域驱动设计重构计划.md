@@ -1,0 +1,92 @@
+# 调整店铺订单流转状态配置管理方案
+
+## 1. 需求分析
+
+用户要求：
+
+1. 创建和修改店铺接口保持不变，但OrderStatusFlow字段变为可选
+2. 创建店铺时，如果没有传OrderStatusFlow，则使用默认配置
+3. 修改店铺时，如果没有传OrderStatusFlow，则使用数据库中已有的配置
+4. 保持现有的状态流转查询功能不变
+
+## 2. 实现方案
+
+### 2.1 修改创建店铺接口 (CreateShop)
+
+* 将OrderStatusFlow字段从必填改为可选（去掉binding:"required"标签）
+
+* 使用指针类型`*models.OrderStatusFlow`来接收请求
+
+* 如果请求中没有传递OrderStatusFlow，则使用默认配置
+
+* 否则使用请求中传递的配置
+
+### 2.2 修改更新店铺接口 (UpdateShop)
+
+* 将OrderStatusFlow字段从必填改为可选（去掉binding:"required"标签）
+
+* 使用指针类型`*models.OrderStatusFlow`来接收请求
+
+* 如果请求中没有传递OrderStatusFlow，则保持数据库中已有的配置不变
+
+* 否则使用请求中传递的配置更新数据库
+
+### 2.3 更新GetShopInfo接口
+
+* 确保在响应中包含order\_status\_flow字段
+
+### 2.4 增加独立的修改状态流转接口
+
+* 新增一个PUT /shop/update-order-status-flow接口
+
+* 专门用于修改店铺的订单流转状态配置
+
+* 接收shop\_id和order\_status\_flow参数
+
+* 验证shop\_id的有效性
+
+* 更新指定店铺的订单流转状态配置
+
+## 3. 实现步骤
+
+1. 修改CreateShop函数的请求结构体，将OrderStatusFlow改为指针类型且可选
+2. 修改CreateShop函数的逻辑，处理OrderStatusFlow为nil的情况
+3. 修改UpdateShop函数的请求结构体，将OrderStatusFlow改为指针类型且可选
+4. 修改UpdateShop函数的逻辑，处理OrderStatusFlow为nil的情况
+5. 在routes中添加新的路由：PUT /shop/update-order-status-flow
+6. 实现UpdateOrderStatusFlow函数
+7. 测试所有相关接口
+
+## 4. 代码修改点
+
+### 4.1 handlers/shop.go
+
+* CreateShop函数：修改请求结构体和逻辑
+
+* UpdateShop函数：修改请求结构体和逻辑
+
+* 新增UpdateOrderStatusFlow函数
+
+### 4.2 routes/backend/shop\_owner\_routes.go
+
+* 添加新的路由：PUT /shop/update-order-status-flow
+
+## 5. 预期效果
+
+* 创建店铺时，如果没有传OrderStatusFlow，则使用默认配置
+
+* 修改店铺时，如果没有传OrderStatusFlow，则保持原有配置
+
+* 可以通过独立的接口修改店铺的订单流转状态配置
+
+* 所有现有功能保持不变
+
+## 6. 测试要点
+
+1. 创建店铺时不传OrderStatusFlow，验证是否使用默认配置
+2. 创建店铺时传OrderStatusFlow，验证是否使用传入的配置
+3. 修改店铺时不传OrderStatusFlow，验证是否保持原有配置
+4. 修改店铺时传OrderStatusFlow，验证是否更新为新配置
+5. 测试新增的update-order-status-flow接口
+6. 测试GetShopInfo接口是否正常返回order\_status\_flow
+

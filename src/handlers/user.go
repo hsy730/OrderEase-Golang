@@ -11,17 +11,37 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// 创建用户请求结构体
+// CreateUserRequest 创建用户请求结构体
 type CreateUserRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Phone    string `json:"phone"`
-	Type     string `json:"type" binding:"required,oneof=delivery pickup"`
-	Address  string `json:"address"`
-	Role     string `json:"role"`
+	Name     string `json:"name" binding:"required" example:"张三"`
+	Password string `json:"password" binding:"required" example:"password123"`
+	Phone    string `json:"phone" example:"13800138000"`
+	Type     string `json:"type" binding:"required,oneof=delivery pickup" example:"delivery"`
+	Address  string `json:"address" example:"北京市朝阳区"`
+	Role     string `json:"role" example:"public"`
 }
 
-// 创建用户
+// UpdateUserRequest 更新用户请求结构体
+type UpdateUserRequest struct {
+	ID       string `json:"id" binding:"required" example:"1"`
+	Type     string `json:"type" example:"delivery"`
+	Phone    string `json:"phone" example:"13800138000"`
+	Password string `json:"password" example:"newpass123"`
+	Address  string `json:"address" example:"北京市朝阳区"`
+	Role     string `json:"role" example:"public"`
+}
+
+// CreateUser 创建用户
+// @Summary 创建用户
+// @Description 创建新用户
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param user body CreateUserRequest true "用户信息"
+// @Success 200 {object} map[string]interface{} "创建成功"
+// @Security BearerAuth
+// @Router /admin/user/create [post]
+// @Router /shopOwner/user/create [post]
 func (h *Handler) CreateUser(c *gin.Context) {
 	req := CreateUserRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,7 +100,19 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	successResponse(c, responseData)
 }
 
-// 获取用户列表
+// GetUsers 获取用户列表
+// @Summary 获取用户列表
+// @Description 获取用户列表，支持分页和筛选
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param status query string false "用户状态"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/user/list [get]
+// @Router /shopOwner/user/list [get]
 func (h *Handler) GetUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -127,7 +159,17 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	})
 }
 
-// 获取用户详情
+// GetUser 获取用户详情
+// @Summary 获取用户详情
+// @Description 获取指定用户的详细信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param userId query string true "用户ID"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/user/detail [get]
+// @Router /shopOwner/user/detail [get]
 func (h *Handler) GetUser(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -157,7 +199,16 @@ func (h *Handler) GetUser(c *gin.Context) {
 	successResponse(c, user)
 }
 
-// 检查用户名是否存在
+// CheckUsernameExists 检查用户名是否存在
+// @Summary 检查用户名是否存在
+// @Description 检查用户名是否已被注册
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Param username query string true "用户名"
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /user/check-username [get]
 func (h *Handler) CheckUsernameExists(c *gin.Context) {
 	username := c.Query("username")
 	if username == "" {
@@ -181,7 +232,17 @@ func (h *Handler) CheckUsernameExists(c *gin.Context) {
 	})
 }
 
-// 更新用户信息
+// UpdateUser 更新用户信息
+// @Summary 更新用户信息
+// @Description 更新用户基本信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param user body UpdateUserRequest true "用户信息"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Security BearerAuth
+// @Router /admin/user/update [put]
+// @Router /shopOwner/user/update [put]
 func (h *Handler) UpdateUser(c *gin.Context) {
 	// 定义更新数据结构体
 	var updateData struct {
@@ -265,7 +326,17 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	successResponse(c, user)
 }
 
-// 删除用户
+// DeleteUser 删除用户
+// @Summary 删除用户
+// @Description 删除指定用户
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param userId query string true "用户ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Security BearerAuth
+// @Router /admin/user/delete [delete]
+// @Router /shopOwner/user/delete [delete]
 func (h *Handler) DeleteUser(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
@@ -315,7 +386,16 @@ func isValidPhone(phone string) bool {
 	return true
 }
 
-// 获取简单用户列表（只返回ID和名称）
+// GetUserSimpleList 获取简单用户列表（只返回ID和名称）
+// @Summary 获取用户简单列表
+// @Description 获取用户简单信息列表，用于下拉选择等场景
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "查询成功"
+// @Security BearerAuth
+// @Router /admin/user/simple-list [get]
+// @Router /shopOwner/user/simple-list [get]
 func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	var users []struct {
 		ID   string `json:"id"`
@@ -377,7 +457,7 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 // 前端用户注册请求结构体
 type FrontendUserRegisterRequest struct {
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required,min=6,max=6"`
+	Password string `json:"password" binding:"required,min=6,max=20"`
 }
 
 // 前端用户注册
@@ -401,7 +481,7 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 
 	// 验证密码格式：6位字母或数字
 	if !isValidPassword(req.Password) {
-		errorResponse(c, http.StatusBadRequest, "密码必须为6位字母或数字")
+		errorResponse(c, http.StatusBadRequest, "密码为6位以上字母或数字")
 		return
 	}
 
@@ -478,7 +558,7 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 	}
 
 	// 生成token
-	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name)
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name, false)
 	if err != nil {
 		h.logger.Errorf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")
@@ -499,15 +579,16 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 	successResponse(c, responseData)
 }
 
-// 验证密码格式：6位字母或数字
+// 验证密码格式：最少6位，必须包含数字或字母，允许特殊字符
 func isValidPassword(password string) bool {
-	if len(password) != 6 {
+	if len(password) < 6 {
 		return false
 	}
+	// 检查是否至少包含一个字母或数字
 	for _, c := range password {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
-			return false
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			return true
 		}
 	}
-	return true
+	return false
 }

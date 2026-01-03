@@ -1,0 +1,2353 @@
+basePath: /api
+definitions:
+  handlers.BatchTagRequest:
+    type: object
+  handlers.ChangePasswordRequest:
+    properties:
+      new_password:
+        example: newpass123
+        type: string
+      old_password:
+        example: oldpass123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  handlers.CreateOrderRequest:
+    type: object
+  handlers.CreateProductRequest:
+    type: object
+  handlers.CreateShopRequest:
+    type: object
+  handlers.CreateTagRequest:
+    properties:
+      name:
+        example: 热门
+        type: string
+      shop_id:
+        example: 1
+        type: integer
+    required:
+    - name
+    - shop_id
+    type: object
+  handlers.CreateUserRequest:
+    properties:
+      address:
+        example: 北京市朝阳区
+        type: string
+      name:
+        example: 张三
+        type: string
+      password:
+        example: password123
+        type: string
+      phone:
+        example: "13800138000"
+        type: string
+      role:
+        example: public
+        type: string
+      type:
+        enum:
+        - delivery
+        - pickup
+        example: delivery
+        type: string
+    required:
+    - name
+    - password
+    - type
+    type: object
+  handlers.FrontendUserLoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.FrontendUserRegisterRequest:
+    properties:
+      password:
+        maxLength: 6
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.OrderStatusFlowRequest:
+    properties:
+      order_status_flow:
+        $ref: '#/definitions/models.OrderStatusFlow'
+      shop_id:
+        example: 1
+        type: integer
+    required:
+    - order_status_flow
+    - shop_id
+    type: object
+  handlers.RefreshTokenRequest:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - token
+    type: object
+  handlers.TempTokenRequest:
+    properties:
+      shop_id:
+        example: 1
+        type: integer
+      token:
+        example: "123456"
+        type: string
+    required:
+    - shop_id
+    - token
+    type: object
+  handlers.UniversalLoginRequest:
+    properties:
+      password:
+        example: password123
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.UpdateProductRequest:
+    properties:
+      description:
+        example: 美味川菜
+        type: string
+      id:
+        example: "1"
+        type: string
+      name:
+        example: 川菜套餐
+        type: string
+      price:
+        example: 5000
+        type: integer
+      shop_id:
+        example: 1
+        type: integer
+    required:
+    - id
+    type: object
+  handlers.UpdateShopRequest:
+    type: object
+  handlers.UpdateUserRequest:
+    properties:
+      address:
+        example: 北京市朝阳区
+        type: string
+      id:
+        example: "1"
+        type: string
+      password:
+        example: newpass123
+        type: string
+      phone:
+        example: "13800138000"
+        type: string
+      role:
+        example: public
+        type: string
+      type:
+        example: delivery
+        type: string
+    required:
+    - id
+    type: object
+  models.OrderStatus:
+    properties:
+      actions:
+        items:
+          $ref: '#/definitions/models.OrderStatusAction'
+        type: array
+      isFinal:
+        type: boolean
+      label:
+        type: string
+      type:
+        type: string
+      value:
+        type: integer
+    required:
+    - actions
+    - isFinal
+    - label
+    - type
+    - value
+    type: object
+  models.OrderStatusAction:
+    properties:
+      name:
+        type: string
+      nextStatus:
+        type: integer
+      nextStatusLabel:
+        type: string
+    required:
+    - name
+    - nextStatus
+    - nextStatusLabel
+    type: object
+  models.OrderStatusFlow:
+    properties:
+      statuses:
+        items:
+          $ref: '#/definitions/models.OrderStatus'
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: OrderEase 点餐系统 API 接口文档
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: OrderEase API 文档
+  version: "1.0"
+paths:
+  /admin/change-password:
+    post:
+      consumes:
+      - application/json
+      description: 修改管理员登录密码
+      parameters:
+      - description: 密码信息
+        in: body
+        name: passwordRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 修改管理员密码
+      tags:
+      - 管理员基础
+  /admin/logout:
+    post:
+      consumes:
+      - application/json
+      description: 管理员或商家登出接口
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 登出
+      tags:
+      - 认证
+  /admin/order/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新订单
+      parameters:
+      - description: 订单信息
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建订单
+      tags:
+      - 订单管理
+  /admin/order/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的订单
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除订单
+      tags:
+      - 订单管理
+  /admin/order/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定订单的详细信息
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单详情
+      tags:
+      - 订单管理
+  /admin/order/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取订单列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 订单状态
+        in: query
+        name: status
+        type: string
+      - description: 店铺ID
+        in: query
+        name: shopId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单列表
+      tags:
+      - 订单管理
+  /admin/order/toggle-status:
+    put:
+      consumes:
+      - application/json
+      description: 切换订单状态
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      - description: 目标状态
+        in: query
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 切换订单状态
+      tags:
+      - 订单管理
+  /admin/order/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新订单基本信息
+      parameters:
+      - description: 订单信息
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新订单信息
+      tags:
+      - 订单管理
+  /admin/product/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新商品
+      parameters:
+      - description: 商品信息
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建商品
+      tags:
+      - 商品管理
+  /admin/product/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定商品
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除商品
+      tags:
+      - 商品管理
+  /admin/product/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的详细信息
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品详情
+      tags:
+      - 商品管理
+  /admin/product/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的图片
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品图片
+      tags:
+      - 商品管理
+  /admin/product/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取商品列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 店铺ID
+        in: query
+        name: shopId
+        type: string
+      - description: 商品状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品列表
+      tags:
+      - 商品管理
+  /admin/product/toggle-status:
+    put:
+      consumes:
+      - application/json
+      description: 切换商品上架/下架状态
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 切换商品状态
+      tags:
+      - 商品管理
+  /admin/product/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新商品基本信息
+      parameters:
+      - description: 商品信息
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新商品信息
+      tags:
+      - 商品管理
+  /admin/product/upload-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传商品图片
+      parameters:
+      - description: 商品图片
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 上传商品图片
+      tags:
+      - 商品管理
+  /admin/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 刷新管理员访问令牌
+      parameters:
+      - description: 刷新令牌信息
+        in: body
+        name: refreshTokenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 刷新管理员令牌
+      tags:
+      - 认证
+  /admin/shop/check-name:
+    get:
+      consumes:
+      - application/json
+      description: 检查店铺名称是否已被使用
+      parameters:
+      - description: 店铺名称
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 检查店铺名称是否存在
+      tags:
+      - 店铺管理
+  /admin/shop/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新店铺
+      parameters:
+      - description: 店铺信息
+        in: body
+        name: shop
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateShopRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建店铺
+      tags:
+      - 店铺管理
+  /admin/shop/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定店铺
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除店铺
+      tags:
+      - 店铺管理
+  /admin/shop/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的详细信息
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺详情
+      tags:
+      - 店铺管理
+  /admin/shop/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的图片
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺图片
+      tags:
+      - 店铺管理
+  /admin/shop/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取店铺列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 店铺状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺列表
+      tags:
+      - 店铺管理
+  /admin/shop/temp-token:
+    get:
+      consumes:
+      - application/json
+      description: 为店铺生成临时访问令牌
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺临时令牌
+      tags:
+      - 店铺管理
+  /admin/shop/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新店铺基本信息
+      parameters:
+      - description: 店铺信息
+        in: body
+        name: shop
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateShopRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新店铺信息
+      tags:
+      - 店铺管理
+  /admin/shop/update-order-status-flow:
+    put:
+      consumes:
+      - application/json
+      description: 更新店铺的订单状态流转配置
+      parameters:
+      - description: 状态流转信息
+        in: body
+        name: flow
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.OrderStatusFlowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新订单状态流转
+      tags:
+      - 店铺管理
+  /admin/shop/upload-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传店铺图片
+      parameters:
+      - description: 店铺图片
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 上传店铺图片
+      tags:
+      - 店铺管理
+  /admin/tag/batch-tag:
+    post:
+      consumes:
+      - application/json
+      description: 批量给商品打标签
+      parameters:
+      - description: 批量打标签信息
+        in: body
+        name: batchTagRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量打标签
+      tags:
+      - 标签管理
+  /admin/tag/bound-tags:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品已绑定的标签列表
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品已绑定的标签
+      tags:
+      - 标签管理
+  /admin/tag/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新标签
+      parameters:
+      - description: 标签信息
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建标签
+      tags:
+      - 标签管理
+  /admin/tag/online-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签关联的已上架商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签关联的已上架商品
+      tags:
+      - 标签管理
+  /admin/tag/unbound-tags:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品未绑定的标签列表
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品未绑定的标签
+      tags:
+      - 标签管理
+  /admin/user/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户
+      parameters:
+      - description: 用户信息
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /admin/user/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定用户的详细信息
+      parameters:
+      - description: 用户ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - 用户管理
+  /admin/user/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+  /admin/user/simple-list:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户简单信息列表，用于下拉选择等场景
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户简单列表
+      tags:
+      - 用户管理
+  /admin/user/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新用户基本信息
+      parameters:
+      - description: 用户信息
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户信息
+      tags:
+      - 用户管理
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: 管理员和商家通用登录接口
+      parameters:
+      - description: 登录信息
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UniversalLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 用户名或密码错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 通用登录接口
+      tags:
+      - 认证
+  /order/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新订单
+      parameters:
+      - description: 订单信息
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建订单
+      tags:
+      - 订单管理
+  /order/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的订单
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除订单
+      tags:
+      - 订单管理
+  /order/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定订单的详细信息
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单详情
+      tags:
+      - 订单管理
+  /order/user/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的订单列表
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 订单状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户订单列表
+      tags:
+      - 订单
+  /product/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的详细信息
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品详情
+      tags:
+      - 商品管理
+  /product/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的图片
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品图片
+      tags:
+      - 商品管理
+  /product/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取商品列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 店铺ID
+        in: query
+        name: shopId
+        type: string
+      - description: 商品状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品列表
+      tags:
+      - 商品管理
+  /shop/{shopId}/tags:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的标签列表
+      parameters:
+      - description: 店铺ID
+        in: path
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺标签列表
+      tags:
+      - 标签
+  /shop/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的详细信息
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺详情
+      tags:
+      - 店铺管理
+  /shop/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的图片
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺图片
+      tags:
+      - 店铺管理
+  /shop/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 刷新商家访问令牌
+      parameters:
+      - description: 刷新令牌信息
+        in: body
+        name: refreshTokenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 刷新商家令牌
+      tags:
+      - 认证
+  /shop/temp-login:
+    post:
+      consumes:
+      - application/json
+      description: 使用临时令牌登录接口
+      parameters:
+      - description: 临时令牌信息
+        in: body
+        name: tempTokenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.TempTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 临时令牌登录
+      tags:
+      - 用户认证
+  /shopOwner/change-password:
+    post:
+      consumes:
+      - application/json
+      description: 修改商家登录密码
+      parameters:
+      - description: 密码信息
+        in: body
+        name: passwordRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 修改商家密码
+      tags:
+      - 商家基础
+  /shopOwner/logout:
+    post:
+      consumes:
+      - application/json
+      description: 管理员或商家登出接口
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 登出
+      tags:
+      - 认证
+  /shopOwner/order/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新订单
+      parameters:
+      - description: 订单信息
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建订单
+      tags:
+      - 订单管理
+  /shopOwner/order/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的订单
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除订单
+      tags:
+      - 订单管理
+  /shopOwner/order/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定订单的详细信息
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单详情
+      tags:
+      - 订单管理
+  /shopOwner/order/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取订单列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 订单状态
+        in: query
+        name: status
+        type: string
+      - description: 店铺ID
+        in: query
+        name: shopId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单列表
+      tags:
+      - 订单管理
+  /shopOwner/order/toggle-status:
+    put:
+      consumes:
+      - application/json
+      description: 切换订单状态
+      parameters:
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      - description: 目标状态
+        in: query
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 切换订单状态
+      tags:
+      - 订单管理
+  /shopOwner/order/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新订单基本信息
+      parameters:
+      - description: 订单信息
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新订单信息
+      tags:
+      - 订单管理
+  /shopOwner/product/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新商品
+      parameters:
+      - description: 商品信息
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建商品
+      tags:
+      - 商品管理
+  /shopOwner/product/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定商品
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除商品
+      tags:
+      - 商品管理
+  /shopOwner/product/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的详细信息
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品详情
+      tags:
+      - 商品管理
+  /shopOwner/product/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品的图片
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品图片
+      tags:
+      - 商品管理
+  /shopOwner/product/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取商品列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 店铺ID
+        in: query
+        name: shopId
+        type: string
+      - description: 商品状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品列表
+      tags:
+      - 商品管理
+  /shopOwner/product/toggle-status:
+    put:
+      consumes:
+      - application/json
+      description: 切换商品上架/下架状态
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 切换商品状态
+      tags:
+      - 商品管理
+  /shopOwner/product/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新商品基本信息
+      parameters:
+      - description: 商品信息
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新商品信息
+      tags:
+      - 商品管理
+  /shopOwner/product/upload-image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传商品图片
+      parameters:
+      - description: 商品图片
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 上传商品图片
+      tags:
+      - 商品管理
+  /shopOwner/shop/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的详细信息
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺详情
+      tags:
+      - 店铺管理
+  /shopOwner/shop/image:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定店铺的图片
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shopId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取店铺图片
+      tags:
+      - 店铺管理
+  /shopOwner/shop/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新店铺基本信息
+      parameters:
+      - description: 店铺信息
+        in: body
+        name: shop
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateShopRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新店铺信息
+      tags:
+      - 店铺管理
+  /shopOwner/shop/update-order-status-flow:
+    put:
+      consumes:
+      - application/json
+      description: 更新店铺的订单状态流转配置
+      parameters:
+      - description: 状态流转信息
+        in: body
+        name: flow
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.OrderStatusFlowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新订单状态流转
+      tags:
+      - 店铺管理
+  /shopOwner/tag/batch-tag:
+    post:
+      consumes:
+      - application/json
+      description: 批量给商品打标签
+      parameters:
+      - description: 批量打标签信息
+        in: body
+        name: batchTagRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量打标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/bound-tags:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品已绑定的标签列表
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品已绑定的标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新标签
+      parameters:
+      - description: 标签信息
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/online-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签关联的已上架商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签关联的已上架商品
+      tags:
+      - 标签管理
+  /shopOwner/tag/unbound-tags:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定商品未绑定的标签列表
+      parameters:
+      - description: 商品ID
+        in: query
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取商品未绑定的标签
+      tags:
+      - 标签管理
+  /shopOwner/user/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户
+      parameters:
+      - description: 用户信息
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /shopOwner/user/detail:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定用户的详细信息
+      parameters:
+      - description: 用户ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - 用户管理
+  /shopOwner/user/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+  /shopOwner/user/simple-list:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户简单信息列表，用于下拉选择等场景
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户简单列表
+      tags:
+      - 用户管理
+  /shopOwner/user/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新用户基本信息
+      parameters:
+      - description: 用户信息
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户信息
+      tags:
+      - 用户管理
+  /user/check-username:
+    get:
+      consumes:
+      - application/json
+      description: 检查用户名是否已被注册
+      parameters:
+      - description: 用户名
+        in: query
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 检查用户名是否存在
+      tags:
+      - 用户
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: 前端用户登录接口
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FrontendUserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 用户名或密码错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 前端用户登录
+      tags:
+      - 前端用户
+  /user/register:
+    post:
+      consumes:
+      - application/json
+      description: 前端用户注册接口，密码为6位字母或数字
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FrontendUserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 用户名或手机号已存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 前端用户注册
+      tags:
+      - 前端用户
+securityDefinitions:
+  BearerAuth:
+    description: 请输入 Bearer {token} 格式的 JWT token
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
