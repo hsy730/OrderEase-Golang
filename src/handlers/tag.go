@@ -10,6 +10,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CreateTagRequest 创建标签请求
@@ -299,9 +300,12 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		}
 	}
 
-	if err := h.DB.Create(&productTags).Error; err != nil {
+	// 使用 INSERT IGNORE 避免重复插入错误
+	if err := h.DB.Clauses(clause.OnConflict{
+		DoNothing: true,
+	}).Create(&productTags).Error; err != nil {
 		h.logger.Errorf("批量打标签失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "批量打标签失败")
+		errorResponse(c, http.StatusInternalServerError, "批量打标签失败:"+err.Error())
 		return
 	}
 

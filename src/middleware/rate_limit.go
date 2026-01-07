@@ -12,8 +12,8 @@ import (
 
 const (
 	// 普通接口限流配置
-	defaultRate  = 2 // 每秒请求数
-	defaultBurst = 5 // 突发请求数
+	defaultRate  = 5  // 每秒请求数
+	defaultBurst = 20 // 突发请求数
 
 	// 登录接口限流配置
 	loginRate  = 1 // 每10秒允许1个请求
