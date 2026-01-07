@@ -22,7 +22,7 @@ import (
 
 // GetShopTags 获取店铺标签列表
 func (h *Handler) GetShopTags(c *gin.Context) {
-	shopID, err := strconv.ParseUint(c.Param("shop_id"), 10, 64)
+	shopID, err := strconv.ParseUint(c.Param("shopId"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
