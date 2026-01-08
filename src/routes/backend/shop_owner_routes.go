@@ -77,6 +77,7 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 		{
 			shop.GET("/detail", h.GetShopInfo) // 新增店铺信息查询
 			shop.GET("/image", h.GetShopImage)
+			shop.POST("/upload-image", h.UploadShopImage)
 			shop.PUT("/update", h.UpdateShop)
 			shop.PUT("/update-order-status-flow", h.UpdateOrderStatusFlow) // 新增修改订单流转状态接口
 		}
