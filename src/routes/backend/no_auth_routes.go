@@ -31,7 +31,7 @@ func setupAuthRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 	// @Success 200 {object} Response
 	// @Router /api/login [post]
 	group.POST("/login", h.UniversalLogin)
-	
+
 	// @Summary 刷新管理员令牌
 	// @Description 刷新管理员访问令牌
 	// @Tags 认证
@@ -41,7 +41,7 @@ func setupAuthRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 	// @Success 200 {object} Response
 	// @Router /api/admin/refresh-token [post]
 	group.POST("/admin/refresh-token", h.RefreshAdminToken)
-	
+
 	// @Summary 刷新商家令牌
 	// @Description 刷新商家访问令牌
 	// @Tags 认证
@@ -51,4 +51,14 @@ func setupAuthRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 	// @Success 200 {object} Response
 	// @Router /api/shop/refresh-token [post]
 	group.POST("/shop/refresh-token", h.RefreshShopToken)
+
+	// @Summary 临时令牌登录
+	// @Description 使用临时令牌登录接口
+	// @Tags 认证
+	// @Accept json
+	// @Produce json
+	// @Param tempTokenRequest body TempTokenRequest true "临时令牌信息"
+	// @Success 200 {object} Response
+	// @Router /api/shop/temp-login [post]
+	group.POST("/shop/temp-login", h.TempTokenLogin)
 }

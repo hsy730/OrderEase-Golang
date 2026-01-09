@@ -32,7 +32,7 @@ func setupAuthRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 	// @Success 200 {object} Response
 	// @Router /api/user/login [post]
 	group.POST("/user/login", h.FrontendUserLogin)
-	
+
 	// @Summary 前端用户注册
 	// @Description 前端用户注册接口
 	// @Tags 用户认证
@@ -42,16 +42,6 @@ func setupAuthRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 	// @Success 200 {object} Response
 	// @Router /api/user/register [post]
 	group.POST("/user/register", h.FrontendUserRegister)
-	
-	// @Summary 临时令牌登录
-	// @Description 使用临时令牌登录接口
-	// @Tags 用户认证
-	// @Accept json
-	// @Produce json
-	// @Param tempTokenRequest body TempTokenRequest true "临时令牌信息"
-	// @Success 200 {object} Response
-	// @Router /api/shop/temp-login [post]
-	group.POST("/shop/temp-login", h.TempTokenLogin)
 
 	// @Summary 检查用户名是否存在
 	// @Description 检查用户名是否已被注册

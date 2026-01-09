@@ -15,15 +15,15 @@ import (
 )
 
 type OrderService struct {
-	orderRepo            order.OrderRepository
-	orderItemRepo        order.OrderItemRepository
-	orderItemOptionRepo  order.OrderItemOptionRepository
-	orderStatusLogRepo   order.OrderStatusLogRepository
-	productRepo          product.ProductRepository
-	productOptionRepo    product.ProductOptionRepository
-	productCategoryRepo  product.ProductOptionCategoryRepository
-	userRepo             order.OrderRepository
-	db                   *gorm.DB
+	orderRepo           order.OrderRepository
+	orderItemRepo       order.OrderItemRepository
+	orderItemOptionRepo order.OrderItemOptionRepository
+	orderStatusLogRepo  order.OrderStatusLogRepository
+	productRepo         product.ProductRepository
+	productOptionRepo   product.ProductOptionRepository
+	productCategoryRepo product.ProductOptionCategoryRepository
+	userRepo            order.OrderRepository
+	db                  *gorm.DB
 }
 
 func NewOrderService(
@@ -220,15 +220,15 @@ func (s *OrderService) GetOrder(id shared.ID, shopID uint64) (*dto.OrderDetailRe
 		}
 
 		items[i] = dto.OrderItemResponse{
-			ID:                item.ID,
-			ProductID:         item.ProductID,
-			Quantity:          item.Quantity,
-			Price:             item.Price,
-			TotalPrice:        item.TotalPrice,
-			ProductName:       item.ProductName,
+			ID:                 item.ID,
+			ProductID:          item.ProductID,
+			Quantity:           item.Quantity,
+			Price:              item.Price,
+			TotalPrice:         item.TotalPrice,
+			ProductName:        item.ProductName,
 			ProductDescription: item.ProductDescription,
-			ProductImageURL:   item.ProductImageURL,
-			Options:           options,
+			ProductImageURL:    item.ProductImageURL,
+			Options:            options,
 		}
 	}
 
