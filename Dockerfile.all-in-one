@@ -21,6 +21,10 @@ WORKDIR /app/src
 COPY OrderEase-Golang/src/ .
 ENV GOPROXY=https://goproxy.cn,direct
 RUN go mod tidy
+
+# 运行单元测试，如果有失败的测试用例则报错并停止构建
+RUN go test -v -cover ./... || (echo "单元测试失败，构建终止" && exit 1)
+
 RUN CGO_ENABLED=0 GOOS=linux go build -o ../orderease main.go
 
 # 阶段4: 最终运行阶段

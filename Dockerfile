@@ -13,6 +13,9 @@ ENV GOPROXY=https://goproxy.cn,direct
 # 执行go mod tidy来确保依赖完整并清理未使用的依赖
 RUN go mod tidy
 
+# 运行单元测试，如果有失败的测试用例则报错并停止构建
+RUN go test -v -cover ./... || (echo "单元测试失败，构建终止" && exit 1)
+
 # 编译Go应用程序
 RUN CGO_ENABLED=0 GOOS=linux go build -o ../orderease main.go
 

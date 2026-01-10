@@ -25,7 +25,7 @@ func InitializeServiceContainer(db *gorm.DB) (*ServiceContainer, error) {
 	tagRepository := repositories.NewTagRepository(db)
 	userRepository := repositories.NewUserRepository(db)
 
-	orderService := NewOrderService(orderRepository, orderItemRepository, orderItemOptionRepository, orderStatusLogRepository, productRepository, productOptionRepository, productOptionCategoryRepository, db)
+	orderService := NewOrderService(db, productRepository, productOptionRepository, productOptionCategoryRepository, orderRepository, orderItemRepository, orderItemOptionRepository, orderStatusLogRepository)
 	productService := NewProductService(productRepository, productOptionCategoryRepository, productOptionRepository, productTagRepository, db)
 	shopService := NewShopService(shopRepository, tagRepository, productRepository, db)
 	userService := NewUserService(userRepository, db)
