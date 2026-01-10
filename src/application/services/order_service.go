@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"orderease/application/dto"
 	"orderease/domain/order"
 	"orderease/domain/product"
@@ -15,41 +14,43 @@ import (
 )
 
 type OrderService struct {
-	orderRepo           order.OrderRepository
-	orderItemRepo       order.OrderItemRepository
-	orderItemOptionRepo order.OrderItemOptionRepository
-	orderStatusLogRepo  order.OrderStatusLogRepository
-	productRepo         product.ProductRepository
-	productOptionRepo   product.ProductOptionRepository
-	productCategoryRepo product.ProductOptionCategoryRepository
-	db                  *gorm.DB
+	db                        *gorm.DB
+	productRepo               product.ProductRepository
+	productOptionRepo         product.ProductOptionRepository
+	productOptionCategoryRepo product.ProductOptionCategoryRepository
+	orderRepo                 order.OrderRepository
+	orderItemRepo             order.OrderItemRepository
+	orderItemOptionRepo       order.OrderItemOptionRepository
+	orderStatusLogRepo        order.OrderStatusLogRepository
 }
 
+// NewOrderService 创建 OrderService 实例
 func NewOrderService(
+	db *gorm.DB,
+	productRepo product.ProductRepository,
+	productOptionRepo product.ProductOptionRepository,
+	productOptionCategoryRepo product.ProductOptionCategoryRepository,
 	orderRepo order.OrderRepository,
 	orderItemRepo order.OrderItemRepository,
 	orderItemOptionRepo order.OrderItemOptionRepository,
 	orderStatusLogRepo order.OrderStatusLogRepository,
-	productRepo product.ProductRepository,
-	productOptionRepo product.ProductOptionRepository,
-	productCategoryRepo product.ProductOptionCategoryRepository,
-	db *gorm.DB,
 ) *OrderService {
 	return &OrderService{
-		orderRepo:           orderRepo,
-		orderItemRepo:       orderItemRepo,
-		orderItemOptionRepo: orderItemOptionRepo,
-		orderStatusLogRepo:  orderStatusLogRepo,
-		productRepo:         productRepo,
-		productOptionRepo:   productOptionRepo,
-		productCategoryRepo: productCategoryRepo,
-		db:                  db,
+		db:                        db,
+		productRepo:               productRepo,
+		productOptionRepo:         productOptionRepo,
+		productOptionCategoryRepo: productOptionCategoryRepo,
+		orderRepo:                 orderRepo,
+		orderItemRepo:             orderItemRepo,
+		orderItemOptionRepo:       orderItemOptionRepo,
+		orderStatusLogRepo:        orderStatusLogRepo,
 	}
 }
 
-func (s *OrderService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
-	items := make([]order.OrderItem, len(req.Items))
-	for i, itemReq := range req.Items {
+// buildOrderItems 从 DTO 构建订单项
+func (s *OrderService) buildOrderItems(reqItems []dto.CreateOrderItemRequest) []order.OrderItem {
+	items := make([]order.OrderItem, len(reqItems))
+	for i, itemReq := range reqItems {
 		options := make([]order.OrderItemOption, len(itemReq.Options))
 		for j, optReq := range itemReq.Options {
 			options[j] = order.OrderItemOption{
@@ -68,136 +69,113 @@ func (s *OrderService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderRespo
 			Options:   options,
 		}
 	}
+	return items
+}
 
+// CreateOrder 创建订单（重构版本）
+// 业务逻辑已迁移到领域层，应用层只负责编排
+func (s *OrderService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
+	// 1. 构建 Order 对象
+	items := s.buildOrderItems(req.Items)
 	ord, err := order.NewOrder(req.UserID, req.ShopID, items, req.Remark)
 	if err != nil {
 		return nil, err
 	}
 
-	tx := s.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	// 2. 创建 finder 适配器
+	finder := NewProductFinderAdapter(s.productRepo, s.productOptionRepo, s.productOptionCategoryRepo)
 
-	totalPrice := shared.Price(0)
-
-	for i := range ord.Items {
-		prod, err := s.productRepo.FindByID(ord.Items[i].ProductID)
-		if err != nil {
-			tx.Rollback()
-			return nil, errors.New("商品不存在")
-		}
-
-		if prod.ShopID != ord.ShopID {
-			tx.Rollback()
-			return nil, errors.New("商品不属于该店铺")
-		}
-
-		if !prod.HasStock(ord.Items[i].Quantity) {
-			tx.Rollback()
-			return nil, fmt.Errorf("商品 %s 库存不足", prod.Name)
-		}
-
-		ord.Items[i].ProductName = prod.Name
-		ord.Items[i].ProductDescription = prod.Description
-		ord.Items[i].ProductImageURL = prod.ImageURL
-		ord.Items[i].Price = prod.Price
-
-		itemTotalPrice := prod.Price.Multiply(ord.Items[i].Quantity)
-
-		for j := range ord.Items[i].Options {
-			opt, err := s.productOptionRepo.FindByID(ord.Items[i].Options[j].OptionID)
-			if err != nil {
-				tx.Rollback()
-				return nil, errors.New("商品参数选项不存在")
-			}
-
-			cat, err := s.productCategoryRepo.FindByID(opt.CategoryID)
-			if err != nil {
-				tx.Rollback()
-				return nil, errors.New("商品参数类别不存在")
-			}
-
-			if cat.ProductID != prod.ID {
-				tx.Rollback()
-				return nil, errors.New("参数选项不属于指定商品")
-			}
-
-			ord.Items[i].Options[j].CategoryID = cat.ID
-			ord.Items[i].Options[j].OptionName = opt.Name
-			ord.Items[i].Options[j].CategoryName = cat.Name
-			ord.Items[i].Options[j].PriceAdjustment = opt.PriceAdjustment
-
-			itemTotalPrice = itemTotalPrice.Add(shared.Price(opt.PriceAdjustment * float64(ord.Items[i].Quantity)))
-		}
-
-		ord.Items[i].TotalPrice = itemTotalPrice
-		totalPrice = totalPrice.Add(itemTotalPrice)
-
-		if err := prod.DecreaseStock(ord.Items[i].Quantity); err != nil {
-			tx.Rollback()
-			return nil, err
-		}
-
-		if err := s.productRepo.Update(prod); err != nil {
-			tx.Rollback()
-			return nil, errors.New("更新商品库存失败")
-		}
+	// 3. 领域验证和价格计算（业务逻辑在领域层）
+	if err := ord.ValidateItems(finder); err != nil {
+		return nil, err
 	}
 
-	ord.TotalPrice = totalPrice
-	ord.ID = shared.ID(utils.GenerateSnowflakeID())
-
-	if err := s.orderRepo.Save(ord); err != nil {
-		tx.Rollback()
-		return nil, errors.New("创建订单失败")
+	if err := ord.CalculateTotal(finder); err != nil {
+		return nil, err
 	}
 
-	for i := range ord.Items {
-		ord.Items[i].OrderID = ord.ID
-		if err := s.orderItemRepo.Save(&ord.Items[i]); err != nil {
-			tx.Rollback()
-			return nil, errors.New("创建订单项失败")
-		}
-
-		for j := range ord.Items[i].Options {
-			ord.Items[i].Options[j].OrderItemID = ord.Items[i].ID
-			if err := s.orderItemOptionRepo.Save(&ord.Items[i].Options[j]); err != nil {
-				tx.Rollback()
-				return nil, errors.New("创建订单项选项失败")
-			}
-		}
-	}
-
-	statusLog := &order.OrderStatusLog{
-		OrderID:     ord.ID,
-		OldStatus:   0,
-		NewStatus:   ord.Status,
-		ChangedTime: time.Now(),
-	}
-	if err := s.orderStatusLogRepo.Save(statusLog); err != nil {
-		tx.Rollback()
-		return nil, errors.New("创建订单状态日志失败")
-	}
-
-	tx.Commit()
-
-	log2.Infof("订单创建成功: %+v", ord)
-
-	return &dto.OrderResponse{
-		ID:         ord.ID,
-		UserID:     ord.UserID,
-		ShopID:     ord.ShopID,
-		TotalPrice: ord.TotalPrice,
-		Status:     ord.Status,
-		Remark:     ord.Remark,
-		CreatedAt:  ord.CreatedAt,
-		UpdatedAt:  ord.UpdatedAt,
-	}, nil
+	// 4. 执行事务（应用层职责）
+	return s.executeCreateOrderTransaction(ord, finder)
 }
 
+// executeCreateOrderTransaction 执行订单创建的事务
+func (s *OrderService) executeCreateOrderTransaction(ord *order.Order, finder order.ProductFinder) (*dto.OrderResponse, error) {
+	var savedOrder *order.Order
+	var err error
+
+	// 使用事务模板
+	err = WithTx(s.db, func(tx *gorm.DB) error {
+		// 扣减库存
+		for i := range ord.Items {
+			prod, findErr := finder.FindProduct(ord.Items[i].ProductID)
+			if findErr != nil {
+				return findErr
+			}
+
+			if decreaseErr := prod.DecreaseStock(ord.Items[i].Quantity); decreaseErr != nil {
+				return decreaseErr
+			}
+
+			if updateErr := s.productRepo.Update(prod); updateErr != nil {
+				return errors.New("更新商品库存失败")
+			}
+		}
+
+		// 设置订单ID
+		ord.ID = shared.ID(utils.GenerateSnowflakeID())
+
+		// 保存订单
+		if err := s.orderRepo.Save(ord); err != nil {
+			return errors.New("创建订单失败")
+		}
+
+		// 保存订单项
+		for i := range ord.Items {
+			ord.Items[i].OrderID = ord.ID
+			if err := s.orderItemRepo.Save(&ord.Items[i]); err != nil {
+				return errors.New("创建订单项失败")
+			}
+
+			for j := range ord.Items[i].Options {
+				ord.Items[i].Options[j].OrderItemID = ord.Items[i].ID
+				if err := s.orderItemOptionRepo.Save(&ord.Items[i].Options[j]); err != nil {
+					return errors.New("创建订单项选项失败")
+				}
+			}
+		}
+
+		// 保存状态日志
+		statusLog := &order.OrderStatusLog{
+			OrderID:     ord.ID,
+			OldStatus:   0,
+			NewStatus:   ord.Status,
+			ChangedTime: time.Now(),
+		}
+		if err := s.orderStatusLogRepo.Save(statusLog); err != nil {
+			return errors.New("创建订单状态日志失败")
+		}
+
+		savedOrder = ord
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	log2.Infof("订单创建成功: %+v", savedOrder)
+
+	return &dto.OrderResponse{
+		ID:         savedOrder.ID,
+		UserID:     savedOrder.UserID,
+		ShopID:     savedOrder.ShopID,
+		TotalPrice: savedOrder.TotalPrice,
+		Status:     savedOrder.Status,
+		Remark:     savedOrder.Remark,
+		CreatedAt:  savedOrder.CreatedAt,
+		UpdatedAt:  savedOrder.UpdatedAt,
+	}, nil
+}
 func (s *OrderService) GetOrder(id shared.ID, shopID uint64) (*dto.OrderDetailResponse, error) {
 	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID)
 	if err != nil {

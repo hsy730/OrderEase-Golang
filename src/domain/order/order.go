@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"orderease/domain/shared"
+	"orderease/domain/product"
 )
 
 type OrderStatus int
@@ -240,4 +241,87 @@ func NewOrderItemOption(categoryID, optionID shared.ID, optionName, categoryName
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
+}
+
+// ============ 领域层增强方法 ============
+
+// SetProductSnapshot 设置商品快照信息
+func (oi *OrderItem) SetProductSnapshot(prod *product.Product) {
+	oi.ProductName = prod.Name
+	oi.ProductDescription = prod.Description
+	oi.ProductImageURL = prod.ImageURL
+	oi.Price = prod.Price
+}
+
+// CalculatePrice 计算订单项总价（含选项价格调整）
+func (oi *OrderItem) CalculatePrice(finder ProductFinder) (shared.Price, error) {
+	itemTotal := oi.Price.Multiply(oi.Quantity)
+
+	for j := range oi.Options {
+		opt, err := finder.FindOption(oi.Options[j].OptionID)
+		if err != nil {
+			return 0, fmt.Errorf("商品参数选项不存在: %w", err)
+		}
+
+		cat, err := finder.FindOptionCategory(opt.CategoryID)
+		if err != nil {
+			return 0, fmt.Errorf("商品参数类别不存在: %w", err)
+		}
+
+		// 设置选项快照
+		oi.Options[j].CategoryID = cat.ID
+		oi.Options[j].OptionName = opt.Name
+		oi.Options[j].CategoryName = cat.Name
+		oi.Options[j].PriceAdjustment = opt.PriceAdjustment
+
+		// 累加选项价格
+		itemTotal = itemTotal.Add(shared.Price(opt.PriceAdjustment * float64(oi.Quantity)))
+	}
+
+	oi.TotalPrice = itemTotal
+	return itemTotal, nil
+}
+
+// ValidateProduct 验证商品（库存、归属）
+func (oi *OrderItem) ValidateProduct(prod *product.Product, shopID uint64) error {
+	if prod.ShopID != shopID {
+		return fmt.Errorf("商品不属于该店铺")
+	}
+	if !prod.HasStock(oi.Quantity) {
+		return fmt.Errorf("商品 %s 库存不足", prod.Name)
+	}
+	return nil
+}
+
+// ValidateItems 验证所有订单项
+func (o *Order) ValidateItems(finder ProductFinder) error {
+	for i := range o.Items {
+		prod, err := finder.FindProduct(o.Items[i].ProductID)
+		if err != nil {
+			return fmt.Errorf("商品不存在: %w", err)
+		}
+
+		if err := o.Items[i].ValidateProduct(prod, o.ShopID); err != nil {
+			return err
+		}
+
+		o.Items[i].SetProductSnapshot(prod)
+	}
+	return nil
+}
+
+// CalculateTotal 计算订单总价
+func (o *Order) CalculateTotal(finder ProductFinder) error {
+	totalPrice := shared.Price(0)
+
+	for i := range o.Items {
+		itemTotal, err := o.Items[i].CalculatePrice(finder)
+		if err != nil {
+			return err
+		}
+		totalPrice = totalPrice.Add(itemTotal)
+	}
+
+	o.TotalPrice = totalPrice
+	return nil
 }
