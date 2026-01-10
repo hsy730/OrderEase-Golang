@@ -13,6 +13,8 @@ type ProductRepository interface {
 	Delete(id shared.ID) error
 	Update(product *Product) error
 	CountByProductID(productID shared.ID) (int64, error)
+	FindOptionByID(id shared.ID) (*ProductOption, error)
+	FindOptionCategoryByID(id shared.ID) (*ProductOptionCategory, error)
 }
 
 type ProductOptionCategoryRepository interface {

@@ -133,6 +133,30 @@ func (r *ProductRepositoryImpl) CountByProductID(productID shared.ID) (int64, er
 	return count, nil
 }
 
+func (r *ProductRepositoryImpl) FindOptionByID(id shared.ID) (*product.ProductOption, error) {
+	var model models.ProductOption
+	if err := r.db.First(&model, id.Value()).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("商品参数选项不存在")
+		}
+		log2.Errorf("查询商品参数选项失败: %v", err)
+		return nil, errors.New("查询商品参数选项失败")
+	}
+	return persistence.ProductOptionToDomain(model), nil
+}
+
+func (r *ProductRepositoryImpl) FindOptionCategoryByID(id shared.ID) (*product.ProductOptionCategory, error) {
+	var model models.ProductOptionCategory
+	if err := r.db.Preload("Options").First(&model, id.Value()).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("商品参数类别不存在")
+		}
+		log2.Errorf("查询商品参数类别失败: %v", err)
+		return nil, errors.New("查询商品参数类别失败")
+	}
+	return persistence.ProductOptionCategoryToDomain(model), nil
+}
+
 type ProductOptionCategoryRepositoryImpl struct {
 	db *gorm.DB
 }

@@ -20,7 +20,6 @@ type ProductService struct {
 	productCategoryRepo product.ProductOptionCategoryRepository
 	productOptionRepo   product.ProductOptionRepository
 	productTagRepo      product.ProductTagRepository
-	orderItemRepo       product.ProductRepository
 	db                  *gorm.DB
 }
 
@@ -29,7 +28,6 @@ func NewProductService(
 	productCategoryRepo product.ProductOptionCategoryRepository,
 	productOptionRepo product.ProductOptionRepository,
 	productTagRepo product.ProductTagRepository,
-	orderItemRepo product.ProductRepository,
 	db *gorm.DB,
 ) *ProductService {
 	return &ProductService{
@@ -37,7 +35,6 @@ func NewProductService(
 		productCategoryRepo: productCategoryRepo,
 		productOptionRepo:   productOptionRepo,
 		productTagRepo:      productTagRepo,
-		orderItemRepo:       orderItemRepo,
 		db:                  db,
 	}
 }

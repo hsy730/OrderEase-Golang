@@ -22,7 +22,6 @@ type OrderService struct {
 	productRepo         product.ProductRepository
 	productOptionRepo   product.ProductOptionRepository
 	productCategoryRepo product.ProductOptionCategoryRepository
-	userRepo            order.OrderRepository
 	db                  *gorm.DB
 }
 
