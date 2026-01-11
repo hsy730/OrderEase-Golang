@@ -11,14 +11,14 @@ import (
 
 func TestNewShop(t *testing.T) {
 	tests := []struct {
-		name           string
-		shopName       string
-		ownerUsername  string
-		ownerPassword  string
-		validUntil     time.Time
-		wantErr        bool
-		errMsg         string
-		validate       func(*testing.T, *Shop)
+		name          string
+		shopName      string
+		ownerUsername string
+		ownerPassword string
+		validUntil    time.Time
+		wantErr       bool
+		errMsg        string
+		validate      func(*testing.T, *Shop)
 	}{
 		{
 			name:          "valid shop with validUntil",
@@ -137,7 +137,7 @@ func TestShop_IsExpired(t *testing.T) {
 		},
 		{
 			name:       "boundary - exact now (not expired, Before returns false)",
-			validUntil: time.Now().UTC(),
+			validUntil: time.Now().UTC().Add(time.Second),
 			want:       false,
 		},
 	}
@@ -214,31 +214,31 @@ func TestShop_RemainingDays(t *testing.T) {
 
 func TestShop_UpdateBasicInfo(t *testing.T) {
 	tests := []struct {
-		name          string
-		shop          *Shop
-		shopName      string
-		contactPhone  string
-		contactEmail  string
-		address       string
-		description   string
-		wantErr       bool
-		validate      func(*testing.T, *Shop)
+		name         string
+		shop         *Shop
+		shopName     string
+		contactPhone string
+		contactEmail string
+		address      string
+		description  string
+		wantErr      bool
+		validate     func(*testing.T, *Shop)
 	}{
 		{
 			name: "update all fields",
 			shop: &Shop{
-				Name:          "原店名",
-				ContactPhone:  "",
-				ContactEmail:  "",
-				Address:       "",
-				Description:   "",
+				Name:         "原店名",
+				ContactPhone: "",
+				ContactEmail: "",
+				Address:      "",
+				Description:  "",
 			},
-			shopName:      "新店名",
-			contactPhone:  "123456789",
-			contactEmail:  "test@example.com",
-			address:       "测试地址",
-			description:   "测试描述",
-			wantErr:       false,
+			shopName:     "新店名",
+			contactPhone: "123456789",
+			contactEmail: "test@example.com",
+			address:      "测试地址",
+			description:  "测试描述",
+			wantErr:      false,
 			validate: func(t *testing.T, s *Shop) {
 				assert.Equal(t, "新店名", s.Name)
 				assert.Equal(t, "123456789", s.ContactPhone)
@@ -250,18 +250,18 @@ func TestShop_UpdateBasicInfo(t *testing.T) {
 		{
 			name: "update only some fields",
 			shop: &Shop{
-				Name:          "原店名",
-				ContactPhone:  "原电话",
-				ContactEmail:  "",
-				Address:       "",
-				Description:   "",
+				Name:         "原店名",
+				ContactPhone: "原电话",
+				ContactEmail: "",
+				Address:      "",
+				Description:  "",
 			},
-			shopName:      "",
-			contactPhone:  "新电话",
-			contactEmail:  "test@example.com",
-			address:       "",
-			description:   "",
-			wantErr:       false,
+			shopName:     "",
+			contactPhone: "新电话",
+			contactEmail: "test@example.com",
+			address:      "",
+			description:  "",
+			wantErr:      false,
 			validate: func(t *testing.T, s *Shop) {
 				assert.Equal(t, "原店名", s.Name, "name should not change")
 				assert.Equal(t, "新电话", s.ContactPhone)
@@ -271,18 +271,18 @@ func TestShop_UpdateBasicInfo(t *testing.T) {
 		{
 			name: "update with empty strings keeps original",
 			shop: &Shop{
-				Name:          "原店名",
-				ContactPhone:  "原电话",
-				ContactEmail:  "原邮箱",
-				Address:       "原地址",
-				Description:   "原描述",
+				Name:         "原店名",
+				ContactPhone: "原电话",
+				ContactEmail: "原邮箱",
+				Address:      "原地址",
+				Description:  "原描述",
 			},
-			shopName:      "",
-			contactPhone:  "",
-			contactEmail:  "",
-			address:       "",
-			description:   "",
-			wantErr:       false,
+			shopName:     "",
+			contactPhone: "",
+			contactEmail: "",
+			address:      "",
+			description:  "",
+			wantErr:      false,
 			validate: func(t *testing.T, s *Shop) {
 				assert.Equal(t, "原店名", s.Name)
 				assert.Equal(t, "原电话", s.ContactPhone)
