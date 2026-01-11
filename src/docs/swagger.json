@@ -87,6 +87,46 @@
                 }
             }
         },
+        "/admin/order/advance-search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "使用多种条件高级搜索订单",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订单管理"
+                ],
+                "summary": "高级搜索订单",
+                "parameters": [
+                    {
+                        "description": "搜索条件",
+                        "name": "searchRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AdvanceSearchOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/order/create": {
             "post": {
                 "security": [
@@ -186,6 +226,13 @@
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "订单ID",
                         "name": "orderId",
                         "in": "query",
@@ -245,6 +292,51 @@
                         "description": "店铺ID",
                         "name": "shopId",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/order/status-flow": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取订单状态流转信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订单管理"
+                ],
+                "summary": "获取订单状态流转",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "订单ID",
+                        "name": "orderId",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -440,6 +532,13 @@
                 ],
                 "summary": "获取商品详情",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "description": "商品ID",
@@ -1140,6 +1239,124 @@
                 }
             }
         },
+        "/admin/tag/batch-tag-product": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量设置商品的标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "批量设置商品标签",
+                "parameters": [
+                    {
+                        "description": "批量设置标签信息",
+                        "name": "batchTagProductRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BatchTagProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "操作成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tag/batch-untag": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量解绑商品的标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "批量解绑商品标签",
+                "parameters": [
+                    {
+                        "description": "批量解绑标签信息",
+                        "name": "batchUntagRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BatchUntagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "操作成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tag/bound-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定标签已绑定的商品列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签已绑定的商品列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/tag/bound-tags": {
             "get": {
                 "security": [
@@ -1218,6 +1435,87 @@
                 }
             }
         },
+        "/admin/tag/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "删除标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tag/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取标签列表，支持分页和筛选",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/tag/online-products": {
             "get": {
                 "security": [
@@ -1236,6 +1534,73 @@
                     "标签管理"
                 ],
                 "summary": "获取标签关联的已上架商品",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tag/unbound-list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取没有绑定任何商品的标签列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取没有绑定商品的标签列表",
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tag/unbound-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定标签未绑定的商品列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签未绑定的商品列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -1294,6 +1659,46 @@
                 }
             }
         },
+        "/admin/tag/update": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新标签基本信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "更新标签信息",
+                "parameters": [
+                    {
+                        "description": "标签信息",
+                        "name": "tag",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/user/create": {
             "post": {
                 "security": [
@@ -1326,6 +1731,44 @@
                 "responses": {
                     "200": {
                         "description": "创建成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/user/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "删除用户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户ID",
+                        "name": "userId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1490,6 +1933,73 @@
                 }
             }
         },
+        "/api/tag/bound-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定标签已绑定的商品列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签已绑定的商品列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tag/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取标签列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签"
+                ],
+                "summary": "获取标签列表",
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "管理员和商家通用登录接口",
@@ -1638,6 +2148,13 @@
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "订单ID",
                         "name": "orderId",
                         "in": "query",
@@ -1723,6 +2240,13 @@
                 ],
                 "summary": "获取商品详情",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "description": "商品ID",
@@ -2088,6 +2612,46 @@
                 }
             }
         },
+        "/shopOwner/order/advance-search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "使用多种条件高级搜索订单",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订单管理"
+                ],
+                "summary": "高级搜索订单",
+                "parameters": [
+                    {
+                        "description": "搜索条件",
+                        "name": "searchRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AdvanceSearchOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/shopOwner/order/create": {
             "post": {
                 "security": [
@@ -2187,6 +2751,13 @@
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "订单ID",
                         "name": "orderId",
                         "in": "query",
@@ -2259,6 +2830,51 @@
                 }
             }
         },
+        "/shopOwner/order/status-flow": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取订单状态流转信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订单管理"
+                ],
+                "summary": "获取订单状态流转",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "订单ID",
+                        "name": "orderId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/shopOwner/order/toggle-status": {
             "put": {
                 "security": [
@@ -2296,6 +2912,44 @@
                 "responses": {
                     "200": {
                         "description": "更新成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/order/unfinished-list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取未完成的订单列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订单管理"
+                ],
+                "summary": "获取未完成订单列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2441,6 +3095,13 @@
                 ],
                 "summary": "获取商品详情",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "店铺ID",
+                        "name": "shop_id",
+                        "in": "query",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "description": "商品ID",
@@ -2865,6 +3526,124 @@
                 }
             }
         },
+        "/shopOwner/tag/batch-tag-product": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量设置商品的标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "批量设置商品标签",
+                "parameters": [
+                    {
+                        "description": "批量设置标签信息",
+                        "name": "batchTagProductRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BatchTagProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "操作成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/tag/batch-untag": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量解绑商品的标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "批量解绑商品标签",
+                "parameters": [
+                    {
+                        "description": "批量解绑标签信息",
+                        "name": "batchUntagRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.BatchUntagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "操作成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/tag/bound-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定标签已绑定的商品列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签已绑定的商品列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/shopOwner/tag/bound-tags": {
             "get": {
                 "security": [
@@ -2943,6 +3722,87 @@
                 }
             }
         },
+        "/shopOwner/tag/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "删除标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/tag/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取标签列表，支持分页和筛选",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/shopOwner/tag/online-products": {
             "get": {
                 "security": [
@@ -2961,6 +3821,73 @@
                     "标签管理"
                 ],
                 "summary": "获取标签关联的已上架商品",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标签ID",
+                        "name": "tagId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/tag/unbound-list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取没有绑定任何商品的标签列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取没有绑定商品的标签列表",
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/tag/unbound-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定标签未绑定的商品列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "获取标签未绑定的商品列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -3019,6 +3946,46 @@
                 }
             }
         },
+        "/shopOwner/tag/update": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新标签基本信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "标签管理"
+                ],
+                "summary": "更新标签信息",
+                "parameters": [
+                    {
+                        "description": "标签信息",
+                        "name": "tag",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/shopOwner/user/create": {
             "post": {
                 "security": [
@@ -3051,6 +4018,44 @@
                 "responses": {
                     "200": {
                         "description": "创建成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/shopOwner/user/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "删除用户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户ID",
+                        "name": "userId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3367,8 +4372,105 @@
         }
     },
     "definitions": {
+        "handlers.AdvanceSearchOrderRequest": {
+            "type": "object",
+            "properties": {
+                "end_time": {
+                    "type": "string"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.BatchTagProductRequest": {
+            "type": "object",
+            "required": [
+                "product_id",
+                "shop_id",
+                "tag_ids"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "handlers.BatchTagRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "product_ids",
+                "shop_id",
+                "tag_id"
+            ],
+            "properties": {
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "shop_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "tag_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "handlers.BatchUntagRequest": {
+            "type": "object",
+            "required": [
+                "product_ids",
+                "shop_id",
+                "tag_id"
+            ],
+            "properties": {
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "shop_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "tag_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         },
         "handlers.ChangePasswordRequest": {
             "type": "object",
@@ -3387,14 +4489,145 @@
                 }
             }
         },
+        "handlers.CreateOrderItemOption": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "integer"
+                },
+                "option_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.CreateOrderItemRequest": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CreateOrderItemOption"
+                    }
+                },
+                "price": {
+                    "type": "number"
+                },
+                "product_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.CreateOrderRequest": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CreateOrderItemRequest"
+                    }
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
         },
         "handlers.CreateProductRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "name",
+                "price",
+                "shop_id"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "美味川菜"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "川菜套餐"
+                },
+                "option_categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ProductOptionCategory"
+                    }
+                },
+                "price": {
+                    "type": "integer",
+                    "example": 5000
+                },
+                "shop_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         },
         "handlers.CreateShopRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "name",
+                "owner_password",
+                "owner_username"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "北京市朝阳区"
+                },
+                "contact_email": {
+                    "type": "string",
+                    "example": "shop@example.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "13800138000"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "专营川菜"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "美食店"
+                },
+                "order_status_flow": {
+                    "$ref": "#/definitions/models.OrderStatusFlow"
+                },
+                "owner_password": {
+                    "type": "string",
+                    "example": "password123"
+                },
+                "owner_username": {
+                    "type": "string",
+                    "example": "shopowner"
+                },
+                "settings": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "valid_until": {
+                    "type": "string",
+                    "example": "2025-12-31T23:59:59Z"
+                }
+            }
         },
         "handlers.CreateTagRequest": {
             "type": "object",
@@ -3475,7 +4708,7 @@
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 6,
+                    "maxLength": 20,
                     "minLength": 6
                 },
                 "username": {
@@ -3574,7 +4807,62 @@
             }
         },
         "handlers.UpdateShopRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "北京市朝阳区"
+                },
+                "contact_email": {
+                    "type": "string",
+                    "example": "shop@example.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "13800138000"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "专营川菜"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "example": "美食店"
+                },
+                "settings": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "handlers.UpdateTagRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "example": "热门"
+                },
+                "shop_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         },
         "handlers.UpdateUserRequest": {
             "type": "object",
@@ -3665,6 +4953,88 @@
                     "items": {
                         "$ref": "#/definitions/models.OrderStatus"
                     }
+                }
+            }
+        },
+        "models.ProductOption": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "description": "多对一关联：多个选项属于一个类别，不指定foreignKey",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ProductOptionCategory"
+                        }
+                    ]
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_order": {
+                    "description": "显示顺序",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "description": "是否为默认选项",
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "选项名称，如\"小杯\"、\"无糖\"",
+                    "type": "string"
+                },
+                "price_adjustment": {
+                    "description": "价格调整值，可以是正或负",
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ProductOptionCategory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "display_order": {
+                    "description": "显示顺序",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "主键",
+                    "type": "integer"
+                },
+                "is_multiple": {
+                    "description": "是否允许多选",
+                    "type": "boolean"
+                },
+                "is_required": {
+                    "description": "是否必填",
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "类别名称，如\"大小\"、\"甜度\"",
+                    "type": "string"
+                },
+                "options": {
+                    "description": "在ProductOptionCategory结构体中\n一对多关联：一个类别有多个选项",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ProductOption"
+                    }
+                },
+                "product_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         }

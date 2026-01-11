@@ -1,6 +1,6 @@
 module orderease
 
-go 1.21
+go 1.22.4
 
 require (
 	github.com/bwmarrin/snowflake v0.3.0

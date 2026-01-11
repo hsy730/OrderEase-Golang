@@ -349,6 +349,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 // @Tags 订单管理
 // @Accept json
 // @Produce json
+// @Param shop_id query string true "店铺ID"
 // @Param orderId query string true "订单ID"
 // @Success 200 {object} map[string]interface{} "查询成功"
 // @Security BearerAuth
@@ -993,6 +994,7 @@ func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 // @Tags 订单管理
 // @Accept json
 // @Produce json
+// @Param shop_id query string true "店铺ID"
 // @Param orderId query string true "订单ID"
 // @Success 200 {object} map[string]interface{} "查询成功"
 // @Security BearerAuth
@@ -1033,6 +1035,7 @@ func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 // @Tags 订单管理
 // @Accept json
 // @Produce json
+// @Param shop_id query string true "店铺ID"
 // @Success 200 {object} map[string]interface{} "查询成功"
 // @Security BearerAuth
 // @Router /shopOwner/order/unfinished-list [get]

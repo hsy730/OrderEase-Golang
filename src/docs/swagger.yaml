@@ -1,6 +1,73 @@
 basePath: /api
 definitions:
+  handlers.AdvanceSearchOrderRequest:
+    properties:
+      end_time:
+        type: string
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      shop_id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        items:
+          type: integer
+        type: array
+      user_id:
+        type: string
+    type: object
+  handlers.BatchTagProductRequest:
+    properties:
+      product_id:
+        type: integer
+      shop_id:
+        example: 1
+        type: integer
+      tag_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - product_id
+    - shop_id
+    - tag_ids
+    type: object
   handlers.BatchTagRequest:
+    properties:
+      product_ids:
+        items:
+          type: integer
+        type: array
+      shop_id:
+        example: 1
+        type: integer
+      tag_id:
+        example: 1
+        type: integer
+    required:
+    - product_ids
+    - shop_id
+    - tag_id
+    type: object
+  handlers.BatchUntagRequest:
+    properties:
+      product_ids:
+        items:
+          type: integer
+        type: array
+      shop_id:
+        example: 1
+        type: integer
+      tag_id:
+        example: 1
+        type: integer
+    required:
+    - product_ids
+    - shop_id
+    - tag_id
     type: object
   handlers.ChangePasswordRequest:
     properties:
@@ -14,11 +81,102 @@ definitions:
     - new_password
     - old_password
     type: object
+  handlers.CreateOrderItemOption:
+    properties:
+      category_id:
+        type: integer
+      option_id:
+        type: integer
+    type: object
+  handlers.CreateOrderItemRequest:
+    properties:
+      options:
+        items:
+          $ref: '#/definitions/handlers.CreateOrderItemOption'
+        type: array
+      price:
+        type: number
+      product_id:
+        type: integer
+      quantity:
+        type: integer
+    type: object
   handlers.CreateOrderRequest:
+    properties:
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/handlers.CreateOrderItemRequest'
+        type: array
+      remark:
+        type: string
+      shop_id:
+        type: integer
+      status:
+        type: integer
+      user_id:
+        type: integer
     type: object
   handlers.CreateProductRequest:
+    properties:
+      description:
+        example: 美味川菜
+        type: string
+      name:
+        example: 川菜套餐
+        type: string
+      option_categories:
+        items:
+          $ref: '#/definitions/models.ProductOptionCategory'
+        type: array
+      price:
+        example: 5000
+        type: integer
+      shop_id:
+        example: 1
+        type: integer
+    required:
+    - name
+    - price
+    - shop_id
     type: object
   handlers.CreateShopRequest:
+    properties:
+      address:
+        example: 北京市朝阳区
+        type: string
+      contact_email:
+        example: shop@example.com
+        type: string
+      contact_phone:
+        example: "13800138000"
+        type: string
+      description:
+        example: 专营川菜
+        type: string
+      name:
+        example: 美食店
+        type: string
+      order_status_flow:
+        $ref: '#/definitions/models.OrderStatusFlow'
+      owner_password:
+        example: password123
+        type: string
+      owner_username:
+        example: shopowner
+        type: string
+      settings:
+        items:
+          type: integer
+        type: array
+      valid_until:
+        example: "2025-12-31T23:59:59Z"
+        type: string
+    required:
+    - name
+    - owner_password
+    - owner_username
     type: object
   handlers.CreateTagRequest:
     properties:
@@ -73,7 +231,7 @@ definitions:
   handlers.FrontendUserRegisterRequest:
     properties:
       password:
-        maxLength: 6
+        maxLength: 20
         minLength: 6
         type: string
       username:
@@ -146,6 +304,45 @@ definitions:
     - id
     type: object
   handlers.UpdateShopRequest:
+    properties:
+      address:
+        example: 北京市朝阳区
+        type: string
+      contact_email:
+        example: shop@example.com
+        type: string
+      contact_phone:
+        example: "13800138000"
+        type: string
+      description:
+        example: 专营川菜
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 美食店
+        type: string
+      settings:
+        items:
+          type: integer
+        type: array
+    required:
+    - id
+    type: object
+  handlers.UpdateTagRequest:
+    properties:
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 热门
+        type: string
+      shop_id:
+        example: 1
+        type: integer
+    required:
+    - id
     type: object
   handlers.UpdateUserRequest:
     properties:
@@ -211,6 +408,64 @@ definitions:
           $ref: '#/definitions/models.OrderStatus'
         type: array
     type: object
+  models.ProductOption:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/models.ProductOptionCategory'
+        description: 多对一关联：多个选项属于一个类别，不指定foreignKey
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      display_order:
+        description: 显示顺序
+        type: integer
+      id:
+        type: integer
+      is_default:
+        description: 是否为默认选项
+        type: boolean
+      name:
+        description: 选项名称，如"小杯"、"无糖"
+        type: string
+      price_adjustment:
+        description: 价格调整值，可以是正或负
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.ProductOptionCategory:
+    properties:
+      created_at:
+        type: string
+      display_order:
+        description: 显示顺序
+        type: integer
+      id:
+        description: 主键
+        type: integer
+      is_multiple:
+        description: 是否允许多选
+        type: boolean
+      is_required:
+        description: 是否必填
+        type: boolean
+      name:
+        description: 类别名称，如"大小"、"甜度"
+        type: string
+      options:
+        description: |-
+          在ProductOptionCategory结构体中
+          一对多关联：一个类别有多个选项
+        items:
+          $ref: '#/definitions/models.ProductOption'
+        type: array
+      product_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -268,6 +523,31 @@ paths:
       summary: 登出
       tags:
       - 认证
+  /admin/order/advance-search:
+    post:
+      consumes:
+      - application/json
+      description: 使用多种条件高级搜索订单
+      parameters:
+      - description: 搜索条件
+        in: body
+        name: searchRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AdvanceSearchOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 高级搜索订单
+      tags:
+      - 订单管理
   /admin/order/create:
     post:
       consumes:
@@ -323,6 +603,11 @@ paths:
       - application/json
       description: 获取指定订单的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 订单ID
         in: query
         name: orderId
@@ -374,6 +659,35 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取订单列表
+      tags:
+      - 订单管理
+  /admin/order/status-flow:
+    get:
+      consumes:
+      - application/json
+      description: 获取订单状态流转信息
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单状态流转
       tags:
       - 订单管理
   /admin/order/toggle-status:
@@ -485,6 +799,11 @@ paths:
       - application/json
       description: 获取指定商品的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 商品ID
         in: query
         name: productId
@@ -933,6 +1252,80 @@ paths:
       summary: 批量打标签
       tags:
       - 标签管理
+  /admin/tag/batch-tag-product:
+    post:
+      consumes:
+      - application/json
+      description: 批量设置商品的标签
+      parameters:
+      - description: 批量设置标签信息
+        in: body
+        name: batchTagProductRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchTagProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量设置商品标签
+      tags:
+      - 标签管理
+  /admin/tag/batch-untag:
+    delete:
+      consumes:
+      - application/json
+      description: 批量解绑商品的标签
+      parameters:
+      - description: 批量解绑标签信息
+        in: body
+        name: batchUntagRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchUntagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量解绑商品标签
+      tags:
+      - 标签管理
+  /admin/tag/bound-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签已绑定的商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签已绑定的商品列表
+      tags:
+      - 标签管理
   /admin/tag/bound-tags:
     get:
       consumes:
@@ -982,6 +1375,57 @@ paths:
       summary: 创建标签
       tags:
       - 标签管理
+  /admin/tag/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定标签
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除标签
+      tags:
+      - 标签管理
+  /admin/tag/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取标签列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签列表
+      tags:
+      - 标签管理
   /admin/tag/online-products:
     get:
       consumes:
@@ -1004,6 +1448,48 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取标签关联的已上架商品
+      tags:
+      - 标签管理
+  /admin/tag/unbound-list:
+    get:
+      consumes:
+      - application/json
+      description: 获取没有绑定任何商品的标签列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取没有绑定商品的标签列表
+      tags:
+      - 标签管理
+  /admin/tag/unbound-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签未绑定的商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签未绑定的商品列表
       tags:
       - 标签管理
   /admin/tag/unbound-tags:
@@ -1030,6 +1516,31 @@ paths:
       summary: 获取商品未绑定的标签
       tags:
       - 标签管理
+  /admin/tag/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新标签基本信息
+      parameters:
+      - description: 标签信息
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新标签信息
+      tags:
+      - 标签管理
   /admin/user/create:
     post:
       consumes:
@@ -1053,6 +1564,30 @@ paths:
       security:
       - BearerAuth: []
       summary: 创建用户
+      tags:
+      - 用户管理
+  /admin/user/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定用户
+      parameters:
+      - description: 用户ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除用户
       tags:
       - 用户管理
   /admin/user/detail:
@@ -1153,6 +1688,48 @@ paths:
       summary: 更新用户信息
       tags:
       - 用户管理
+  /api/tag/bound-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签已绑定的商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签已绑定的商品列表
+      tags:
+      - 标签管理
+  /api/tag/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取标签列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签列表
+      tags:
+      - 标签
   /login:
     post:
       consumes:
@@ -1241,6 +1818,11 @@ paths:
       - application/json
       description: 获取指定订单的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 订单ID
         in: query
         name: orderId
@@ -1296,6 +1878,11 @@ paths:
       - application/json
       description: 获取指定商品的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 商品ID
         in: query
         name: productId
@@ -1534,6 +2121,31 @@ paths:
       summary: 登出
       tags:
       - 认证
+  /shopOwner/order/advance-search:
+    post:
+      consumes:
+      - application/json
+      description: 使用多种条件高级搜索订单
+      parameters:
+      - description: 搜索条件
+        in: body
+        name: searchRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AdvanceSearchOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 高级搜索订单
+      tags:
+      - 订单管理
   /shopOwner/order/create:
     post:
       consumes:
@@ -1589,6 +2201,11 @@ paths:
       - application/json
       description: 获取指定订单的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 订单ID
         in: query
         name: orderId
@@ -1642,6 +2259,35 @@ paths:
       summary: 获取订单列表
       tags:
       - 订单管理
+  /shopOwner/order/status-flow:
+    get:
+      consumes:
+      - application/json
+      description: 获取订单状态流转信息
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      - description: 订单ID
+        in: query
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取订单状态流转
+      tags:
+      - 订单管理
   /shopOwner/order/toggle-status:
     put:
       consumes:
@@ -1669,6 +2315,30 @@ paths:
       security:
       - BearerAuth: []
       summary: 切换订单状态
+      tags:
+      - 订单管理
+  /shopOwner/order/unfinished-list:
+    get:
+      consumes:
+      - application/json
+      description: 获取未完成的订单列表
+      parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取未完成订单列表
       tags:
       - 订单管理
   /shopOwner/order/update:
@@ -1751,6 +2421,11 @@ paths:
       - application/json
       description: 获取指定商品的详细信息
       parameters:
+      - description: 店铺ID
+        in: query
+        name: shop_id
+        required: true
+        type: string
       - description: 商品ID
         in: query
         name: productId
@@ -2024,6 +2699,80 @@ paths:
       summary: 批量打标签
       tags:
       - 标签管理
+  /shopOwner/tag/batch-tag-product:
+    post:
+      consumes:
+      - application/json
+      description: 批量设置商品的标签
+      parameters:
+      - description: 批量设置标签信息
+        in: body
+        name: batchTagProductRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchTagProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量设置商品标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/batch-untag:
+    delete:
+      consumes:
+      - application/json
+      description: 批量解绑商品的标签
+      parameters:
+      - description: 批量解绑标签信息
+        in: body
+        name: batchUntagRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchUntagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量解绑商品标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/bound-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签已绑定的商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签已绑定的商品列表
+      tags:
+      - 标签管理
   /shopOwner/tag/bound-tags:
     get:
       consumes:
@@ -2073,6 +2822,57 @@ paths:
       summary: 创建标签
       tags:
       - 标签管理
+  /shopOwner/tag/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定标签
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除标签
+      tags:
+      - 标签管理
+  /shopOwner/tag/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取标签列表，支持分页和筛选
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签列表
+      tags:
+      - 标签管理
   /shopOwner/tag/online-products:
     get:
       consumes:
@@ -2095,6 +2895,48 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取标签关联的已上架商品
+      tags:
+      - 标签管理
+  /shopOwner/tag/unbound-list:
+    get:
+      consumes:
+      - application/json
+      description: 获取没有绑定任何商品的标签列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取没有绑定商品的标签列表
+      tags:
+      - 标签管理
+  /shopOwner/tag/unbound-products:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定标签未绑定的商品列表
+      parameters:
+      - description: 标签ID
+        in: query
+        name: tagId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取标签未绑定的商品列表
       tags:
       - 标签管理
   /shopOwner/tag/unbound-tags:
@@ -2121,6 +2963,31 @@ paths:
       summary: 获取商品未绑定的标签
       tags:
       - 标签管理
+  /shopOwner/tag/update:
+    put:
+      consumes:
+      - application/json
+      description: 更新标签基本信息
+      parameters:
+      - description: 标签信息
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新标签信息
+      tags:
+      - 标签管理
   /shopOwner/user/create:
     post:
       consumes:
@@ -2144,6 +3011,30 @@ paths:
       security:
       - BearerAuth: []
       summary: 创建用户
+      tags:
+      - 用户管理
+  /shopOwner/user/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定用户
+      parameters:
+      - description: 用户ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除用户
       tags:
       - 用户管理
   /shopOwner/user/detail:

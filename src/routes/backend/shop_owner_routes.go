@@ -78,6 +78,7 @@ func setupShopOwnerProductRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 商品管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param page query int false "页码"
 		// @Param pageSize query int false "每页数量"
 		// @Param status query string false "商品状态"
@@ -90,6 +91,7 @@ func setupShopOwnerProductRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 商品管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param productId query string true "商品ID"
 		// @Success 200 {object} Response
 		// @Router /api/shopOwner/product/detail [get]
@@ -140,6 +142,7 @@ func setupShopOwnerProductRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 商品管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param productId query string true "商品ID"
 		// @Success 200 {object} Response
 		// @Router /api/shopOwner/product/image [get]
@@ -166,6 +169,7 @@ func setupShopOwnerOrderRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 订单管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param page query int false "页码"
 		// @Param pageSize query int false "每页数量"
 		// @Param status query string false "订单状态"
@@ -178,6 +182,7 @@ func setupShopOwnerOrderRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 订单管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param orderId query string true "订单ID"
 		// @Success 200 {object} Response
 		// @Router /api/shopOwner/order/detail [get]
@@ -219,6 +224,7 @@ func setupShopOwnerOrderRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 订单管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Param orderId query string true "订单ID"
 		// @Success 200 {object} Response
 		// @Router /api/shopOwner/order/status-flow [get]
@@ -229,6 +235,7 @@ func setupShopOwnerOrderRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 订单管理
 		// @Accept json
 		// @Produce json
+		// @Param shop_id query string true "店铺ID"
 		// @Success 200 {object} Response
 		// @Router /api/shopOwner/order/unfinished-list [get]
 		order.GET("/unfinished-list", h.GetUnfinishedOrders)
@@ -238,6 +245,7 @@ func setupShopOwnerOrderRoutes(group *gin.RouterGroup, h *handlers.Handler) {
 		// @Tags 订单管理
 		// @Accept json
 		// @Produce text/event-stream
+		// @Param shop_id query string true "店铺ID"
 		// @Success 200 {string} string "SSE流"
 		// @Router /api/shopOwner/order/sse [get]
 		order.GET("/sse", h.SSEConnection)

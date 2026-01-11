@@ -296,6 +296,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 // @Tags 商品管理
 // @Accept json
 // @Produce json
+// @Param shop_id query string true "店铺ID"
 // @Param productId query string true "商品ID"
 // @Success 200 {object} map[string]interface{} "查询成功"
 // @Security BearerAuth
