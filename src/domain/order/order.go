@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"orderease/domain/shared"
 	"orderease/domain/product"
+	"orderease/domain/shared"
 )
 
 type OrderStatus int
 
 const (
-	OrderStatusPending  OrderStatus = 1
-	OrderStatusAccepted OrderStatus = 2
-	OrderStatusRejected OrderStatus = 3
-	OrderStatusShipped  OrderStatus = 4
+	OrderStatusPending  OrderStatus = 0
+	OrderStatusAccepted OrderStatus = 1
+	OrderStatusRejected OrderStatus = 2
+	OrderStatusShipped  OrderStatus = 3
 	OrderStatusComplete OrderStatus = 10
-	OrderStatusCanceled OrderStatus = -1
+	OrderStatusCanceled OrderStatus = 9
 )
 
 func (s OrderStatus) String() string {
@@ -100,16 +100,16 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID                shared.ID
-	OrderID           shared.ID
-	ProductID         shared.ID
-	Quantity          int
-	Price             shared.Price
-	TotalPrice        shared.Price
-	ProductName       string
+	ID                 shared.ID
+	OrderID            shared.ID
+	ProductID          shared.ID
+	Quantity           int
+	Price              shared.Price
+	TotalPrice         shared.Price
+	ProductName        string
 	ProductDescription string
-	ProductImageURL   string
-	Options           []OrderItemOption
+	ProductImageURL    string
+	Options            []OrderItemOption
 }
 
 type OrderItemOption struct {
