@@ -40,7 +40,7 @@ func NewProductService(
 }
 
 func (s *ProductService) CreateProduct(req *dto.CreateProductRequest) (*dto.ProductResponse, error) {
-	prod, err := product.NewProduct(req.ShopID, req.Name, req.Description, shared.Price(req.Price), req.Stock)
+	prod, err := product.NewProduct(req.ShopID.ToUint64(), req.Name, req.Description, shared.Price(req.Price), req.Stock)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +96,8 @@ func (s *ProductService) CreateProduct(req *dto.CreateProductRequest) (*dto.Prod
 	return s.getProductResponse(prod.ID)
 }
 
-func (s *ProductService) GetProduct(id shared.ID, shopID uint64) (*dto.ProductResponse, error) {
-	prod, err := s.productRepo.FindByIDAndShopID(id, shopID)
+func (s *ProductService) GetProduct(id shared.ID, shopID shared.ID) (*dto.ProductResponse, error) {
+	prod, err := s.productRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +105,8 @@ func (s *ProductService) GetProduct(id shared.ID, shopID uint64) (*dto.ProductRe
 	return s.toProductResponse(prod), nil
 }
 
-func (s *ProductService) GetProducts(shopID uint64, page, pageSize int, search string) (*dto.ProductListResponse, error) {
-	products, total, err := s.productRepo.FindByShopID(shopID, page, pageSize, search, true)
+func (s *ProductService) GetProducts(shopID shared.ID, page, pageSize int, search string) (*dto.ProductListResponse, error) {
+	products, total, err := s.productRepo.FindByShopID(shopID.ToUint64(), page, pageSize, search, true)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +124,8 @@ func (s *ProductService) GetProducts(shopID uint64, page, pageSize int, search s
 	}, nil
 }
 
-func (s *ProductService) UpdateProduct(id shared.ID, shopID uint64, req *dto.CreateProductRequest) (*dto.ProductResponse, error) {
-	prod, err := s.productRepo.FindByIDAndShopID(id, shopID)
+func (s *ProductService) UpdateProduct(id shared.ID, shopID shared.ID, req *dto.CreateProductRequest) (*dto.ProductResponse, error) {
+	prod, err := s.productRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return nil, err
 	}
@@ -188,8 +188,8 @@ func (s *ProductService) UpdateProduct(id shared.ID, shopID uint64, req *dto.Cre
 	return s.getProductResponse(prod.ID)
 }
 
-func (s *ProductService) DeleteProduct(id shared.ID, shopID uint64) error {
-	prod, err := s.productRepo.FindByIDAndShopID(id, shopID)
+func (s *ProductService) DeleteProduct(id shared.ID, shopID shared.ID) error {
+	prod, err := s.productRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return err
 	}
@@ -242,8 +242,8 @@ func (s *ProductService) DeleteProduct(id shared.ID, shopID uint64) error {
 	return nil
 }
 
-func (s *ProductService) UpdateProductStatus(req *dto.UpdateProductStatusRequest, shopID uint64) error {
-	prod, err := s.productRepo.FindByIDAndShopID(req.ID, shopID)
+func (s *ProductService) UpdateProductStatus(req *dto.UpdateProductStatusRequest, shopID shared.ID) error {
+	prod, err := s.productRepo.FindByIDAndShopID(req.ID, shopID.ToUint64())
 	if err != nil {
 		return err
 	}
@@ -259,8 +259,8 @@ func (s *ProductService) UpdateProductStatus(req *dto.UpdateProductStatusRequest
 	return nil
 }
 
-func (s *ProductService) UploadProductImage(id shared.ID, shopID uint64, file *os.File, filename string) (string, error) {
-	prod, err := s.productRepo.FindByIDAndShopID(id, shopID)
+func (s *ProductService) UploadProductImage(id shared.ID, shopID shared.ID, file *os.File, filename string) (string, error) {
+	prod, err := s.productRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return "", err
 	}
@@ -277,7 +277,7 @@ func (s *ProductService) UploadProductImage(id shared.ID, shopID uint64, file *o
 		}
 	}
 
-	newFilename := fmt.Sprintf("product_%d_%d%s", id, time.Now().Unix(), filepath.Ext(filename))
+	newFilename := fmt.Sprintf("product_%d_%d%s", id.ToUint64(), time.Now().Unix(), filepath.Ext(filename))
 	imagePath := filepath.Join(uploadDir, newFilename)
 
 	dst, err := os.Create(imagePath)
@@ -338,7 +338,7 @@ func (s *ProductService) toProductResponse(prod *product.Product) *dto.ProductRe
 
 	return &dto.ProductResponse{
 		ID:               prod.ID,
-		ShopID:           prod.ShopID,
+		ShopID:           shared.ParseIDFromUint64(prod.ShopID),
 		Name:             prod.Name,
 		Description:      prod.Description,
 		Price:            prod.Price,

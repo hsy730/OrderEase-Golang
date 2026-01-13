@@ -17,8 +17,8 @@ type MockProductTagRepository struct {
 	mock.Mock
 }
 
-func (m *MockProductTagRepository) Save(productID shared.ID, tagID int) error {
-	args := m.Called(productID, tagID)
+func (m *MockProductTagRepository) Save(productID shared.ID, tagID int, shopID uint64) error {
+	args := m.Called(productID, tagID, shopID)
 	return args.Error(0)
 }
 
@@ -78,8 +78,8 @@ func TestProductService_GetProduct(t *testing.T) {
 	tests := []struct {
 		name        string
 		productID   shared.ID
-		shopID      uint64
-		setupMock   func()
+		shopID      shared.ID
+		setupMock   func(shared.ID, shared.ID)
 		wantErr     bool
 		errContains string
 		validate    func(*testing.T, *dto.ProductResponse)
@@ -87,8 +87,8 @@ func TestProductService_GetProduct(t *testing.T) {
 		{
 			name:      "get existing product",
 			productID: shared.ID(123),
-			shopID:    456,
-			setupMock: func() {
+			shopID:    shared.ID(456),
+			setupMock: func(productID, shopID shared.ID) {
 				prod := &product.Product{
 					ID:          shared.ID(123),
 					ShopID:      456,
@@ -108,12 +108,12 @@ func TestProductService_GetProduct(t *testing.T) {
 						},
 					},
 				}
-				mockProductRepo.On("FindByIDAndShopID", shared.ID(123), uint64(456)).Return(prod, nil)
+				mockProductRepo.On("FindByIDAndShopID", productID, shopID.ToUint64()).Return(prod, nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.ProductResponse) {
 				assert.Equal(t, shared.ID(123), resp.ID)
-				assert.Equal(t, uint64(456), resp.ShopID)
+				assert.Equal(t, shared.ID(456), resp.ShopID)
 				assert.Equal(t, "测试商品", resp.Name)
 				assert.Equal(t, "这是一个测试商品", resp.Description)
 				assert.Equal(t, shared.Price(100), resp.Price)
@@ -129,9 +129,9 @@ func TestProductService_GetProduct(t *testing.T) {
 		{
 			name:      "product not found",
 			productID: shared.ID(999),
-			shopID:    456,
-			setupMock: func() {
-				mockProductRepo.On("FindByIDAndShopID", shared.ID(999), uint64(456)).Return(nil, errors.New("not found"))
+			shopID:    shared.ID(456),
+			setupMock: func(productID, shopID shared.ID) {
+				mockProductRepo.On("FindByIDAndShopID", productID, shopID.ToUint64()).Return(nil, errors.New("not found"))
 			},
 			wantErr:     true,
 			errContains: "not found",
@@ -140,7 +140,7 @@ func TestProductService_GetProduct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.productID, tt.shopID)
 
 			got, err := service.GetProduct(tt.productID, tt.shopID)
 
@@ -177,26 +177,26 @@ func TestProductService_GetProducts(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		shopID      uint64
+		shopID      shared.ID
 		page        int
 		pageSize    int
 		search      string
-		setupMock   func()
+		setupMock   func(shared.ID, int, int, string)
 		wantErr     bool
 		validate    func(*testing.T, *dto.ProductListResponse)
 	}{
 		{
 			name:     "get products successfully",
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     1,
 			pageSize: 10,
 			search:   "测试",
-			setupMock: func() {
+			setupMock: func(shopID shared.ID, page, pageSize int, search string) {
 				products := []product.Product{
 					{ID: shared.ID(1), ShopID: 456, Name: "测试商品1", Price: shared.Price(100)},
 					{ID: shared.ID(2), ShopID: 456, Name: "测试商品2", Price: shared.Price(200)},
 				}
-				mockProductRepo.On("FindByShopID", uint64(456), 1, 10, "测试", true).Return(products, int64(2), nil)
+				mockProductRepo.On("FindByShopID", shopID.ToUint64(), page, pageSize, search, true).Return(products, int64(2), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.ProductListResponse) {
@@ -210,12 +210,12 @@ func TestProductService_GetProducts(t *testing.T) {
 		},
 		{
 			name:     "empty products",
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     1,
 			pageSize: 10,
 			search:   "",
-			setupMock: func() {
-				mockProductRepo.On("FindByShopID", uint64(456), 1, 10, "", true).Return([]product.Product{}, int64(0), nil)
+			setupMock: func(shopID shared.ID, page, pageSize int, search string) {
+				mockProductRepo.On("FindByShopID", shopID.ToUint64(), page, pageSize, search, true).Return([]product.Product{}, int64(0), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.ProductListResponse) {
@@ -227,7 +227,7 @@ func TestProductService_GetProducts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.shopID, tt.page, tt.pageSize, tt.search)
 
 			got, err := service.GetProducts(tt.shopID, tt.page, tt.pageSize, tt.search)
 
@@ -264,8 +264,8 @@ func TestProductService_UpdateProductStatus(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *dto.UpdateProductStatusRequest
-		shopID      uint64
-		setupMock   func()
+		shopID      shared.ID
+		setupMock   func(shared.ID, shared.ID)
 		wantErr     bool
 		errContains string
 	}{
@@ -275,14 +275,14 @@ func TestProductService_UpdateProductStatus(t *testing.T) {
 				ID:     shared.ID(123),
 				Status: product.ProductStatusOnline,
 			},
-			shopID: 456,
-			setupMock: func() {
+			shopID: shared.ID(456),
+			setupMock: func(productID, shopID shared.ID) {
 				prod := &product.Product{
 					ID:     shared.ID(123),
 					ShopID: 456,
 					Status: product.ProductStatusPending,
 				}
-				mockProductRepo.On("FindByIDAndShopID", shared.ID(123), uint64(456)).Return(prod, nil).Once()
+				mockProductRepo.On("FindByIDAndShopID", productID, shopID.ToUint64()).Return(prod, nil).Once()
 				mockProductRepo.On("Update", prod).Return(nil).Once()
 			},
 			wantErr: false,
@@ -293,9 +293,9 @@ func TestProductService_UpdateProductStatus(t *testing.T) {
 				ID:     shared.ID(999),
 				Status: product.ProductStatusOnline,
 			},
-			shopID: 456,
-			setupMock: func() {
-				mockProductRepo.On("FindByIDAndShopID", shared.ID(999), uint64(456)).Return(nil, errors.New("not found"))
+			shopID: shared.ID(456),
+			setupMock: func(productID, shopID shared.ID) {
+				mockProductRepo.On("FindByIDAndShopID", productID, shopID.ToUint64()).Return(nil, errors.New("not found"))
 			},
 			wantErr:     true,
 			errContains: "not found",
@@ -306,14 +306,14 @@ func TestProductService_UpdateProductStatus(t *testing.T) {
 				ID:     shared.ID(123),
 				Status: product.ProductStatusPending,
 			},
-			shopID: 456,
-			setupMock: func() {
+			shopID: shared.ID(456),
+			setupMock: func(productID, shopID shared.ID) {
 				prod := &product.Product{
 					ID:     shared.ID(123),
 					ShopID: 456,
 					Status: product.ProductStatusOnline,
 				}
-				mockProductRepo.On("FindByIDAndShopID", shared.ID(123), uint64(456)).Return(prod, nil).Once()
+				mockProductRepo.On("FindByIDAndShopID", productID, shopID.ToUint64()).Return(prod, nil).Once()
 			},
 			wantErr:     true,
 			errContains: "不允许的状态转换",
@@ -322,7 +322,7 @@ func TestProductService_UpdateProductStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.req.ID, tt.shopID)
 
 			err := service.UpdateProductStatus(tt.req, tt.shopID)
 
@@ -403,7 +403,7 @@ func TestProductService_toProductResponse(t *testing.T) {
 			},
 			validate: func(t *testing.T, resp *dto.ProductResponse) {
 				assert.Equal(t, shared.ID(123), resp.ID)
-				assert.Equal(t, uint64(456), resp.ShopID)
+				assert.Equal(t, shared.ID(456), resp.ShopID)
 				assert.Equal(t, "测试商品", resp.Name)
 				assert.Equal(t, "测试描述", resp.Description)
 				assert.Equal(t, shared.Price(100), resp.Price)

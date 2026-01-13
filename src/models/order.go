@@ -7,9 +7,9 @@ import (
 )
 
 type Order struct {
-	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
+	ID         snowflake.ID `gorm:"primarykey;autoIncrement:false;column:id;type:bigint unsigned" json:"id,omitempty"`
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
 	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`
@@ -20,7 +20,7 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID         snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id,omitempty"`
+	ID         snowflake.ID `gorm:"column:id;primarykey;autoIncrement:false;type:bigint unsigned" json:"id,omitempty"`
 	OrderID    snowflake.ID `gorm:"column:order_id;type:bigint unsigned" json:"order_id"`
 	ProductID  snowflake.ID `gorm:"column:product_id" json:"product_id"`
 	Quantity   int          `gorm:"column:quantity" json:"quantity"`
@@ -38,7 +38,7 @@ type OrderItem struct {
 
 // OrderItemOption 订单项选择的商品参数选项
 type OrderItemOption struct {
-	ID              snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id"`
+	ID              snowflake.ID `gorm:"column:id;primarykey;autoIncrement:false;type:bigint unsigned" json:"id"`
 	OrderItemID     snowflake.ID `gorm:"column:order_item_id;index;not null;type:bigint unsigned" json:"order_item_id"`
 	CategoryID      snowflake.ID `gorm:"column:category_id;index;not null;type:bigint unsigned" json:"category_id"` // 类别ID快照
 	OptionID        snowflake.ID `gorm:"column:option_id" json:"option_id"`
@@ -126,7 +126,7 @@ var DefaultOrderStatusFlow = `{
 
 // 订单状态变更日志
 type OrderStatusLog struct {
-	ID          snowflake.ID `gorm:"primarykey" json:"id"`
+	ID          snowflake.ID `gorm:"primarykey;autoIncrement:false" json:"id"`
 	OrderID     snowflake.ID `gorm:"type:bigint unsigned" json:"order_id"`
 	OldStatus   int          `json:"old_status"`
 	NewStatus   int          `json:"new_status"`
@@ -134,9 +134,9 @@ type OrderStatusLog struct {
 }
 
 type OrderElement struct {
-	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
+	ID         snowflake.ID `gorm:"primarykey;autoIncrement:false;column:id;type:bigint unsigned" json:"id,omitempty"`
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
 	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`

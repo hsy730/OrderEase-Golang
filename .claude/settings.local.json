@@ -1,13 +1,19 @@
 {
   "permissions": {
     "allow": [
+      "Git(clone)",
+      "Git(fetch)",
+      "Git(pull)",
+      "File(read)",
+      "Repository(read)",
       "Bash(go list:*)",
       "Bash(go test:*)",
       "Bash(go mod tidy:*)",
       "Bash(swag init:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(swag:*)"
+      "Bash(swag:*)",
+      "Bash(go build:*)"
     ]
   }
 }

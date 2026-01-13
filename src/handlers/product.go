@@ -68,7 +68,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		product.Stock = 100
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, product.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, uint64(request.Product.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -148,7 +148,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	// 获取当前商品信息
-	product, err := h.productRepo.GetProductByID(productId, validShopID)
+	product, err := h.productRepo.GetProductByID(productId, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -322,7 +322,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productRepo.GetProductByID(id, validShopID)
+	product, err := h.productRepo.GetProductByID(id, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -360,7 +360,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productRepo.GetProductByID(id, validShopID)
+	product, err := h.productRepo.GetProductByID(id, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -415,7 +415,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 	tx.Commit()
 	// 重新获取更新后的商品信息
-	updatedProduct, err := h.productRepo.GetProductByID(id, validShopID)
+	updatedProduct, err := h.productRepo.GetProductByID(id, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -453,7 +453,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productRepo.GetProductByID(id, validShopID)
+	product, err := h.productRepo.GetProductByID(id, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -557,7 +557,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productRepo.GetProductByID(id, validShopID)
+	product, err := h.productRepo.GetProductByID(id, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return

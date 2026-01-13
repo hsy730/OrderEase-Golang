@@ -3,6 +3,7 @@ package repositories
 import (
 	"errors"
 	"orderease/domain/shop"
+	"orderease/domain/shared"
 	"orderease/infrastructure/persistence"
 	"orderease/models"
 	"orderease/utils/log2"
@@ -24,13 +25,13 @@ func (r *ShopRepositoryImpl) Save(s *shop.Shop) error {
 		log2.Errorf("保存店铺失败: %v", err)
 		return errors.New("保存店铺失败")
 	}
-	s.ID = model.ID
+	s.ID = shared.ID(model.ID)
 	return nil
 }
 
-func (r *ShopRepositoryImpl) FindByID(id uint64) (*shop.Shop, error) {
+func (r *ShopRepositoryImpl) FindByID(id shared.ID) (*shop.Shop, error) {
 	var model models.Shop
-	if err := r.db.Preload("Tags").First(&model, id).Error; err != nil {
+	if err := r.db.Preload("Tags").First(&model, id.Value()).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("店铺不存在")
 		}
@@ -92,8 +93,8 @@ func (r *ShopRepositoryImpl) FindAll(page, pageSize int, search string) ([]shop.
 	return shops, total, nil
 }
 
-func (r *ShopRepositoryImpl) Delete(id uint64) error {
-	if err := r.db.Delete(&models.Shop{}, id).Error; err != nil {
+func (r *ShopRepositoryImpl) Delete(id shared.ID) error {
+	if err := r.db.Delete(&models.Shop{}, id.Value()).Error; err != nil {
 		log2.Errorf("删除店铺失败: %v", err)
 		return errors.New("删除店铺失败")
 	}
@@ -109,9 +110,9 @@ func (r *ShopRepositoryImpl) Update(s *shop.Shop) error {
 	return nil
 }
 
-func (r *ShopRepositoryImpl) Exists(id uint64) (bool, error) {
+func (r *ShopRepositoryImpl) Exists(id shared.ID) (bool, error) {
 	var count int64
-	if err := r.db.Model(&models.Shop{}).Where("id = ?", id).Count(&count).Error; err != nil {
+	if err := r.db.Model(&models.Shop{}).Where("id = ?", id.Value()).Count(&count).Error; err != nil {
 		log2.Errorf("检查店铺是否存在失败: %v", err)
 		return false, errors.New("检查店铺是否存在失败")
 	}
@@ -148,9 +149,9 @@ func (r *TagRepositoryImpl) FindByID(id int) (*shop.Tag, error) {
 	return persistence.TagToDomain(model), nil
 }
 
-func (r *TagRepositoryImpl) FindByShopID(shopID uint64) ([]shop.Tag, error) {
+func (r *TagRepositoryImpl) FindByShopID(shopID shared.ID) ([]shop.Tag, error) {
 	var modelsList []models.Tag
-	if err := r.db.Where("shop_id = ?", shopID).Find(&modelsList).Error; err != nil {
+	if err := r.db.Where("shop_id = ?", shopID.Value()).Find(&modelsList).Error; err != nil {
 		log2.Errorf("查询标签失败: %v", err)
 		return nil, errors.New("查询标签失败")
 	}

@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"orderease/domain/order"
+	"orderease/domain/shared"
 )
 
 type Shop struct {
-	ID            uint64
+	ID            shared.ID
 	Name          string
 	OwnerUsername string
 	OwnerPassword string

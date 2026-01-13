@@ -59,7 +59,7 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -97,7 +97,7 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -128,7 +128,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -165,7 +165,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -195,7 +195,7 @@ func (h *ProductHandler) UpdateProductStatus(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -222,7 +222,7 @@ func (h *ProductHandler) UpdateProductStatus(c *gin.Context) {
 	})
 }
 
-func (h *ProductHandler) validateShopID(c *gin.Context, shopID uint64) (uint64, error) {
+func (h *ProductHandler) validateShopID(c *gin.Context, shopID shared.ID) (shared.ID, error) {
 	requestUser, exists := c.Get("userInfo")
 	if !exists {
 		return shopID, nil
@@ -234,12 +234,12 @@ func (h *ProductHandler) validateShopID(c *gin.Context, shopID uint64) (uint64, 
 	})
 
 	if !userInfo.IsAdminUser() {
-		return userInfo.GetUserID(), nil
+		return shared.ParseIDFromUint64(userInfo.GetUserID()), nil
 	}
 
 	shop, err := h.shopService.GetShop(shopID)
 	if err != nil {
-		return 0, err
+		return shared.ID(0), err
 	}
 
 	return shop.ID, nil

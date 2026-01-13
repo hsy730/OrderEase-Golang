@@ -7,6 +7,7 @@ import (
 	"orderease/utils"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
@@ -77,7 +78,7 @@ func (s *TempTokenService) GenerateTempToken(shopID uint64) (models.TempToken, e
 
 	// 创建新令牌
 	tempToken := models.TempToken{
-		ShopID:    shopID,
+		ShopID:    snowflake.ID(shopID), // Convert uint64 to snowflake.ID
 		UserID:    uint64(user.ID),
 		Token:     token,
 		ExpiresAt: expiresAt,
@@ -138,7 +139,7 @@ func (s *TempTokenService) RefreshAllTempTokens() error {
 
 	// 为每个店铺刷新令牌
 	for _, shop := range shops {
-		if _, err := s.GenerateTempToken(shop.ID); err != nil {
+		if _, err := s.GenerateTempToken(uint64(shop.ID)); err != nil {
 			return err
 		}
 	}

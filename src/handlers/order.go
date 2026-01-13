@@ -16,13 +16,13 @@ import (
 // 高级查询订单请求
 
 type AdvanceSearchOrderRequest struct {
-	Page      int    `json:"page"`
-	PageSize  int    `json:"pageSize"`
-	UserID    string `json:"user_id"`
-	Status    []int  `json:"status"`
-	StartTime string `json:"start_time"`
-	EndTime   string `json:"end_time"`
-	ShopID    uint64 `json:"shop_id"`
+	Page      int         `json:"page"`
+	PageSize  int         `json:"pageSize"`
+	UserID    string      `json:"user_id"`
+	Status    []int       `json:"status"`
+	StartTime string      `json:"start_time"`
+	EndTime   string      `json:"end_time"`
+	ShopID    uint64      `json:"shop_id"`
 }
 
 // 创建订单
@@ -30,7 +30,7 @@ type AdvanceSearchOrderRequest struct {
 type CreateOrderRequest struct {
 	ID     snowflake.ID             `json:"id"`
 	UserID snowflake.ID             `json:"user_id"`
-	ShopID uint64                   `json:"shop_id"`
+	ShopID snowflake.ID             `json:"shop_id"`
 	Items  []CreateOrderItemRequest `json:"items"`
 	Remark string                   `json:"remark"`
 	Status int                      `json:"status"`
@@ -110,12 +110,12 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, order.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, uint64(req.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	order.ShopID = validShopID // 更新订单的shopID
+	order.ShopID = validShopID // 更新订单的shopID（validShopID已经是snowflake.ID类型）
 
 	tx := h.DB.Begin()
 
@@ -522,7 +522,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	tx := h.DB.Begin()
 
 	// 更新订单基本信息
-	order.ShopID = updateData.ShopID
+	order.ShopID = updateData.ShopID // updateData.ShopID已经是snowflake.ID
 	order.Remark = updateData.Remark
 	order.Status = updateData.Status
 
@@ -647,7 +647,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	response := CreateOrderRequest{
 		ID:     order.ID,
 		UserID: order.UserID,
-		ShopID: order.ShopID,
+		ShopID: order.ShopID, // order.ShopID已经是snowflake.ID
 		Items:  responseItems,
 		Remark: order.Remark,
 		Status: order.Status,
@@ -777,7 +777,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 获取订单信息
-	order, err := h.productRepo.GetOrderByIDAndShopID(orderID, validShopID)
+	order, err := h.productRepo.GetOrderByIDAndShopID(orderID, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return

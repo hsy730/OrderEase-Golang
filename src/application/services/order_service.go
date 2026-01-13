@@ -77,7 +77,7 @@ func (s *OrderService) buildOrderItems(reqItems []dto.CreateOrderItemRequest) []
 func (s *OrderService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
 	// 1. 构建 Order 对象
 	items := s.buildOrderItems(req.Items)
-	ord, err := order.NewOrder(req.UserID, req.ShopID, items, req.Remark)
+	ord, err := order.NewOrder(req.UserID, req.ShopID.ToUint64(), items, req.Remark)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (s *OrderService) executeCreateOrderTransaction(ord *order.Order, finder or
 	return &dto.OrderResponse{
 		ID:         savedOrder.ID,
 		UserID:     savedOrder.UserID,
-		ShopID:     savedOrder.ShopID,
+		ShopID:     shared.ParseIDFromUint64(savedOrder.ShopID),
 		TotalPrice: savedOrder.TotalPrice,
 		Status:     savedOrder.Status,
 		Remark:     savedOrder.Remark,
@@ -176,8 +176,8 @@ func (s *OrderService) executeCreateOrderTransaction(ord *order.Order, finder or
 		UpdatedAt:  savedOrder.UpdatedAt,
 	}, nil
 }
-func (s *OrderService) GetOrder(id shared.ID, shopID uint64) (*dto.OrderDetailResponse, error) {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID)
+func (s *OrderService) GetOrder(id shared.ID, shopID shared.ID) (*dto.OrderDetailResponse, error) {
+	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func (s *OrderService) GetOrder(id shared.ID, shopID uint64) (*dto.OrderDetailRe
 	return &dto.OrderDetailResponse{
 		ID:         ord.ID,
 		UserID:     ord.UserID,
-		ShopID:     ord.ShopID,
+		ShopID:     shared.ParseIDFromUint64(ord.ShopID),
 		TotalPrice: ord.TotalPrice,
 		Status:     ord.Status,
 		Remark:     ord.Remark,
@@ -222,8 +222,8 @@ func (s *OrderService) GetOrder(id shared.ID, shopID uint64) (*dto.OrderDetailRe
 	}, nil
 }
 
-func (s *OrderService) GetOrders(shopID uint64, page, pageSize int) (*dto.OrderListResponse, error) {
-	orders, total, err := s.orderRepo.FindByShopID(shopID, page, pageSize)
+func (s *OrderService) GetOrders(shopID shared.ID, page, pageSize int) (*dto.OrderListResponse, error) {
+	orders, total, err := s.orderRepo.FindByShopID(shopID.ToUint64(), page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (s *OrderService) GetOrders(shopID uint64, page, pageSize int) (*dto.OrderL
 		data[i] = dto.OrderResponse{
 			ID:         ord.ID,
 			UserID:     ord.UserID,
-			ShopID:     ord.ShopID,
+			ShopID:     shared.ParseIDFromUint64(ord.ShopID),
 			TotalPrice: ord.TotalPrice,
 			Status:     ord.Status,
 			Remark:     ord.Remark,
@@ -250,8 +250,8 @@ func (s *OrderService) GetOrders(shopID uint64, page, pageSize int) (*dto.OrderL
 	}, nil
 }
 
-func (s *OrderService) GetOrdersByUser(userID shared.ID, shopID uint64, page, pageSize int) (*dto.OrderListResponse, error) {
-	orders, total, err := s.orderRepo.FindByUserID(userID, shopID, page, pageSize)
+func (s *OrderService) GetOrdersByUser(userID shared.ID, shopID shared.ID, page, pageSize int) (*dto.OrderListResponse, error) {
+	orders, total, err := s.orderRepo.FindByUserID(userID, shopID.ToUint64(), page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (s *OrderService) GetOrdersByUser(userID shared.ID, shopID uint64, page, pa
 		data[i] = dto.OrderResponse{
 			ID:         ord.ID,
 			UserID:     ord.UserID,
-			ShopID:     ord.ShopID,
+			ShopID:     shared.ParseIDFromUint64(ord.ShopID),
 			TotalPrice: ord.TotalPrice,
 			Status:     ord.Status,
 			Remark:     ord.Remark,
@@ -278,8 +278,8 @@ func (s *OrderService) GetOrdersByUser(userID shared.ID, shopID uint64, page, pa
 	}, nil
 }
 
-func (s *OrderService) GetUnfinishedOrders(shopID uint64, flow order.OrderStatusFlow, page, pageSize int) (*dto.OrderListResponse, error) {
-	orders, total, err := s.orderRepo.FindUnfinishedByShopID(shopID, flow, page, pageSize)
+func (s *OrderService) GetUnfinishedOrders(shopID shared.ID, flow order.OrderStatusFlow, page, pageSize int) (*dto.OrderListResponse, error) {
+	orders, total, err := s.orderRepo.FindUnfinishedByShopID(shopID.ToUint64(), flow, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (s *OrderService) GetUnfinishedOrders(shopID uint64, flow order.OrderStatus
 		data[i] = dto.OrderResponse{
 			ID:         ord.ID,
 			UserID:     ord.UserID,
-			ShopID:     ord.ShopID,
+			ShopID:     shared.ParseIDFromUint64(ord.ShopID),
 			TotalPrice: ord.TotalPrice,
 			Status:     ord.Status,
 			Remark:     ord.Remark,
@@ -326,7 +326,7 @@ func (s *OrderService) SearchOrders(req *dto.SearchOrdersRequest) (*dto.OrderLis
 		endTime = parsedTime
 	}
 
-	orders, total, err := s.orderRepo.Search(req.ShopID, req.UserID, req.Statuses, startTime, endTime, req.Page, req.PageSize)
+	orders, total, err := s.orderRepo.Search(req.ShopID.ToUint64(), req.UserID, req.Statuses, startTime, endTime, req.Page, req.PageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (s *OrderService) SearchOrders(req *dto.SearchOrdersRequest) (*dto.OrderLis
 		data[i] = dto.OrderResponse{
 			ID:         ord.ID,
 			UserID:     ord.UserID,
-			ShopID:     ord.ShopID,
+			ShopID:     shared.ParseIDFromUint64(ord.ShopID),
 			TotalPrice: ord.TotalPrice,
 			Status:     ord.Status,
 			Remark:     ord.Remark,
@@ -353,8 +353,8 @@ func (s *OrderService) SearchOrders(req *dto.SearchOrdersRequest) (*dto.OrderLis
 	}, nil
 }
 
-func (s *OrderService) UpdateOrderStatus(id shared.ID, shopID uint64, newStatus order.OrderStatus, flow order.OrderStatusFlow) error {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID)
+func (s *OrderService) UpdateOrderStatus(id shared.ID, shopID shared.ID, newStatus order.OrderStatus, flow order.OrderStatusFlow) error {
+	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return err
 	}
@@ -396,8 +396,8 @@ func (s *OrderService) UpdateOrderStatus(id shared.ID, shopID uint64, newStatus 
 	return nil
 }
 
-func (s *OrderService) DeleteOrder(id shared.ID, shopID uint64) error {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID)
+func (s *OrderService) DeleteOrder(id shared.ID, shopID shared.ID) error {
+	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return err
 	}

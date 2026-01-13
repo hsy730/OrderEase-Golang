@@ -65,7 +65,7 @@ func (h *Handler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, tag.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, uint64(tag.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -260,7 +260,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		return
 	}
 
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
+	// 注意：这里不需要更新req.ShopID，因为后续使用的是validShopID
 
 	// 检查标签是否存在
 	var tag models.Tag
@@ -334,7 +334,7 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, tag.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, uint64(tag.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -722,7 +722,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 }
 
 // 新增独立方法处理未绑定商品查询
-func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]models.Product, int64, error) {
+func (h *Handler) getUnboundProducts(shopID snowflake.ID, page int, pageSize int) ([]models.Product, int64, error) {
 	offset := (page - 1) * pageSize
 	var products []models.Product
 	var total int64
@@ -806,7 +806,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
+	// 注意：这里不需要更新req.ShopID，因为后续使用的是validShopID
 
 	// 检查标签是否存在
 	var tag models.Tag
@@ -862,17 +862,16 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 替换原有查询代码
-	currentTags, err := h.productRepo.GetCurrentProductTags(req.ProductID, req.ShopID)
+	currentTags, err := h.productRepo.GetCurrentProductTags(req.ProductID, uint64(validShopID))
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取当前标签失败")
 		return
 	}
 
 	// 替换原有计算和更新逻辑
-	added, deleted, err := h.updateProductTags(currentTags, req.TagIDs, req.ProductID, req.ShopID)
+	added, deleted, err := h.updateProductTags(currentTags, req.TagIDs, req.ProductID, validShopID)
 	if err != nil {
 		h.logger.Errorf("批量更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量更新标签失败")
@@ -887,7 +886,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 }
 
 // 新增方法：更新商品标签关联
-func (h *Handler) updateProductTags(currentTags []models.Tag, newTagIDs []int, productID snowflake.ID, shopID uint64) (int, int, error) {
+func (h *Handler) updateProductTags(currentTags []models.Tag, newTagIDs []int, productID snowflake.ID, shopID snowflake.ID) (int, int, error) {
 	// 计算差异
 	currentTagMap := make(map[int]bool)
 	for _, tag := range currentTags {

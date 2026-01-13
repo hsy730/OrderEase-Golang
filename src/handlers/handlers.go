@@ -10,6 +10,7 @@ import (
 
 	"strings"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -49,7 +50,7 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 	return &userInfo, nil
 }
 
-func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
+func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (snowflake.ID, error) {
 	// 如果是管理端接口，普通用户（店主）需要使用绑定的shopId
 	if strings.Contains(c.Request.URL.Path, "/shopOwner/") {
 		requestUser, err := h.getRequestUserInfo(c)
@@ -70,5 +71,5 @@ func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, e
 	if !exist {
 		return 0, errors.New("店铺不存在")
 	}
-	return shopID, nil
+	return snowflake.ID(shopID), nil
 }

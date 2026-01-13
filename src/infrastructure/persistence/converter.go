@@ -7,6 +7,8 @@ import (
 	"orderease/domain/shop"
 	"orderease/domain/user"
 	"orderease/models"
+
+	"github.com/bwmarrin/snowflake"
 )
 
 func OrderToDomain(m models.Order) *order.Order {
@@ -18,7 +20,7 @@ func OrderToDomain(m models.Order) *order.Order {
 	return &order.Order{
 		ID:         shared.ID(m.ID),
 		UserID:     shared.ID(m.UserID),
-		ShopID:     m.ShopID,
+		ShopID:     uint64(m.ShopID),
 		TotalPrice: shared.Price(m.TotalPrice),
 		Status:     order.OrderStatus(m.Status),
 		Remark:     m.Remark,
@@ -37,7 +39,7 @@ func OrderToModel(d *order.Order) *models.Order {
 	return &models.Order{
 		ID:         d.ID.Value(),
 		UserID:     d.UserID.Value(),
-		ShopID:     d.ShopID,
+		ShopID:     snowflake.ID(d.ShopID),
 		TotalPrice: models.Price(d.TotalPrice),
 		Status:     int(d.Status),
 		Remark:     d.Remark,
@@ -143,7 +145,7 @@ func ProductToDomain(m models.Product) *product.Product {
 
 	return &product.Product{
 		ID:               shared.ID(m.ID),
-		ShopID:           m.ShopID,
+		ShopID:           uint64(m.ShopID),
 		Name:             m.Name,
 		Description:      m.Description,
 		Price:            shared.Price(m.Price),
@@ -164,7 +166,7 @@ func ProductToModel(d *product.Product) *models.Product {
 
 	return &models.Product{
 		ID:               d.ID.Value(),
-		ShopID:           d.ShopID,
+		ShopID:           snowflake.ID(d.ShopID),
 		Name:             d.Name,
 		Description:      d.Description,
 		Price:            float64(d.Price),
@@ -243,7 +245,7 @@ func ProductOptionToModel(d product.ProductOption) models.ProductOption {
 
 func ShopToDomain(m models.Shop) *shop.Shop {
 	return &shop.Shop{
-		ID:            m.ID,
+		ID:            shared.ID(m.ID),
 		Name:          m.Name,
 		OwnerUsername: m.OwnerUsername,
 		OwnerPassword: m.OwnerPassword,
@@ -264,7 +266,7 @@ func ShopToDomain(m models.Shop) *shop.Shop {
 
 func ShopToModel(d *shop.Shop) *models.Shop {
 	return &models.Shop{
-		ID:            d.ID,
+		ID:            snowflake.ID(d.ID),
 		Name:          d.Name,
 		OwnerUsername: d.OwnerUsername,
 		OwnerPassword: d.OwnerPassword,
@@ -330,7 +332,7 @@ func convertOrderStatusesToModel(statuses []order.OrderStatusConfig) []models.Or
 func TagToDomain(m models.Tag) *shop.Tag {
 	return &shop.Tag{
 		ID:          m.ID,
-		ShopID:      m.ShopID,
+		ShopID:      shared.ID(m.ShopID),
 		Name:        m.Name,
 		Description: m.Description,
 		CreatedAt:   m.CreatedAt,
@@ -341,7 +343,7 @@ func TagToDomain(m models.Tag) *shop.Tag {
 func TagToModel(d *shop.Tag) *models.Tag {
 	return &models.Tag{
 		ID:          d.ID,
-		ShopID:      d.ShopID,
+		ShopID:      snowflake.ID(d.ShopID),
 		Name:        d.Name,
 		Description: d.Description,
 		CreatedAt:   d.CreatedAt,

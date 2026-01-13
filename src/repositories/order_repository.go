@@ -4,12 +4,14 @@ import (
 	"errors"
 	"orderease/models"
 	"orderease/utils/log2"
+
+	"github.com/bwmarrin/snowflake"
 )
 
 // 在 OrderRepository 结构体新增方法
 func (r *ProductRepository) GetOrderByIDAndShopID(orderID uint64, shopID uint64) (*models.Order, error) {
 	var order models.Order
-	err := r.DB.Where("shop_id = ?", shopID).First(&order, orderID).Error
+	err := r.DB.Where("shop_id = ?", snowflake.ID(shopID)).First(&order, orderID).Error
 	if err != nil {
 		if err.Error() == "record not found" {
 			return nil, errors.New("订单不存在")

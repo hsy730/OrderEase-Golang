@@ -103,7 +103,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
-	token, expiredAt, err := utils.GenerateToken(shop.ID, "shop_"+shop.OwnerUsername, false)
+	token, expiredAt, err := utils.GenerateToken(uint64(shop.ID), "shop_"+shop.OwnerUsername, false)
 	if err != nil {
 		log2.Errorf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")

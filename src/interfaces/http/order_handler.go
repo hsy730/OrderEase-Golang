@@ -65,7 +65,7 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -102,7 +102,7 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -138,7 +138,7 @@ func (h *OrderHandler) GetOrdersByUser(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -181,7 +181,7 @@ func (h *OrderHandler) GetUnfinishedOrders(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -242,9 +242,9 @@ func (h *OrderHandler) SearchOrders(c *gin.Context) {
 
 func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 	type UpdateOrderStatusRequest struct {
-		ID         string `json:"id" binding:"required"`
-		ShopID     uint64 `json:"shop_id" binding:"required"`
-		NextStatus int    `json:"next_status" binding:"required"`
+		ID         string    `json:"id" binding:"required"`
+		ShopID     shared.ID `json:"shop_id" binding:"required"`
+		NextStatus int       `json:"next_status" binding:"required"`
 	}
 
 	var req UpdateOrderStatusRequest
@@ -298,7 +298,7 @@ func (h *OrderHandler) DeleteOrder(c *gin.Context) {
 	}
 
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -319,10 +319,10 @@ func (h *OrderHandler) DeleteOrder(c *gin.Context) {
 	successResponse(c, gin.H{"message": "订单删除成功"})
 }
 
-func (h *OrderHandler) validateShopID(c *gin.Context, shopID uint64) (uint64, error) {
+func (h *OrderHandler) validateShopID(c *gin.Context, shopID shared.ID) (shared.ID, error) {
 	requestUser, exists := c.Get("userInfo")
 	if !exists {
-		return 0, nil
+		return shared.ID(0), nil
 	}
 
 	userInfo := requestUser.(interface {
@@ -331,12 +331,12 @@ func (h *OrderHandler) validateShopID(c *gin.Context, shopID uint64) (uint64, er
 	})
 
 	if !userInfo.IsAdminUser() && c.Request.URL.Path != "" {
-		return userInfo.GetUserID(), nil
+		return shared.ParseIDFromUint64(userInfo.GetUserID()), nil
 	}
 
 	shop, err := h.shopService.GetShop(shopID)
 	if err != nil {
-		return 0, err
+		return shared.ID(0), err
 	}
 
 	return shop.ID, nil

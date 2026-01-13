@@ -287,8 +287,8 @@ func TestOrderService_GetOrder(t *testing.T) {
 	tests := []struct {
 		name        string
 		orderID     shared.ID
-		shopID      uint64
-		setupMock   func()
+		shopID      shared.ID
+		setupMock   func(shared.ID, shared.ID)
 		wantErr     bool
 		errContains string
 		validate    func(*testing.T, *dto.OrderDetailResponse)
@@ -296,8 +296,8 @@ func TestOrderService_GetOrder(t *testing.T) {
 		{
 			name:    "get existing order",
 			orderID: shared.ID(123),
-			shopID:  456,
-			setupMock: func() {
+			shopID:  shared.ID(456),
+			setupMock: func(orderID, shopID shared.ID) {
 				ord := &order.Order{
 					ID:         shared.ID(123),
 					UserID:     shared.ID(789),
@@ -325,13 +325,13 @@ func TestOrderService_GetOrder(t *testing.T) {
 						},
 					},
 				}
-				mockOrderRepo.On("FindByIDAndShopID", shared.ID(123), uint64(456)).Return(ord, nil)
+				mockOrderRepo.On("FindByIDAndShopID", orderID, shopID.ToUint64()).Return(ord, nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.OrderDetailResponse) {
 				assert.Equal(t, shared.ID(123), resp.ID)
 				assert.Equal(t, shared.ID(789), resp.UserID)
-				assert.Equal(t, uint64(456), resp.ShopID)
+				assert.Equal(t, shared.ID(456), resp.ShopID)
 				assert.Equal(t, shared.Price(200), resp.TotalPrice)
 				assert.Equal(t, order.OrderStatusPending, resp.Status)
 				assert.Len(t, resp.Items, 1)
@@ -343,9 +343,9 @@ func TestOrderService_GetOrder(t *testing.T) {
 		{
 			name:    "order not found",
 			orderID: shared.ID(999),
-			shopID:  456,
-			setupMock: func() {
-				mockOrderRepo.On("FindByIDAndShopID", shared.ID(999), uint64(456)).Return(nil, errors.New("not found"))
+			shopID:  shared.ID(456),
+			setupMock: func(orderID, shopID shared.ID) {
+				mockOrderRepo.On("FindByIDAndShopID", orderID, shopID.ToUint64()).Return(nil, errors.New("not found"))
 			},
 			wantErr:     true,
 			errContains: "not found",
@@ -354,7 +354,7 @@ func TestOrderService_GetOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.orderID, tt.shopID)
 
 			got, err := service.GetOrder(tt.orderID, tt.shopID)
 
@@ -397,24 +397,24 @@ func TestOrderService_GetOrders(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		shopID      uint64
+		shopID      shared.ID
 		page        int
 		pageSize    int
-		setupMock   func()
+		setupMock   func(shared.ID, int, int)
 		wantErr     bool
 		validate    func(*testing.T, *dto.OrderListResponse)
 	}{
 		{
 			name:     "get orders successfully",
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     1,
 			pageSize: 10,
-			setupMock: func() {
+			setupMock: func(shopID shared.ID, page, pageSize int) {
 				orders := []order.Order{
 					{ID: shared.ID(1), UserID: shared.ID(10), ShopID: 456, TotalPrice: shared.Price(100), Status: order.OrderStatusPending},
 					{ID: shared.ID(2), UserID: shared.ID(11), ShopID: 456, TotalPrice: shared.Price(200), Status: order.OrderStatusAccepted},
 				}
-				mockOrderRepo.On("FindByShopID", uint64(456), 1, 10).Return(orders, int64(2), nil)
+				mockOrderRepo.On("FindByShopID", shopID.ToUint64(), page, pageSize).Return(orders, int64(2), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.OrderListResponse) {
@@ -428,11 +428,11 @@ func TestOrderService_GetOrders(t *testing.T) {
 		},
 		{
 			name:     "empty orders",
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     2,
 			pageSize: 10,
-			setupMock: func() {
-				mockOrderRepo.On("FindByShopID", uint64(456), 2, 10).Return([]order.Order{}, int64(0), nil)
+			setupMock: func(shopID shared.ID, page, pageSize int) {
+				mockOrderRepo.On("FindByShopID", shopID.ToUint64(), page, pageSize).Return([]order.Order{}, int64(0), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.OrderListResponse) {
@@ -444,7 +444,7 @@ func TestOrderService_GetOrders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.shopID, tt.page, tt.pageSize)
 
 			got, err := service.GetOrders(tt.shopID, tt.page, tt.pageSize)
 
@@ -487,24 +487,24 @@ func TestOrderService_GetOrdersByUser(t *testing.T) {
 	tests := []struct {
 		name        string
 		userID      shared.ID
-		shopID      uint64
+		shopID      shared.ID
 		page        int
 		pageSize    int
-		setupMock   func()
+		setupMock   func(shared.ID, shared.ID, int, int)
 		wantErr     bool
 		validate    func(*testing.T, *dto.OrderListResponse)
 	}{
 		{
 			name:     "get user orders successfully",
 			userID:   shared.ID(100),
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     1,
 			pageSize: 10,
-			setupMock: func() {
+			setupMock: func(userID, shopID shared.ID, page, pageSize int) {
 				orders := []order.Order{
 					{ID: shared.ID(1), UserID: shared.ID(100), ShopID: 456, TotalPrice: shared.Price(100), Status: order.OrderStatusPending},
 				}
-				mockOrderRepo.On("FindByUserID", shared.ID(100), uint64(456), 1, 10).Return(orders, int64(1), nil)
+				mockOrderRepo.On("FindByUserID", userID, shopID.ToUint64(), page, pageSize).Return(orders, int64(1), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.OrderListResponse) {
@@ -517,7 +517,7 @@ func TestOrderService_GetOrdersByUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.userID, tt.shopID, tt.page, tt.pageSize)
 
 			got, err := service.GetOrdersByUser(tt.userID, tt.shopID, tt.page, tt.pageSize)
 
@@ -566,24 +566,24 @@ func TestOrderService_GetUnfinishedOrders(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		shopID      uint64
+		shopID      shared.ID
 		page        int
 		pageSize    int
-		setupMock   func()
+		setupMock   func(shared.ID, order.OrderStatusFlow, int, int)
 		wantErr     bool
 		validate    func(*testing.T, *dto.OrderListResponse)
 	}{
 		{
 			name:     "get unfinished orders",
-			shopID:   456,
+			shopID:   shared.ID(456),
 			page:     1,
 			pageSize: 10,
-			setupMock: func() {
+			setupMock: func(shopID shared.ID, flow order.OrderStatusFlow, page, pageSize int) {
 				orders := []order.Order{
 					{ID: shared.ID(1), ShopID: 456, Status: order.OrderStatusPending},
 					{ID: shared.ID(2), ShopID: 456, Status: order.OrderStatusAccepted},
 				}
-				mockOrderRepo.On("FindUnfinishedByShopID", uint64(456), flow, 1, 10).Return(orders, int64(2), nil)
+				mockOrderRepo.On("FindUnfinishedByShopID", shopID.ToUint64(), flow, page, pageSize).Return(orders, int64(2), nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, resp *dto.OrderListResponse) {
@@ -595,7 +595,7 @@ func TestOrderService_GetUnfinishedOrders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setupMock()
+			tt.setupMock(tt.shopID, flow, tt.page, tt.pageSize)
 
 			got, err := service.GetUnfinishedOrders(tt.shopID, flow, tt.page, tt.pageSize)
 

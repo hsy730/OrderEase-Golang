@@ -10,7 +10,7 @@ import (
 
 type CreateOrderRequest struct {
 	UserID shared.ID
-	ShopID uint64
+	ShopID shared.ID
 	Items  []CreateOrderItemRequest
 	Remark string
 }
@@ -30,7 +30,7 @@ type CreateOrderItemOption struct {
 type OrderResponse struct {
 	ID         shared.ID
 	UserID     shared.ID
-	ShopID     uint64
+	ShopID     shared.ID
 	TotalPrice shared.Price
 	Status     order.OrderStatus
 	Remark     string
@@ -41,7 +41,7 @@ type OrderResponse struct {
 type OrderDetailResponse struct {
 	ID         shared.ID
 	UserID     shared.ID
-	ShopID     uint64
+	ShopID     shared.ID
 	TotalPrice shared.Price
 	Status     order.OrderStatus
 	Remark     string
@@ -79,7 +79,7 @@ type OrderListResponse struct {
 }
 
 type SearchOrdersRequest struct {
-	ShopID       uint64
+	ShopID       shared.ID
 	UserID       string
 	Statuses     []order.OrderStatus
 	StartTime    time.Time
@@ -91,7 +91,7 @@ type SearchOrdersRequest struct {
 }
 
 type CreateProductRequest struct {
-	ShopID          uint64
+	ShopID          shared.ID
 	Name            string
 	Description     string
 	Price           float64
@@ -117,7 +117,7 @@ type CreateProductOptionRequest struct {
 
 type ProductResponse struct {
 	ID              shared.ID
-	ShopID          uint64
+	ShopID          shared.ID
 	Name            string
 	Description     string
 	Price           shared.Price
@@ -174,7 +174,7 @@ type CreateShopRequest struct {
 }
 
 type UpdateShopRequest struct {
-	ID              uint64
+	ID              shared.ID
 	OwnerUsername   string
 	OwnerPassword   *string
 	Name            string
@@ -188,7 +188,7 @@ type UpdateShopRequest struct {
 }
 
 type ShopResponse struct {
-	ID            uint64
+	ID            shared.ID
 	Name          string
 	OwnerUsername string
 	ContactPhone  string
@@ -211,14 +211,14 @@ type ShopListResponse struct {
 }
 
 type CreateTagRequest struct {
-	ShopID      uint64
+	ShopID      shared.ID
 	Name        string
 	Description string
 }
 
 type TagResponse struct {
 	ID          int
-	ShopID      uint64
+	ShopID      shared.ID
 	Name        string
 	Description string
 	CreatedAt   time.Time

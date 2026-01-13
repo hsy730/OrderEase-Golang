@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -62,13 +63,14 @@ type OrderStatusFlowRequest struct {
 // @Security BearerAuth
 // @Router /shop/{shopId}/tags [get]
 func (h *Handler) GetShopTags(c *gin.Context) {
-	shopID, err := strconv.ParseUint(c.Param("shopId"), 10, 64)
+	shopIDUint64, err := strconv.ParseUint(c.Param("shopId"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
+	shopID := snowflake.ID(shopIDUint64)
 
-	tags, err := h.productRepo.GetShopTagsByID(shopID)
+	tags, err := h.productRepo.GetShopTagsByID(uint64(shopID))
 	if err != nil {
 		h.logger.Errorf("查询店铺标签失败，ID: %d，错误: %v", shopID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
@@ -447,11 +449,12 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 // @Security BearerAuth
 // @Router /admin/shop/delete [delete]
 func (h *Handler) DeleteShop(c *gin.Context) {
-	shopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	shopIDUint64, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
+	shopID := snowflake.ID(shopIDUint64)
 
 	// 开启事务
 	tx := h.DB.Begin()
@@ -534,11 +537,12 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 	const maxZipSize = 512 * 1024
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
 
-	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	idUint64, err := strconv.ParseUint(c.Query("id"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少店铺ID")
 		return
 	}
+	id := snowflake.ID(idUint64)
 
 	// 查询店铺
 	var shop models.Shop
@@ -683,11 +687,12 @@ func (h *Handler) GetShopImage(c *gin.Context) {
 func (h *Handler) GetShopTempToken(c *gin.Context) {
 	// 从URL参数中获取shopID
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopIDUint64, err := strconv.ParseUint(shopIDStr, 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
+	shopID := snowflake.ID(shopIDUint64)
 
 	// 验证店铺是否存在
 	var shop models.Shop
@@ -697,7 +702,7 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 	}
 
 	// 获取有效令牌
-	token, err := h.tempTokenService.GetValidTempToken(shopID)
+	token, err := h.tempTokenService.GetValidTempToken(uint64(shopID))
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取临时令牌失败")
 		return

@@ -5,13 +5,14 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 )
 
 // 在 ShopRepository 结构体新增方法
 func (r *ProductRepository) GetShopByID(shopID uint64) (*models.Shop, error) {
 	var shop models.Shop
-	err := r.DB.First(&shop, shopID).Error
+	err := r.DB.Where("id = ?", snowflake.ID(shopID)).First(&shop).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.New("店铺不存在")

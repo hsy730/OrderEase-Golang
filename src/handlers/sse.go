@@ -99,7 +99,7 @@ func (h *Handler) SSEConnection(c *gin.Context) {
 			}
 			
 			// 检查订单是否属于当前店铺
-			if order.ShopID == validShopID {
+			if order.ShopID == validShopID { // order.ShopID和validShopID都是snowflake.ID类型
 				// 推送订单事件给客户端
 				c.Stream(func(w io.Writer) bool {
 					c.SSEvent("new_order", order)

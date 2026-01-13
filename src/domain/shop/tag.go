@@ -3,19 +3,21 @@ package shop
 import (
 	"errors"
 	"time"
+
+	"orderease/domain/shared"
 )
 
 type Tag struct {
 	ID          int
-	ShopID      uint64
+	ShopID      shared.ID
 	Name        string
 	Description string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
-func NewTag(shopID uint64, name, description string) (*Tag, error) {
-	if shopID == 0 {
+func NewTag(shopID shared.ID, name, description string) (*Tag, error) {
+	if shopID.Value() == 0 {
 		return nil, errors.New("店铺ID不能为空")
 	}
 

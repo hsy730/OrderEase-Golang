@@ -22,7 +22,7 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 func (r *ProductRepository) GetProductByID(id uint64, shopID uint64) (*models.Product, error) {
 	var product models.Product
 	// 使用嵌套Preload预加载商品的选项类别及其选项
-	err := r.DB.Where("shop_id = ?", shopID).
+	err := r.DB.Where("shop_id = ?", snowflake.ID(shopID)).
 		Preload("OptionCategories.Options"). // 嵌套预加载选项类别及其选项
 		First(&product, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -38,7 +38,7 @@ func (r *ProductRepository) GetProductByID(id uint64, shopID uint64) (*models.Pr
 // 通用商品查询方法
 func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) ([]models.Product, error) {
 	var products []models.Product
-	if err := r.DB.Select("id").Where("id IN (?) AND shop_id = ?", ids, shopID).Find(&products).Error; err != nil {
+	if err := r.DB.Select("id").Where("id IN (?) AND shop_id = ?", ids, snowflake.ID(shopID)).Find(&products).Error; err != nil {
 		return nil, err
 	}
 	return products, nil
@@ -47,7 +47,7 @@ func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) 
 // CheckShopExists 校验店铺ID合法性
 func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
     var count int64
-    if err := r.DB.Model(&models.Shop{}).Where("id = ?", shopID).Count(&count).Error; err != nil {
+    if err := r.DB.Model(&models.Shop{}).Where("id = ?", snowflake.ID(shopID)).Count(&count).Error; err != nil {
         log2.Errorf("CheckShopExists failed: %v", err)
         return false, errors.New("店铺校验失败")
     }
@@ -58,7 +58,7 @@ func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
 func (r *ProductRepository) GetShopProducts(shopID uint64, productIDs []snowflake.ID) ([]models.Product, error) {
     var products []models.Product
     if err := r.DB.Select("id").
-        Where("shop_id = ? AND id IN (?)", shopID, productIDs).
+        Where("shop_id = ? AND id IN (?)", snowflake.ID(shopID), productIDs).
         Find(&products).Error; err != nil {
         return nil, err
     }

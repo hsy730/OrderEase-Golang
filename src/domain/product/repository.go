@@ -32,7 +32,7 @@ type ProductOptionRepository interface {
 }
 
 type ProductTagRepository interface {
-	Save(productID shared.ID, tagID int) error
+	Save(productID shared.ID, tagID int, shopID uint64) error
 	FindByProductID(productID shared.ID) ([]int, error)
 	FindByTagID(tagID int) ([]shared.ID, error)
 	DeleteByProductID(productID shared.ID) error

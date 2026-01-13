@@ -5,6 +5,7 @@ import (
 	"orderease/application/dto"
 	"orderease/application/services"
 	"orderease/domain/order"
+	"orderease/domain/shared"
 	"orderease/utils/log2"
 	"strconv"
 	"time"
@@ -49,8 +50,8 @@ func (h *ShopHandler) CreateShop(c *gin.Context) {
 
 func (h *ShopHandler) GetShopInfo(c *gin.Context) {
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
-	if err != nil || shopID <= 0 {
+	shopID, err := shared.ParseIDFromString(shopIDStr)
+	if err != nil || shopID.IsZero() {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
@@ -61,7 +62,7 @@ func (h *ShopHandler) GetShopInfo(c *gin.Context) {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
-		log2.Errorf("查询店铺失败，ID: %d，错误: %v", shopID, err)
+		log2.Errorf("查询店铺失败，ID: %s，错误: %v", shopID.String(), err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
@@ -111,7 +112,7 @@ func (h *ShopHandler) UpdateShop(c *gin.Context) {
 
 func (h *ShopHandler) DeleteShop(c *gin.Context) {
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -147,7 +148,7 @@ func (h *ShopHandler) CheckShopNameExists(c *gin.Context) {
 
 func (h *ShopHandler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
-		ShopID          uint64                 `json:"shop_id" binding:"required"`
+		ShopID          shared.ID              `json:"shop_id" binding:"required"`
 		OrderStatusFlow order.OrderStatusFlow `json:"order_status_flow" binding:"required"`
 	}
 
@@ -170,7 +171,7 @@ func (h *ShopHandler) UpdateOrderStatusFlow(c *gin.Context) {
 
 func (h *ShopHandler) GetShopTags(c *gin.Context) {
 	shopIDStr := c.Param("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -178,7 +179,7 @@ func (h *ShopHandler) GetShopTags(c *gin.Context) {
 
 	response, err := h.shopService.GetShopTags(shopID)
 	if err != nil {
-		log2.Errorf("查询店铺标签失败，ID: %d，错误: %v", shopID, err)
+		log2.Errorf("查询店铺标签失败，ID: %s，错误: %v", shopID.String(), err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}

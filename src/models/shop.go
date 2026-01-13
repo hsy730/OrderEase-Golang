@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 
 	"golang.org/x/crypto/bcrypt"
@@ -48,7 +49,7 @@ func (osf *OrderStatusFlow) Scan(value interface{}) error {
 }
 
 type Shop struct {
-	ID            uint64 `gorm:"column:id;primarykey" json:"id"`
+	ID            snowflake.ID `gorm:"column:id;primarykey;autoIncrement:false" json:"id"`
 	Name          string `gorm:"column:name;size:100;not null" json:"name"`                                //店名
 	OwnerUsername string `gorm:"column:owner_username;size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
 	OwnerPassword string `gorm:"column:owner_password;size:255;not null" json:"-"`                         // 店主登录密码

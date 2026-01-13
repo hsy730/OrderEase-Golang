@@ -6,6 +6,7 @@ import (
 	"orderease/application/dto"
 	"orderease/domain/order"
 	"orderease/domain/product"
+	"orderease/domain/shared"
 	"orderease/domain/shop"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -65,7 +66,7 @@ func (s *ShopService) CreateShop(req *dto.CreateShopRequest) (*dto.ShopResponse,
 	return s.toShopResponse(shopEntity), nil
 }
 
-func (s *ShopService) GetShop(id uint64) (*dto.ShopResponse, error) {
+func (s *ShopService) GetShop(id shared.ID) (*dto.ShopResponse, error) {
 	shopEntity, err := s.shopRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -143,8 +144,8 @@ func (s *ShopService) UpdateShop(req *dto.UpdateShopRequest) (*dto.ShopResponse,
 	return s.toShopResponse(shopEntity), nil
 }
 
-func (s *ShopService) DeleteShop(id uint64) error {
-	products, _, err := s.productRepo.FindByShopID(id, 1, 1, "", false)
+func (s *ShopService) DeleteShop(id shared.ID) error {
+	products, _, err := s.productRepo.FindByShopID(id.ToUint64(), 1, 1, "", false)
 	if err == nil && len(products) > 0 {
 		return errors.New("存在关联商品，无法删除店铺")
 	}
@@ -167,7 +168,7 @@ func (s *ShopService) CheckShopNameExists(name string) (bool, error) {
 	return true, nil
 }
 
-func (s *ShopService) UploadShopImage(id uint64, file *os.File, filename string) (string, error) {
+func (s *ShopService) UploadShopImage(id shared.ID, file *os.File, filename string) (string, error) {
 	shopEntity, err := s.shopRepo.FindByID(id)
 	if err != nil {
 		return "", err
@@ -185,7 +186,7 @@ func (s *ShopService) UploadShopImage(id uint64, file *os.File, filename string)
 		}
 	}
 
-	newFilename := fmt.Sprintf("shop_%d_%d%s", id, time.Now().Unix(), filepath.Ext(filename))
+	newFilename := fmt.Sprintf("shop_%d_%d%s", id.ToUint64(), time.Now().Unix(), filepath.Ext(filename))
 	imagePath := filepath.Join(uploadDir, newFilename)
 
 	dst, err := os.Create(imagePath)
@@ -210,7 +211,7 @@ func (s *ShopService) UploadShopImage(id uint64, file *os.File, filename string)
 	return newFilename, nil
 }
 
-func (s *ShopService) UpdateOrderStatusFlow(shopID uint64, flow order.OrderStatusFlow) error {
+func (s *ShopService) UpdateOrderStatusFlow(shopID shared.ID, flow order.OrderStatusFlow) error {
 	shopEntity, err := s.shopRepo.FindByID(shopID)
 	if err != nil {
 		return err
@@ -227,7 +228,7 @@ func (s *ShopService) UpdateOrderStatusFlow(shopID uint64, flow order.OrderStatu
 	return nil
 }
 
-func (s *ShopService) GetShopTags(shopID uint64) (*dto.TagListResponse, error) {
+func (s *ShopService) GetShopTags(shopID shared.ID) (*dto.TagListResponse, error) {
 	tags, err := s.tagRepo.FindByShopID(shopID)
 	if err != nil {
 		return nil, err
@@ -237,7 +238,7 @@ func (s *ShopService) GetShopTags(shopID uint64) (*dto.TagListResponse, error) {
 	for i, tag := range tags {
 		tagResponses[i] = dto.TagResponse{
 			ID:          tag.ID,
-			ShopID:      tag.ShopID,
+			ShopID:      shared.ParseIDFromUint64(uint64(tag.ShopID)),
 			Name:        tag.Name,
 			Description: tag.Description,
 			CreatedAt:   tag.CreatedAt,

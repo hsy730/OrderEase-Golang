@@ -8,6 +8,7 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 )
 
@@ -269,11 +270,11 @@ func NewProductTagRepository(db *gorm.DB) product.ProductTagRepository {
 	return &ProductTagRepositoryImpl{db: db}
 }
 
-func (r *ProductTagRepositoryImpl) Save(productID shared.ID, tagID int) error {
+func (r *ProductTagRepositoryImpl) Save(productID shared.ID, tagID int, shopID uint64) error {
 	productTag := models.ProductTag{
 		ProductID: productID.Value(),
 		TagID:     tagID,
-		ShopID:    0,
+		ShopID:    snowflake.ID(shopID),
 	}
 	if err := r.db.Create(&productTag).Error; err != nil {
 		log2.Errorf("保存商品标签关联失败: %v", err)
