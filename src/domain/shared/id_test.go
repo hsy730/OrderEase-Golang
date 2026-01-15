@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"orderease/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,9 +33,9 @@ func TestID_IsZero(t *testing.T) {
 
 func TestParseIDFromString(t *testing.T) {
 	tests := []struct {
-		name    string
-		s       string
-		wantErr bool
+		name     string
+		s        string
+		wantErr  bool
 		validate func(*testing.T, ID)
 	}{
 		{
@@ -174,9 +175,9 @@ func TestID_String(t *testing.T) {
 
 func TestID_Comparisons(t *testing.T) {
 	tests := []struct {
-		name     string
-		id1      ID
-		id2      ID
+		name      string
+		id1       ID
+		id2       ID
 		wantEqual bool
 		wantLess  bool
 	}{
@@ -204,4 +205,9 @@ func TestID_Comparisons(t *testing.T) {
 			assert.Equal(t, tt.id1, ParseIDFromUint64(tt.id1.ToUint64()))
 		})
 	}
+}
+
+func TestID_GenerateSnowflakeID(t *testing.T) {
+	id := ID(utils.GenerateSnowflakeID())
+	assert.False(t, id.IsZero(), "Generated Snowflake ID should not be zero")
 }

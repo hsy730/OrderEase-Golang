@@ -6,22 +6,23 @@ import (
 
 	"orderease/domain/order"
 	"orderease/domain/shared"
+	"orderease/utils"
 )
 
 type Shop struct {
-	ID            shared.ID
-	Name          string
-	OwnerUsername string
-	OwnerPassword string
-	ContactPhone  string
-	ContactEmail  string
-	Address       string
-	ImageURL      string
-	Description   string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	ValidUntil    time.Time
-	Settings      string
+	ID              shared.ID
+	Name            string
+	OwnerUsername   string
+	OwnerPassword   string
+	ContactPhone    string
+	ContactEmail    string
+	Address         string
+	ImageURL        string
+	Description     string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ValidUntil      time.Time
+	Settings        string
 	OrderStatusFlow order.OrderStatusFlow
 }
 
@@ -45,6 +46,7 @@ func NewShop(name, ownerUsername, ownerPassword string, validUntil time.Time) (*
 	now := time.Now()
 
 	return &Shop{
+		ID:            shared.ID(utils.GenerateSnowflakeID()),
 		Name:          name,
 		OwnerUsername: ownerUsername,
 		OwnerPassword: ownerPassword,

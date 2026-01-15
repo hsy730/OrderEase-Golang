@@ -161,30 +161,30 @@ type UpdateProductStatusRequest struct {
 }
 
 type CreateShopRequest struct {
-	Name            string
-	OwnerUsername   string
-	OwnerPassword   string
-	ContactPhone    string
-	ContactEmail    string
-	Description     string
-	ValidUntil      time.Time
-	Address         string
-	Settings        string
-	OrderStatusFlow *order.OrderStatusFlow
+	Name            string    `json:"name"`
+	OwnerUsername   string    `json:"owner_username"`
+	OwnerPassword   string    `json:"owner_password"`
+	ContactPhone    string    `json:"contact_phone"`
+	ContactEmail    string    `json:"contact_email"`
+	Description     string    `json:"description"`
+	ValidUntil      time.Time `json:"valid_until"`
+	Address         string    `json:"address"`
+	Settings        string    `json:"settings"`
+	OrderStatusFlow *order.OrderStatusFlow `json:"order_status_flow"`
 }
 
 type UpdateShopRequest struct {
-	ID              shared.ID
-	OwnerUsername   string
-	OwnerPassword   *string
-	Name            string
-	ContactPhone    string
-	ContactEmail    string
-	Description     string
-	ValidUntil      time.Time
-	Address         string
-	Settings        string
-	OrderStatusFlow *order.OrderStatusFlow
+	ID              shared.ID  `json:"id"`
+	OwnerUsername   string    `json:"owner_username"`
+	OwnerPassword   *string   `json:"owner_password"`
+	Name            string    `json:"name"`
+	ContactPhone    string    `json:"contact_phone"`
+	ContactEmail    string    `json:"contact_email"`
+	Description     string    `json:"description"`
+	ValidUntil      time.Time `json:"valid_until"`
+	Address         string    `json:"address"`
+	Settings        string    `json:"settings"`
+	OrderStatusFlow *order.OrderStatusFlow `json:"order_status_flow"`
 }
 
 type ShopResponse struct {
@@ -211,18 +211,18 @@ type ShopListResponse struct {
 }
 
 type CreateTagRequest struct {
-	ShopID      shared.ID
-	Name        string
-	Description string
+	ShopID      shared.ID  `json:"shop_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
 }
 
 type TagResponse struct {
-	ID          int
-	ShopID      shared.ID
-	Name        string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int       `json:"id"`
+	ShopID      shared.ID `json:"shop_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type TagListResponse struct {
@@ -235,6 +235,16 @@ type CreateUserRequest struct {
 	Role     user.UserRole
 	Type     user.UserType
 	Password string
+	Phone    string
+	Address  string
+}
+
+type UpdateUserRequest struct {
+	ID       shared.ID
+	Name     string
+	Role     string
+	Type     string
+	Password *string
 	Phone    string
 	Address  string
 }

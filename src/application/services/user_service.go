@@ -60,7 +60,8 @@ func (s *UserService) GetUserByName(name string) (*dto.UserResponse, error) {
 	return s.toUserResponse(userEntity), nil
 }
 
-func (s *UserService) GetUsers(page, pageSize int) (*dto.UserListResponse, error) {
+func (s *UserService) GetUsers(page, pageSize int, search string) (*dto.UserListResponse, error) {
+	// TODO: 实现搜索功能
 	users, total, err := s.userRepo.FindAll(page, pageSize)
 	if err != nil {
 		return nil, err
@@ -79,21 +80,36 @@ func (s *UserService) GetUsers(page, pageSize int) (*dto.UserListResponse, error
 	}, nil
 }
 
-func (s *UserService) UpdateUser(id shared.ID, name, phone, address string) error {
-	userEntity, err := s.userRepo.FindByID(id)
+func (s *UserService) UpdateUser(req *dto.UpdateUserRequest) (*dto.UserResponse, error) {
+	userEntity, err := s.userRepo.FindByID(req.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := userEntity.UpdateBasicInfo(name, phone, address); err != nil {
-		return err
+	if req.Name != "" {
+		userEntity.Name = req.Name
+	}
+	if req.Phone != "" {
+		userEntity.Phone = req.Phone
+	}
+	if req.Address != "" {
+		userEntity.Address = req.Address
+	}
+	if req.Role != "" {
+		userEntity.Role = user.UserRole(req.Role)
+	}
+	if req.Type != "" {
+		userEntity.Type = user.UserType(req.Type)
+	}
+	if req.Password != nil {
+		userEntity.Password = *req.Password
 	}
 
 	if err := s.userRepo.Update(userEntity); err != nil {
-		return errors.New("更新用户失败")
+		return nil, errors.New("更新用户失败")
 	}
 
-	return nil
+	return s.toUserResponse(userEntity), nil
 }
 
 func (s *UserService) DeleteUser(id shared.ID) error {
@@ -102,6 +118,17 @@ func (s *UserService) DeleteUser(id shared.ID) error {
 	}
 
 	return nil
+}
+
+func (s *UserService) CheckUsernameExists(username string) (bool, error) {
+	_, err := s.userRepo.FindByName(username)
+	if err != nil {
+		if err.Error() == "用户不存在" {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *UserService) toUserResponse(userEntity *user.User) *dto.UserResponse {

@@ -55,9 +55,14 @@ func InitLogger() {
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
+	
+	// 控制台编码器使用更简单的格式，避免在Windows控制台出现乱码
+	consoleEncoderConfig := encoderConfig
+	consoleEncoderConfig.EncodeTime = zapcore.EpochTimeEncoder
+	consoleEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	// 创建不同输出的core
-	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
+	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
 	fileEncoder := zapcore.NewJSONEncoder(encoderConfig)
 
 	// 创建不同级别的日志输出

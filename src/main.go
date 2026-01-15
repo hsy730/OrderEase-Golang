@@ -6,10 +6,10 @@ import (
 	stdhttp "net/http"
 	"orderease/config"
 	"orderease/database"
+	appservices "orderease/application/services"
 	"orderease/handlers"
-	"orderease/routes"
-	_ "orderease/routes/backend"
-	_ "orderease/routes/frontend"
+	httpinterfaces "orderease/interfaces/http"
+	// oldroutes "orderease/routes" // @Deprecated - 旧路由已废弃
 	oldservices "orderease/services"
 	"orderease/tasks"
 	"orderease/utils/log2"
@@ -124,11 +124,23 @@ func main() {
 	}
 	log2.Info("数据库连接成功")
 
-	// 初始化 handlers
-	handler := handlers.NewHandler(db)
+	// 初始化服务容器（新 DDD 架构）
+	serviceContainer, err := appservices.InitializeServiceContainer(db)
+	if err != nil {
+		log.Fatalf("服务容器初始化失败: %v", err)
+	}
+	log2.Info("服务容器初始化成功")
 
-	// 设置路由
-	routes.SetupRoutes(r, handler)
+	// 初始化 handlers（旧架构 - 已标记为 @Deprecated）
+	// 保留用于向后兼容，某些功能可能仍需要，后续版本将移除
+	_ = handlers.NewHandler(db)
+
+	// 设置路由 - 使用新 DDD 架构路由
+	router := httpinterfaces.NewRouter(db, serviceContainer)
+	router.SetupRoutes(r)
+
+	// 旧路由已标记为 @Deprecated，将在下个版本移除
+	// routes.SetupRoutes(r, handler) // @Deprecated
 
 	// Swagger 文档路由
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -176,6 +188,6 @@ func main() {
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
-	log2.Info("服务器启动在 %s", serverAddr)
+	log2.Infof("服务器启动在 %s", serverAddr)
 	log2.Fatal(r.Run(serverAddr))
 }

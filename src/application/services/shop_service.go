@@ -252,6 +252,71 @@ func (s *ShopService) GetShopTags(shopID shared.ID) (*dto.TagListResponse, error
 	}, nil
 }
 
+func (s *ShopService) CreateTag(req *dto.CreateTagRequest) (*dto.TagResponse, error) {
+	tagEntity, err := shop.NewTag(req.ShopID, req.Name, req.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.tagRepo.Save(tagEntity); err != nil {
+		return nil, errors.New("创建标签失败")
+	}
+
+	return &dto.TagResponse{
+		ID:          tagEntity.ID,
+		ShopID:      tagEntity.ShopID,
+		Name:        tagEntity.Name,
+		Description: tagEntity.Description,
+		CreatedAt:   tagEntity.CreatedAt,
+		UpdatedAt:   tagEntity.UpdatedAt,
+	}, nil
+}
+
+func (s *ShopService) UpdateTag(id int, req *dto.CreateTagRequest) (*dto.TagResponse, error) {
+	tagEntity, err := s.tagRepo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tagEntity.Update(req.Name, req.Description); err != nil {
+		return nil, err
+	}
+
+	if err := s.tagRepo.Update(tagEntity); err != nil {
+		return nil, errors.New("更新标签失败")
+	}
+
+	return &dto.TagResponse{
+		ID:          tagEntity.ID,
+		ShopID:      tagEntity.ShopID,
+		Name:        tagEntity.Name,
+		Description: tagEntity.Description,
+		CreatedAt:   tagEntity.CreatedAt,
+		UpdatedAt:   tagEntity.UpdatedAt,
+	}, nil
+}
+
+func (s *ShopService) DeleteTag(id int) error {
+	// TODO: 检查是否有关联商品
+	return s.tagRepo.Delete(id)
+}
+
+func (s *ShopService) GetTag(id int) (*dto.TagResponse, error) {
+	tagEntity, err := s.tagRepo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.TagResponse{
+		ID:          tagEntity.ID,
+		ShopID:      tagEntity.ShopID,
+		Name:        tagEntity.Name,
+		Description: tagEntity.Description,
+		CreatedAt:   tagEntity.CreatedAt,
+		UpdatedAt:   tagEntity.UpdatedAt,
+	}, nil
+}
+
 func (s *ShopService) toShopResponse(shopEntity *shop.Shop) *dto.ShopResponse {
 	return &dto.ShopResponse{
 		ID:            shopEntity.ID,

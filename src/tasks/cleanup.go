@@ -68,7 +68,7 @@ func (t *CleanupTask) cleanupOrders(tx *gorm.DB) error {
 	// 查找需要删除的订单
 	var orders []models.Order
 	if err := tx.Where("status = ? AND updated_at < ?",
-		models.OrderStatusComplete, threeMonthsAgo).
+		int(models.OrderStatusComplete), threeMonthsAgo).
 		Find(&orders).Error; err != nil {
 		return err
 	}

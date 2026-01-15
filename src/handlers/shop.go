@@ -1,3 +1,8 @@
+// @Deprecated
+// 本文件中的 Handler 已被废弃，请使用 interfaces/http/shop_handler.go 中的新 Handler
+// 新 Handler 遵循 DDD 架构，通过 application/services/shop_service.go 处理业务逻辑
+// 旧 Handler 将在下个版本 (v2.0) 中完全移除
+//
 package handlers
 
 import (
@@ -265,6 +270,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	}
 
 	newShop := models.Shop{
+		ID:              utils.GenerateSnowflakeID(),
 		Name:            shopData.Name,
 		OwnerUsername:   shopData.OwnerUsername,
 		OwnerPassword:   shopData.OwnerPassword, // 密码将在BeforeSave钩子中加密

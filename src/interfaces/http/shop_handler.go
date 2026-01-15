@@ -37,10 +37,12 @@ func (h *ShopHandler) CreateShop(c *gin.Context) {
 
 	response, err := h.shopService.CreateShop(&req)
 	if err != nil {
-		log2.Errorf("创建店铺失败: %v", err)
+		log2.Errorf("create shop failed: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	log2.Infof("create shop success, ID: %s", response.ID.String())
 
 	successResponse(c, gin.H{
 		"code": 200,
@@ -148,7 +150,7 @@ func (h *ShopHandler) CheckShopNameExists(c *gin.Context) {
 
 func (h *ShopHandler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
-		ShopID          shared.ID              `json:"shop_id" binding:"required"`
+		ShopID          shared.ID             `json:"shop_id" binding:"required"`
 		OrderStatusFlow order.OrderStatusFlow `json:"order_status_flow" binding:"required"`
 	}
 
@@ -171,6 +173,9 @@ func (h *ShopHandler) UpdateOrderStatusFlow(c *gin.Context) {
 
 func (h *ShopHandler) GetShopTags(c *gin.Context) {
 	shopIDStr := c.Param("shop_id")
+	if shopIDStr == "" {
+		shopIDStr = c.Query("shop_id")
+	}
 	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
@@ -181,6 +186,94 @@ func (h *ShopHandler) GetShopTags(c *gin.Context) {
 	if err != nil {
 		log2.Errorf("查询店铺标签失败，ID: %s，错误: %v", shopID.String(), err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+
+	successResponse(c, response)
+}
+
+func (h *ShopHandler) CreateTag(c *gin.Context) {
+	var req dto.CreateTagRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
+		return
+	}
+
+	response, err := h.shopService.CreateTag(&req)
+	if err != nil {
+		log2.Errorf("创建标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, response)
+}
+
+func (h *ShopHandler) UpdateTag(c *gin.Context) {
+	idStr := c.Query("id")
+	if idStr == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的标签ID")
+		return
+	}
+
+	var req dto.CreateTagRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
+		return
+	}
+
+	response, err := h.shopService.UpdateTag(id, &req)
+	if err != nil {
+		log2.Errorf("更新标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, response)
+}
+
+func (h *ShopHandler) DeleteTag(c *gin.Context) {
+	idStr := c.Query("id")
+	if idStr == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的标签ID")
+		return
+	}
+
+	if err := h.shopService.DeleteTag(id); err != nil {
+		log2.Errorf("删除标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, gin.H{"message": "标签删除成功"})
+}
+
+func (h *ShopHandler) GetTag(c *gin.Context) {
+	idStr := c.Query("id")
+	if idStr == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的标签ID")
+		return
+	}
+
+	response, err := h.shopService.GetTag(id)
+	if err != nil {
+		log2.Errorf("查询标签失败: %v", err)
+		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
