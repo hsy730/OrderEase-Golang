@@ -177,7 +177,7 @@ func (s *OrderService) executeCreateOrderTransaction(ord *order.Order, finder or
 	}, nil
 }
 func (s *OrderService) GetOrder(id shared.ID, shopID shared.ID) (*dto.OrderDetailResponse, error) {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
+	ord, err := s.orderRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func (s *OrderService) SearchOrders(req *dto.SearchOrdersRequest) (*dto.OrderLis
 }
 
 func (s *OrderService) UpdateOrderStatus(id shared.ID, shopID shared.ID, newStatus order.OrderStatus, flow order.OrderStatusFlow) error {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
+	ord, err := s.orderRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
@@ -397,7 +397,7 @@ func (s *OrderService) UpdateOrderStatus(id shared.ID, shopID shared.ID, newStat
 }
 
 func (s *OrderService) DeleteOrder(id shared.ID, shopID shared.ID) error {
-	ord, err := s.orderRepo.FindByIDAndShopID(id, shopID.ToUint64())
+	ord, err := s.orderRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
@@ -434,4 +434,207 @@ func (s *OrderService) DeleteOrder(id shared.ID, shopID shared.ID) error {
 	log2.Infof("订单删除成功: %+v", ord)
 
 	return nil
+}
+
+func (s *OrderService) AdvanceSearchOrders(req *dto.AdvanceSearchOrderRequest) (*dto.OrderListResponse, error) {
+	query := s.db.Model(&order.Order{}).Where("shop_id = ?", req.ShopID.ToUint64())
+
+	// 添加用户ID筛选
+	if req.UserID != "" {
+		query = query.Where("user_id = ?", req.UserID)
+	}
+
+	// 添加状态筛选（支持多个状态）
+	if len(req.Status) > 0 {
+		query = query.Where("status IN ?", req.Status)
+	}
+
+	// 添加时间范围筛选
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, errors.New("获取订单总数失败")
+	}
+
+	// 分页查询
+	offset := (req.Page - 1) * req.PageSize
+	var orders []order.Order
+	if err := query.Offset(offset).Limit(req.PageSize).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		return nil, errors.New("查询订单列表失败")
+	}
+
+	// 转换为响应格式
+	data := make([]dto.OrderResponse, len(orders))
+	for i, ord := range orders {
+		data[i] = dto.OrderResponse{
+			ID:         ord.ID,
+			UserID:     ord.UserID,
+			ShopID:     shared.ParseIDFromUint64(uint64(ord.ShopID)),
+			TotalPrice: ord.TotalPrice,
+			Status:     ord.Status,
+			Remark:     ord.Remark,
+			CreatedAt:  ord.CreatedAt,
+			UpdatedAt:  ord.UpdatedAt,
+		}
+	}
+
+	return &dto.OrderListResponse{
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Data:     data,
+	}, nil
+}
+
+// UpdateOrder 更新订单
+func (s *OrderService) UpdateOrder(req *dto.UpdateOrderRequest) (*dto.OrderDetailResponse, error) {
+	ord, err := s.orderRepo.FindByID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 开启事务
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 删除原有的订单项和选项
+	if err := s.orderItemOptionRepo.DeleteByOrderItemID(req.ID); err != nil {
+		tx.Rollback()
+		return nil, errors.New("删除原有订单项选项失败")
+	}
+
+	if err := s.orderItemRepo.DeleteByOrderID(req.ID); err != nil {
+		tx.Rollback()
+		return nil, errors.New("删除原有订单项失败")
+	}
+
+	totalPrice := float64(0.0)
+
+	// 创建新的订单项
+	for _, itemReq := range req.Items {
+		prod, err := s.productRepo.FindByID(itemReq.ProductID)
+		if err != nil {
+			tx.Rollback()
+			return nil, errors.New("商品不存在")
+		}
+
+		orderItem := &order.OrderItem{
+			OrderID:   ord.ID,
+			ProductID: itemReq.ProductID,
+			Quantity:  itemReq.Quantity,
+			Price:     prod.Price,
+		}
+
+		// 处理选中的选项
+		var options []order.OrderItemOption
+		itemTotalPrice := float64(orderItem.Quantity) * prod.Price.ToFloat64()
+
+		for _, optionReq := range itemReq.Options {
+			// 获取参数选项信息
+			opt, err := s.productOptionRepo.FindByID(optionReq.OptionID)
+			if err != nil {
+				tx.Rollback()
+				return nil, errors.New("商品参数选项不存在")
+			}
+
+			// 获取参数类别信息
+			cat, err := s.productOptionCategoryRepo.FindByID(optionReq.CategoryID)
+			if err != nil {
+				tx.Rollback()
+				return nil, errors.New("商品参数类别不存在")
+			}
+
+			// 保存参数选项快照
+			options = append(options, order.OrderItemOption{
+				OrderItemID:     orderItem.ID,
+				OptionID:        optionReq.OptionID,
+				CategoryID:      optionReq.CategoryID,
+				OptionName:      opt.Name,
+				CategoryName:    cat.Name,
+				PriceAdjustment: opt.PriceAdjustment,
+			})
+			itemTotalPrice += float64(orderItem.Quantity) * opt.PriceAdjustment
+		}
+
+		// 设置订单项总价
+		orderItem.Options = options
+		orderItem.TotalPrice = shared.Price(itemTotalPrice)
+
+		if err := s.orderItemRepo.Save(orderItem); err != nil {
+			tx.Rollback()
+			return nil, errors.New("创建新订单项失败")
+		}
+		totalPrice += itemTotalPrice
+	}
+
+	// 更新订单信息
+	ord.ShopID = req.ShopID.ToUint64()
+	ord.Remark = req.Remark
+	ord.Status = req.Status
+	ord.TotalPrice = shared.Price(totalPrice)
+
+	if err := s.orderRepo.Update(ord); err != nil {
+		tx.Rollback()
+		return nil, errors.New("更新订单信息失败")
+	}
+
+	tx.Commit()
+
+	// 重新获取更新后的订单信息
+	ord, err = s.orderRepo.FindByID(req.ID)
+	if err != nil {
+		return nil, errors.New("获取更新后的订单信息失败")
+	}
+
+	return s.toOrderDetailResponse(ord), nil
+}
+
+// toOrderDetailResponse 转换为订单详情响应
+func (s *OrderService) toOrderDetailResponse(ord *order.Order) *dto.OrderDetailResponse {
+	items := make([]dto.OrderItemResponse, len(ord.Items))
+	for i, item := range ord.Items {
+		options := make([]dto.OrderItemOptionResponse, len(item.Options))
+		for j, opt := range item.Options {
+			options[j] = dto.OrderItemOptionResponse{
+				CategoryID:      opt.CategoryID,
+				OptionID:        opt.OptionID,
+				CategoryName:    opt.CategoryName,
+				OptionName:      opt.OptionName,
+				PriceAdjustment: opt.PriceAdjustment,
+			}
+		}
+		items[i] = dto.OrderItemResponse{
+			ProductID:       item.ProductID,
+			ProductName:     "", // 需要从商品获取
+			Quantity:        item.Quantity,
+			Price:           item.Price,
+			TotalPrice:      item.TotalPrice,
+			Options:         options,
+		}
+	}
+
+	return &dto.OrderDetailResponse{
+		ID:         ord.ID,
+		UserID:     ord.UserID,
+		ShopID:     shared.ParseIDFromUint64(ord.ShopID),
+		TotalPrice: ord.TotalPrice,
+		Status:     ord.Status,
+		Remark:     ord.Remark,
+		CreatedAt:  ord.CreatedAt,
+		UpdatedAt:  ord.UpdatedAt,
+		Items:      items,
+	}
 }

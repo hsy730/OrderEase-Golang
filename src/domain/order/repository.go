@@ -8,7 +8,7 @@ import (
 type OrderRepository interface {
 	Save(order *Order) error
 	FindByID(id shared.ID) (*Order, error)
-	FindByIDAndShopID(id shared.ID, shopID uint64) (*Order, error)
+	// FindByIDAndShopID(id shared.ID, shopID uint64) (*Order, error)
 	FindByShopID(shopID uint64, page, pageSize int) ([]Order, int64, error)
 	FindByUserID(userID shared.ID, shopID uint64, page, pageSize int) ([]Order, int64, error)
 	FindUnfinishedByShopID(shopID uint64, flow OrderStatusFlow, page, pageSize int) ([]Order, int64, error)

@@ -27,6 +27,15 @@ type CreateOrderItemOption struct {
 	OptionID   shared.ID `json:"option_id"`
 }
 
+type UpdateOrderRequest struct {
+	ID     shared.ID                `json:"id" binding:"required"`
+	UserID shared.ID                `json:"user_id"`
+	ShopID shared.ID                `json:"shop_id" binding:"required"`
+	Items  []CreateOrderItemRequest `json:"items" binding:"required"`
+	Remark string                   `json:"remark"`
+	Status order.OrderStatus        `json:"status"`
+}
+
 type OrderResponse struct {
 	ID         shared.ID         `json:"id"`
 	UserID     shared.ID         `json:"user_id"`
@@ -88,6 +97,16 @@ type SearchOrdersRequest struct {
 	EndTimeStr   string              `json:"end_time_str"`
 	Page         int                 `json:"page"`
 	PageSize     int                 `json:"page_size"`
+}
+
+type AdvanceSearchOrderRequest struct {
+	ShopID    shared.ID           `json:"shop_id"`
+	UserID    string              `json:"user_id"`
+	Status    []int               `json:"status"`
+	StartTime string              `json:"start_time"`
+	EndTime   string              `json:"end_time"`
+	Page      int                 `json:"page"`
+	PageSize  int                 `json:"page_size"`
 }
 
 type CreateProductRequest struct {

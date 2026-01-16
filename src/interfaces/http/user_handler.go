@@ -133,7 +133,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	successResponse(c, gin.H{"message": "用户删除成功"})
 }
 
-func (h *UserHandler) CheckUsernameExists(c *gin.Context) {
+func (h *UserHandler) CheckFrontendUsernameExists(c *gin.Context) {
 	username := c.Query("username")
 	if username == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少用户名")

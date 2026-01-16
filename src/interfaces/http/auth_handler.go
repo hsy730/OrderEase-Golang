@@ -9,6 +9,7 @@ import (
 	"orderease/utils/log2"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -105,30 +106,119 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Register 前端用户注册接口
-func (h *AuthHandler) Register(c *gin.Context) {
-	type RegisterRequest struct {
+func (h *AuthHandler) FrontendUserLogin(c *gin.Context) {
+	type FrontendUserLoginRequest struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
-		Phone     string `json:"phone"`
-		Address   string `json:"address"`
+	}
+	req := FrontendUserLoginRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的登录数据: "+err.Error())
+		return
+	}
+
+	// 查询用户
+	var user models.User
+	if err := h.db.Where("name = ?", req.Username).First(&user).Error; err != nil {
+		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+		return
+	}
+
+	// 验证密码（使用bcrypt验证加密后的密码）
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
+		return
+	}
+
+	// 生成token
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name, false)
+	if err != nil {
+		log2.Errorf("生成token失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "登录失败")
+		return
+	}
+
+	// 返回登录成功信息
+	responseData := gin.H{
+		"message": "登录成功",
+		"user": gin.H{
+			"id":   user.ID,
+			"name": user.Name,
+			"type": user.Type,
+		},
+		"token":     token,
+		"expiredAt": expiredAt.Unix(),
+	}
+	successResponse(c, responseData)
+}
+
+// Register 前端用户注册接口
+func (h *AuthHandler) FrontendUserRegister(c *gin.Context) {
+	type RegisterRequest struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required,min=6,max=20"`
+		Phone    string `json:"phone"`
+		Address  string `json:"address"`
 	}
 
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的注册数据: "+err.Error())
 		return
 	}
 
-	// TODO: 实现注册逻辑
-	// 1. 检查用户名是否已存在
-	// 2. 创建新用户
-	// 3. 返回成功信息
+	// 验证密码格式：6位字母或数字
+	if len(req.Password) < 6 {
+		errorResponse(c, http.StatusBadRequest, "密码为6位以上字母或数字")
+		return
+	}
+	// 检查是否至少包含一个字母或数字
+	hasValidChar := false
+	for _, c := range req.Password {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			hasValidChar = true
+			break
+		}
+	}
+	if !hasValidChar {
+		errorResponse(c, http.StatusBadRequest, "密码为6位以上字母或数字")
+		return
+	}
 
-	successResponse(c, gin.H{
-		"code":    200,
+	// 检查用户名是否已存在
+	var existingUser models.User
+	if h.db.Where("name = ?", req.Username).First(&existingUser).Error == nil {
+		errorResponse(c, http.StatusConflict, "用户名已存在")
+		return
+	}
+
+	// 创建用户对象
+	user := models.User{
+		ID:       utils.GenerateSnowflakeID(),
+		Name:     req.Username,
+		Password: req.Password,            // 存储明文密码（6位字母或数字）
+		Type:     models.UserTypeDelivery, // 默认邮寄配送
+		Role:     models.UserRolePublic,   // 默认公开用户
+		Phone:    req.Phone,
+		Address:  req.Address,
+	}
+
+	if err := h.db.Create(&user).Error; err != nil {
+		log2.Errorf("创建用户失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "注册失败")
+		return
+	}
+
+	// 返回注册成功信息，移除敏感字段
+	responseData := gin.H{
 		"message": "注册成功",
-	})
+		"user": gin.H{
+			"id":   user.ID,
+			"name": user.Name,
+			"type": user.Type,
+		},
+	}
+	successResponse(c, responseData)
 }
 
 // RefreshShopToken 刷新店主令牌

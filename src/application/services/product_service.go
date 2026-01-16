@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"io"
 	"orderease/application/dto"
 	"orderease/domain/product"
 	"orderease/domain/shared"
@@ -259,7 +260,7 @@ func (s *ProductService) UpdateProductStatus(req *dto.UpdateProductStatusRequest
 	return nil
 }
 
-func (s *ProductService) UploadProductImage(id shared.ID, shopID shared.ID, file *os.File, filename string) (string, error) {
+func (s *ProductService) UploadProductImage(id shared.ID, shopID shared.ID, file io.Reader, filename string) (string, error) {
 	prod, err := s.productRepo.FindByIDAndShopID(id, shopID.ToUint64())
 	if err != nil {
 		return "", err

@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"io"
 	"orderease/application/dto"
 	"orderease/domain/order"
 	"orderease/domain/product"
@@ -168,7 +169,7 @@ func (s *ShopService) CheckShopNameExists(name string) (bool, error) {
 	return true, nil
 }
 
-func (s *ShopService) UploadShopImage(id shared.ID, file *os.File, filename string) (string, error) {
+func (s *ShopService) UploadShopImage(id shared.ID, file io.Reader, filename string) (string, error) {
 	shopEntity, err := s.shopRepo.FindByID(id)
 	if err != nil {
 		return "", err
@@ -333,4 +334,294 @@ func (s *ShopService) toShopResponse(shopEntity *shop.Shop) *dto.ShopResponse {
 		ImageURL:      shopEntity.ImageURL,
 		OrderStatusFlow: shopEntity.OrderStatusFlow,
 	}
+}
+
+// GetBoundTags 获取商品已绑定的标签
+func (s *ShopService) GetBoundTags(productID string, shopID uint64) ([]interface{}, error) {
+	type TagResult struct {
+		ID          uint64 `json:"id"`
+		ShopID      uint64 `json:"shop_id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+
+	var tags []TagResult
+	err := s.db.Raw(`
+		SELECT tags.id, tags.shop_id, tags.name, tags.description FROM tags
+		JOIN product_tags ON product_tags.tag_id = tags.id
+		WHERE product_tags.product_id = ?
+		AND tags.shop_id = ?`, productID, shopID).Scan(&tags).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(tags))
+	for i, tag := range tags {
+		result[i] = tag
+	}
+	return result, nil
+}
+
+// GetUnboundTags 获取商品未绑定的标签
+func (s *ShopService) GetUnboundTags(productID string, shopID uint64) ([]interface{}, error) {
+	type TagResult struct {
+		ID          uint64 `json:"id"`
+		ShopID      uint64 `json:"shop_id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+
+	var tags []TagResult
+	err := s.db.Raw(`
+		SELECT * FROM tags
+		WHERE id NOT IN (
+			SELECT tag_id FROM product_tags
+			WHERE product_id = ?
+		)
+		AND shop_id = ?`, productID, shopID).Scan(&tags).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(tags))
+	for i, tag := range tags {
+		result[i] = tag
+	}
+	return result, nil
+}
+
+// BatchTagProducts 批量打标签
+func (s *ShopService) BatchTagProducts(tagID string, productIDs []string, shopID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, productID := range productIDs {
+			var existingCount int64
+			if err := tx.Raw("SELECT COUNT(*) FROM product_tags WHERE product_id = ? AND tag_id = ?",
+				productID, tagID).Count(&existingCount).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			if existingCount == 0 {
+				if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id) VALUES (?, ?)",
+					productID, tagID).Error; err != nil {
+					tx.Rollback()
+					return err
+				}
+			}
+		}
+
+	return tx.Commit().Error
+}
+
+// BatchUntagProducts 批量解绑商品标签
+func (s *ShopService) BatchUntagProducts(tagID string, productIDs []string, shopID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, productID := range productIDs {
+		if err := tx.Exec("DELETE FROM product_tags WHERE product_id = ? AND tag_id = ?",
+			productID, tagID).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
+// BatchTagProduct 批量设置商品标签
+func (s *ShopService) BatchTagProduct(productID string, tagIDs []string, shopID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 先删除该商品的所有标签关联
+	if err := tx.Exec("DELETE FROM product_tags WHERE product_id = ?", productID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 批量插入新的标签关联
+	for _, tagID := range tagIDs {
+		if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id) VALUES (?, ?)",
+			productID, tagID).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
+// GetTagBoundProducts 获取标签已绑定的商品列表
+func (s *ShopService) GetTagBoundProducts(tagID string, shopID uint64, page, pageSize int) (map[string]interface{}, error) {
+	type ProductResult struct {
+		ID          uint64  `json:"id"`
+		ShopID      uint64  `json:"shop_id"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Price       float64 `json:"price"`
+		Stock       int     `json:"stock"`
+		Status      string  `json:"status"`
+		ImageURL    string  `json:"image_url"`
+	}
+
+	offset := (page - 1) * pageSize
+
+	var total int64
+	if err := s.db.Raw(`
+		SELECT COUNT(*) FROM products
+		JOIN product_tags ON product_tags.product_id = products.id
+		WHERE product_tags.tag_id = ? AND products.shop_id = ?`, tagID, shopID).Scan(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var products []ProductResult
+	if err := s.db.Raw(`
+		SELECT products.id, products.shop_id, products.name, products.description,
+		       products.price, products.stock, products.status, products.image_url
+		FROM products
+		JOIN product_tags ON product_tags.product_id = products.id
+		WHERE product_tags.tag_id = ? AND products.shop_id = ?
+		ORDER BY products.created_at DESC
+		LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(products))
+	for i, p := range products {
+		result[i] = p
+	}
+
+	return map[string]interface{}{
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+		"data":      result,
+	}, nil
+}
+
+// GetUnboundProductsForTag 获取标签未绑定的商品列表
+func (s *ShopService) GetUnboundProductsForTag(tagID string, shopID uint64, page, pageSize int) (map[string]interface{}, error) {
+	type ProductResult struct {
+		ID          uint64  `json:"id"`
+		ShopID      uint64  `json:"shop_id"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Price       float64 `json:"price"`
+		Stock       int     `json:"stock"`
+		Status      string  `json:"status"`
+		ImageURL    string  `json:"image_url"`
+	}
+
+	offset := (page - 1) * pageSize
+
+	var total int64
+	if err := s.db.Raw(`
+		SELECT COUNT(*) FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags WHERE tag_id = ?
+		)
+		AND shop_id = ?`, tagID, shopID).Scan(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var products []ProductResult
+	if err := s.db.Raw(`
+		SELECT id, shop_id, name, description, price, stock, status, image_url
+		FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags WHERE tag_id = ?
+		)
+		AND shop_id = ?
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(products))
+	for i, p := range products {
+		result[i] = p
+	}
+
+	return map[string]interface{}{
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+		"data":      result,
+	}, nil
+}
+
+// GetUnboundTagsList 获取没有绑定商品的标签列表
+func (s *ShopService) GetUnboundTagsList(shopID uint64) ([]interface{}, error) {
+	type TagResult struct {
+		ID          uint64 `json:"id"`
+		ShopID      uint64 `json:"shop_id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+
+	var tags []TagResult
+	err := s.db.Raw(`
+		SELECT tags.id, tags.shop_id, tags.name, tags.description FROM tags
+		WHERE tags.shop_id = ?
+		AND tags.id NOT IN (
+			SELECT DISTINCT tag_id FROM product_tags
+		)`, shopID).Scan(&tags).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(tags))
+	for i, tag := range tags {
+		result[i] = tag
+	}
+	return result, nil
+}
+
+// GetTagOnlineProducts 获取标签关联的已上架商品
+func (s *ShopService) GetTagOnlineProducts(tagID string, shopID uint64) ([]interface{}, error) {
+	type ProductResult struct {
+		ID          uint64  `json:"id"`
+		ShopID      uint64  `json:"shop_id"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Price       float64 `json:"price"`
+		Stock       int     `json:"stock"`
+		Status      string  `json:"status"`
+		ImageURL    string  `json:"image_url"`
+	}
+
+	var products []ProductResult
+	if err := s.db.Raw(`
+		SELECT products.id, products.shop_id, products.name, products.description,
+		       products.price, products.stock, products.status, products.image_url
+		FROM products
+		JOIN product_tags ON product_tags.product_id = products.id
+		WHERE product_tags.tag_id = ? AND products.shop_id = ? AND products.status = 'online'
+		ORDER BY products.created_at DESC`, tagID, shopID).Scan(&products).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]interface{}, len(products))
+	for i, p := range products {
+		result[i] = p
+	}
+	return result, nil
 }

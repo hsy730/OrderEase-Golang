@@ -16,6 +16,8 @@ type Router struct {
 	shopHandler    *ShopHandler
 	userHandler    *UserHandler
 	authHandler    *AuthHandler
+	exportHandler  *ExportHandler
+	importHandler  *ImportHandler
 }
 
 func NewRouter(db *gorm.DB, services *services.ServiceContainer) *Router {
@@ -25,6 +27,8 @@ func NewRouter(db *gorm.DB, services *services.ServiceContainer) *Router {
 		shopHandler:    NewShopHandler(services.ShopService),
 		userHandler:    NewUserHandler(services.UserService),
 		authHandler:    NewAuthHandler(db, services.ShopService, services.UserService),
+		exportHandler:  NewExportHandler(db),
+		importHandler:  NewImportHandler(db),
 	}
 }
 
@@ -59,17 +63,19 @@ func (r *Router) setupNoAuthRoutes(api *gin.RouterGroup) {
 		noAuth.GET("/shop/:shop_id/tags", r.shopHandler.GetShopTags)
 		noAuth.GET("/product/list", r.productHandler.GetProducts)
 		noAuth.GET("/product/detail", r.productHandler.GetProduct)
+		noAuth.GET("/product/image", r.productHandler.GetProductImage)
 		noAuth.GET("/order/list", r.orderHandler.GetOrders)
 		noAuth.GET("/order/detail", r.orderHandler.GetOrder)
+		noAuth.GET("/order/user/list", r.orderHandler.GetOrdersByUser)
 		noAuth.GET("/tag/list", r.shopHandler.GetShopTags)
 	}
 
 	// 用户认证相关公开路由
 	user := api.Group("/user")
 	{
-		user.POST("/login", r.authHandler.Login)
-		user.POST("/register", r.authHandler.Register)
-		user.GET("/check-username", r.userHandler.CheckUsernameExists)
+		user.POST("/login", r.authHandler.FrontendUserLogin)
+		user.POST("/register", r.authHandler.FrontendUserRegister)
+		user.GET("/check-username", r.userHandler.CheckFrontendUsernameExists)
 	}
 }
 
@@ -83,30 +89,40 @@ func (r *Router) setupShopOwnerRoutes(api *gin.RouterGroup) {
 		shopOwner.POST("/change-password", r.authHandler.ChangePassword)
 
 		// 店铺管理
-		shopOwner.POST("/shop/create", r.shopHandler.CreateShop)
+		// shopOwner.POST("/shop/create", r.shopHandler.CreateShop)
 		shopOwner.PUT("/shop/update", r.shopHandler.UpdateShop)
 		shopOwner.DELETE("/shop/delete", r.shopHandler.DeleteShop)
 		shopOwner.GET("/shop/detail", r.shopHandler.GetShopInfo)
 		shopOwner.PUT("/shop/update-order-status-flow", r.shopHandler.UpdateOrderStatusFlow)
 		shopOwner.GET("/shop/temp-token", r.authHandler.GetShopTempToken)
+		shopOwner.GET("/shop/image", r.shopHandler.GetShopImage)
+		shopOwner.POST("/shop/upload-image", r.shopHandler.UploadShopImage)
 
 		// 商品管理
 		shopOwner.POST("/product/create", r.productHandler.CreateProduct)
 		shopOwner.PUT("/product/update", r.productHandler.UpdateProduct)
 		shopOwner.DELETE("/product/delete", r.productHandler.DeleteProduct)
 		shopOwner.PUT("/product/status", r.productHandler.UpdateProductStatus)
+		shopOwner.PUT("/product/toggle-status", r.productHandler.ToggleProductStatus)
 		shopOwner.GET("/product/detail", r.productHandler.GetProduct)
 		shopOwner.GET("/product/list", r.productHandler.GetProducts)
+		shopOwner.GET("/product/image", r.productHandler.GetProductImage)
+		shopOwner.POST("/product/upload-image", r.productHandler.UploadProductImage)
 
 		// 订单管理
 		shopOwner.POST("/order/create", r.orderHandler.CreateOrder)
+		shopOwner.PUT("/order/update", r.orderHandler.UpdateOrder)
 		shopOwner.PUT("/order/status", r.orderHandler.UpdateOrderStatus)
+		shopOwner.PUT("/order/toggle-status", r.orderHandler.ToggleOrderStatus)
 		shopOwner.DELETE("/order/delete", r.orderHandler.DeleteOrder)
 		shopOwner.GET("/order/detail", r.orderHandler.GetOrder)
 		shopOwner.GET("/order/list", r.orderHandler.GetOrders)
 		shopOwner.GET("/order/user-orders", r.orderHandler.GetOrdersByUser)
 		shopOwner.GET("/order/unfinished", r.orderHandler.GetUnfinishedOrders)
 		shopOwner.POST("/order/search", r.orderHandler.SearchOrders)
+		shopOwner.POST("/order/advance-search", r.orderHandler.GetAdvanceSearchOrders)
+		shopOwner.GET("/order/status-flow", r.orderHandler.GetOrderStatusFlow)
+		shopOwner.GET("/order/user/list", r.orderHandler.GetOrdersByUser)
 
 		// 标签管理
 		shopOwner.POST("/tag/create", r.shopHandler.CreateTag)
@@ -114,6 +130,15 @@ func (r *Router) setupShopOwnerRoutes(api *gin.RouterGroup) {
 		shopOwner.DELETE("/tag/delete", r.shopHandler.DeleteTag)
 		shopOwner.GET("/tag/list", r.shopHandler.GetShopTags)
 		shopOwner.GET("/tag/detail", r.shopHandler.GetTag)
+		shopOwner.GET("/tag/bound-tags", r.shopHandler.GetBoundTags)
+		shopOwner.GET("/tag/unbound-tags", r.shopHandler.GetUnboundTags)
+		shopOwner.POST("/tag/batch-tag", r.shopHandler.BatchTagProducts)
+		shopOwner.DELETE("/tag/batch-untag", r.shopHandler.BatchUntagProducts)
+		shopOwner.POST("/tag/batch-tag-product", r.shopHandler.BatchTagProduct)
+		shopOwner.GET("/tag/bound-products", r.shopHandler.GetTagBoundProducts)
+		shopOwner.GET("/tag/unbound-products", r.shopHandler.GetUnboundProductsForTag)
+		shopOwner.GET("/tag/unbound-list", r.shopHandler.GetUnboundTagsList)
+		shopOwner.GET("/tag/online-products", r.shopHandler.GetTagOnlineProducts)
 
 		// 用户管理
 		shopOwner.POST("/user/create", r.userHandler.CreateUser)
@@ -142,22 +167,32 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 		admin.GET("/shop/detail", r.shopHandler.GetShopInfo)
 		admin.PUT("/shop/update-order-status-flow", r.shopHandler.UpdateOrderStatusFlow)
 		admin.GET("/shop/check-name", r.shopHandler.CheckShopNameExists)
+		admin.GET("/shop/image", r.shopHandler.GetShopImage)
+		admin.POST("/shop/upload-image", r.shopHandler.UploadShopImage)
 
 		// 商品管理
 		admin.POST("/product/create", r.productHandler.CreateProduct)
 		admin.PUT("/product/update", r.productHandler.UpdateProduct)
 		admin.DELETE("/product/delete", r.productHandler.DeleteProduct)
 		admin.PUT("/product/status", r.productHandler.UpdateProductStatus)
+		admin.PUT("/product/toggle-status", r.productHandler.ToggleProductStatus)
 		admin.GET("/product/list", r.productHandler.GetProducts)
 		admin.GET("/product/detail", r.productHandler.GetProduct)
+		admin.GET("/product/image", r.productHandler.GetProductImage)
+		admin.POST("/product/upload-image", r.productHandler.UploadProductImage)
 
 		// 订单管理
 		admin.POST("/order/create", r.orderHandler.CreateOrder)
+		admin.PUT("/order/update", r.orderHandler.UpdateOrder)
 		admin.PUT("/order/status", r.orderHandler.UpdateOrderStatus)
+		admin.PUT("/order/toggle-status", r.orderHandler.ToggleOrderStatus)
 		admin.DELETE("/order/delete", r.orderHandler.DeleteOrder)
 		admin.GET("/order/list", r.orderHandler.GetOrders)
 		admin.GET("/order/detail", r.orderHandler.GetOrder)
 		admin.POST("/order/search", r.orderHandler.SearchOrders)
+		admin.POST("/order/advance-search", r.orderHandler.GetAdvanceSearchOrders)
+		admin.GET("/order/status-flow", r.orderHandler.GetOrderStatusFlow)
+		admin.GET("/order/user/list", r.orderHandler.GetOrdersByUser)
 
 		// 标签管理
 		admin.POST("/tag/create", r.shopHandler.CreateTag)
@@ -165,6 +200,19 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 		admin.DELETE("/tag/delete", r.shopHandler.DeleteTag)
 		admin.GET("/tag/list", r.shopHandler.GetShopTags)
 		admin.GET("/tag/detail", r.shopHandler.GetTag)
+		admin.GET("/tag/bound-tags", r.shopHandler.GetBoundTags)
+		admin.GET("/tag/unbound-tags", r.shopHandler.GetUnboundTags)
+		admin.POST("/tag/batch-tag", r.shopHandler.BatchTagProducts)
+		admin.DELETE("/tag/batch-untag", r.shopHandler.BatchUntagProducts)
+		admin.POST("/tag/batch-tag-product", r.shopHandler.BatchTagProduct)
+		admin.GET("/tag/bound-products", r.shopHandler.GetTagBoundProducts)
+		admin.GET("/tag/unbound-products", r.shopHandler.GetUnboundProductsForTag)
+		admin.GET("/tag/unbound-list", r.shopHandler.GetUnboundTagsList)
+		admin.GET("/tag/online-products", r.shopHandler.GetTagOnlineProducts)
+
+		// 数据管理
+		admin.GET("/data/export", r.exportHandler.ExportData)
+		admin.POST("/data/import", r.importHandler.ImportData)
 
 		// 用户管理
 		admin.POST("/user/create", r.userHandler.CreateUser)
@@ -177,16 +225,27 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 }
 
 // 前端路由（面向最终用户）
-func (r *Router) setupFrontendRoutes(api *gin.RouterGroup) {
-	frontend := api.Group("/front")
+func (r *Router) setupFrontendRoutes(frontend *gin.RouterGroup) {
 	{
-		frontend.GET("/shop/info", r.shopHandler.GetShopInfo)
+		// 店铺管理
+		frontend.GET("/shop/detail", r.shopHandler.GetShopInfo)
 		frontend.GET("/shop/list", r.shopHandler.GetShopList)
+		frontend.GET("/shop/image", r.shopHandler.GetShopImage)
 		frontend.GET("/shop/:shop_id/tags", r.shopHandler.GetShopTags)
+
+		// 商品管理
 		frontend.GET("/product/list", r.productHandler.GetProducts)
 		frontend.GET("/product/detail", r.productHandler.GetProduct)
+		frontend.GET("/product/image", r.productHandler.GetProductImage)
+
+		// 订单管理
+		frontend.POST("/order/create", r.orderHandler.CreateOrder)
 		frontend.GET("/order/list", r.orderHandler.GetOrders)
 		frontend.GET("/order/detail", r.orderHandler.GetOrder)
+		frontend.DELETE("/order/delete", r.orderHandler.DeleteOrder)
+		frontend.GET("/order/user/list", r.orderHandler.GetOrdersByUser)
+
+		// 标签管理
 		frontend.GET("/tag/list", r.shopHandler.GetShopTags)
 	}
 }
