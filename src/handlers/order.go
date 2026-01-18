@@ -873,8 +873,8 @@ func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 	}
 
 	// 查询店铺信息，获取OrderStatusFlow
-	var shop models.Shop
-	if err := h.DB.Select("order_status_flow").First(&shop, validShopID).Error; err != nil {
+	orderStatusFlow, err := h.shopRepo.GetOrderStatusFlow(validShopID)
+	if err != nil {
 		h.logger.Errorf("获取店铺订单状态流转配置失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单状态流转配置失败")
 		return
@@ -882,7 +882,7 @@ func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 
 	successResponse(c, gin.H{
 		"shop_id":           validShopID,
-		"order_status_flow": shop.OrderStatusFlow,
+		"order_status_flow": orderStatusFlow,
 	})
 }
 
@@ -914,8 +914,8 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 	}
 
 	// 获取店铺的订单状态流转配置
-	var shop models.Shop
-	if err := h.DB.Select("order_status_flow").First(&shop, validShopID).Error; err != nil {
+	orderStatusFlow, err := h.shopRepo.GetOrderStatusFlow(validShopID)
+	if err != nil {
 		h.logger.Errorf("获取店铺订单状态流转配置失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
 		return
@@ -923,7 +923,7 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 
 	// 收集所有isFinal为false的状态值
 	var unfinishedStatuses []int
-	for _, status := range shop.OrderStatusFlow.Statuses {
+	for _, status := range orderStatusFlow.Statuses {
 		if !status.IsFinal {
 			unfinishedStatuses = append(unfinishedStatuses, status.Value)
 		}

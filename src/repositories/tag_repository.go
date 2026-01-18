@@ -36,3 +36,15 @@ func (r *ProductRepository) GetShopTagsByID(shopID uint64) ([]models.Tag, error)
 	}
 	return tags, nil
 }
+
+// GetUnboundTags 获取商品未绑定的标签（该店铺下未被该商品绑定的标签）
+func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID uint64) ([]models.Tag, error) {
+	var tags []models.Tag
+	err := r.DB.Where("shop_id = ? AND id NOT IN (SELECT tag_id FROM product_tags WHERE product_id = ?)", shopID, productID).
+		Find(&tags).Error
+	if err != nil {
+		log2.Errorf("GetUnboundTags failed: %v", err)
+		return nil, err
+	}
+	return tags, nil
+}

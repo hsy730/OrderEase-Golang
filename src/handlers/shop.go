@@ -94,25 +94,9 @@ func (h *Handler) GetShopList(c *gin.Context) {
 		return
 	}
 
-	query := h.DB.Model(&models.Shop{}).Preload("Tags")
-
-	// 添加搜索条件
-	if search != "" {
-		search = "%" + search + "%"
-		query = query.Where("name LIKE ? OR owner_username LIKE ?", search, search)
-	}
-
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		h.logger.Errorf("查询店铺总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
-		return
-	}
-
-	// 执行分页查询
-	var shops []models.Shop
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&shops).Error; err != nil {
+	// 调用 repository 获取店铺列表
+	shops, total, err := h.shopRepo.GetShopList(page, pageSize, search)
+	if err != nil {
 		h.logger.Errorf("查询店铺列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
@@ -254,7 +238,7 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 
 	// 查询现有店铺
-	shop, err := h.productRepo.GetShopByID(updateData.ID)
+	shop, err := h.shopRepo.GetShopByID(updateData.ID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, "店铺不存在")
 		return
@@ -406,15 +390,15 @@ func (h *Handler) CheckShopNameExists(c *gin.Context) {
 		return
 	}
 
-	var count int64
-	if err := h.DB.Model(&models.Shop{}).Where("name = ?", shopName).Count(&count).Error; err != nil {
+	exists, err := h.shopRepo.CheckShopNameExists(shopName)
+	if err != nil {
 		h.logger.Errorf("检查商店名称失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "检查商店名称失败")
 		return
 	}
 
 	successResponse(c, gin.H{
-		"exists": count > 0,
+		"exists": exists,
 	})
 }
 
@@ -594,7 +578,7 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	}
 
 	// 查询店铺是否存在
-	shop, err := h.productRepo.GetShopByID(req.ShopID)
+	shop, err := h.shopRepo.GetShopByID(req.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, "店铺不存在")
 		return

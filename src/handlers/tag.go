@@ -96,13 +96,15 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 		return
 	}
 
-	var tags []models.Tag
-	err = h.DB.Raw(`
-		SELECT tags.* FROM tags
-		JOIN product_tags ON product_tags.tag_id = tags.id
-		WHERE product_tags.product_id = ? 
-		AND tags.shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
+	// 将productID转换为snowflake.ID
+	productIDSnowflake, err := snowflake.ParseString(productID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的商品ID")
+		return
+	}
 
+	// 使用 repository 获取已绑定标签
+	tags, err := h.productRepo.GetCurrentProductTags(productIDSnowflake, validShopID)
 	if err != nil {
 		h.logger.Errorf("查询已绑定标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
@@ -135,15 +137,15 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 		return
 	}
 
-	var tags []models.Tag
-	err = h.DB.Raw(`
-		SELECT * FROM tags 
-		WHERE id NOT IN (
-			SELECT tag_id FROM product_tags 
-			WHERE product_id = ?
-		)
-		AND shop_id = ?`, productID, validShopID).Scan(&tags).Error // 添加店铺过滤
+	// 将productID转换为snowflake.ID
+	productIDSnowflake, err := snowflake.ParseString(productID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的商品ID")
+		return
+	}
 
+	// 使用 repository 获取未绑定标签
+	tags, err := h.productRepo.GetUnboundTags(productIDSnowflake, validShopID)
 	if err != nil {
 		h.logger.Errorf("查询未绑定标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
