@@ -140,7 +140,9 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 	log2.Debugf("开始处理店主密码修改请求")
 
 	// 从上下文中获取店主ID
-	shopID := c.MustGet("userID").(uint)
+	// 从上下文中获取用户信息
+	userInfo := c.MustGet("userInfo").(models.UserInfo)
+	shopID := userInfo.UserID
 
 	var passwordData struct {
 		OldPassword string `json:"old_password"`
