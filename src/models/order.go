@@ -8,8 +8,8 @@ import (
 
 type Order struct {
 	ID         snowflake.ID `gorm:"primarykey;autoIncrement:false;column:id;type:bigint unsigned" json:"id,omitempty"`
-	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     snowflake.ID `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	UserID     snowflake.ID `gorm:"column:user_id;index;type:bigint unsigned" json:"user_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;index;type:bigint unsigned" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
 	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`

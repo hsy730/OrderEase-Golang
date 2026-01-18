@@ -14,16 +14,18 @@ import (
 )
 
 type AuthHandler struct {
-	db          *gorm.DB
-	shopService *services.ShopService
-	userService *services.UserService
+	db               *gorm.DB
+	shopService      *services.ShopService
+	userService      *services.UserService
+	tempTokenService *services.TempTokenService
 }
 
-func NewAuthHandler(db *gorm.DB, shopService *services.ShopService, userService *services.UserService) *AuthHandler {
+func NewAuthHandler(db *gorm.DB, shopService *services.ShopService, userService *services.UserService, tempTokenService *services.TempTokenService) *AuthHandler {
 	return &AuthHandler{
-		db:          db,
-		shopService: shopService,
-		userService: userService,
+		db:               db,
+		shopService:      shopService,
+		userService:      userService,
+		tempTokenService: tempTokenService,
 	}
 }
 
@@ -264,21 +266,55 @@ func (h *AuthHandler) RefreshAdminToken(c *gin.Context) {
 // TempTokenLogin 临时令牌登录
 func (h *AuthHandler) TempTokenLogin(c *gin.Context) {
 	type TempTokenRequest struct {
-		TempToken string `json:"temp_token" binding:"required"`
+		TempToken string `json:"token" binding:"required,len=6"`
 		ShopID    string `json:"shop_id" binding:"required"`
 	}
 
 	var req TempTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log2.Errorf("无效的临时令牌登录数据: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
 		return
 	}
 
-	// TODO: 实现临时令牌登录逻辑
+	// 解析 ShopID
+	shopID, err := shared.ParseIDFromString(req.ShopID)
+	if err != nil {
+		log2.Errorf("无效的店铺ID: %s, 错误: %v", req.ShopID, err)
+		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		return
+	}
+
+	// 验证临时令牌
+	valid, user, err := h.tempTokenService.ValidateTempToken(shopID, req.TempToken)
+	if err != nil || !valid {
+		log2.Errorf("临时令牌验证失败: shopID=%s, token=%s, 错误: %v", req.ShopID, req.TempToken, err)
+		errorResponse(c, http.StatusUnauthorized, "无效的临时令牌")
+		return
+	}
+
+	// 生成JWT令牌
+	token, expiredAt, err := utils.GenerateToken(uint64(user.ID), user.Name, false)
+	if err != nil {
+		log2.Errorf("生成令牌失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "生成令牌失败")
+		return
+	}
+
+	// 获取店铺信息
+	var shop models.Shop
+	if err := h.db.Where("id = ?", shopID.Value()).First(&shop).Error; err != nil {
+		log2.Errorf("获取店铺信息失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
+		return
+	}
+
+	log2.Infof("临时令牌登录成功: shopID=%s, user=%s", req.ShopID, user.Name)
 	successResponse(c, gin.H{
-		"code":    200,
-		"message": "临时令牌登录成功",
-		"token":   "new_token",
+		"role":      "user",
+		"user_info": gin.H{"id": user.ID, "name": user.Name, "shop_id": req.ShopID, "shop_name": shop.Name},
+		"token":     token,
+		"expiredAt": expiredAt.Unix(),
 	})
 }
 
@@ -321,23 +357,25 @@ func (h *AuthHandler) GetShopTempToken(c *gin.Context) {
 
 	shopID, err := shared.ParseIDFromString(shopIDStr)
 	if err != nil {
+		log2.Errorf("无效的店铺ID: %s, 错误: %v", shopIDStr, err)
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
 
-	// 生成临时令牌
-	tempToken := utils.GenerateTempToken()
+	// 获取或生成有效临时令牌
+	tempToken, err := h.tempTokenService.GetValidTempToken(shopID)
+	if err != nil {
+		log2.Errorf("获取临时令牌失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "获取临时令牌失败")
+		return
+	}
+
+	// 计算剩余过期时间（秒）
+	// expiresIn := int(tempToken.ExpiresAt.Sub(time.Now()).Seconds())
 
 	successResponse(c, gin.H{
-		"code":       200,
-		"temp_token": tempToken,
+		"token":      tempToken.Token,
 		"shop_id":    shopID.String(),
-		"expires_in": 3600,
+		"expires_at": tempToken.ExpiresAt,
 	})
-}
-
-// GenerateTempToken 生成临时令牌（辅助函数）
-func utilsGenerateTempToken(shopID shared.ID) string {
-	// TODO: 实现临时令牌生成逻辑
-	return "temp_token_" + shopID.String()
 }

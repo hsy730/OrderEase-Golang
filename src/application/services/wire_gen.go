@@ -29,17 +29,8 @@ func InitializeServiceContainer(db *gorm.DB) (*ServiceContainer, error) {
 	productService := NewProductService(productRepository, productOptionCategoryRepository, productOptionRepository, productTagRepository, db)
 	shopService := NewShopService(shopRepository, tagRepository, productRepository, db)
 	userService := NewUserService(userRepository, db)
+	tempTokenService := NewTempTokenService(db)
 
-	serviceContainer := NewServiceContainer(orderService, productService, shopService, userService)
+	serviceContainer := NewServiceContainer(orderService, productService, shopService, userService, tempTokenService)
 	return serviceContainer, nil
-}
-
-// NewServiceContainer 创建服务容器（由 Wire 调用）
-func NewServiceContainer(orderService *OrderService, productService *ProductService, shopService *ShopService, userService *UserService) *ServiceContainer {
-	return &ServiceContainer{
-		OrderService:   orderService,
-		ProductService: productService,
-		ShopService:    shopService,
-		UserService:    userService,
-	}
 }

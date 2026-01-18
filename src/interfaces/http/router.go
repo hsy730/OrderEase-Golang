@@ -3,7 +3,8 @@ package http
 import (
 	"orderease/application/services"
 	"orderease/config"
-	"orderease/interfaces/middleware"
+	imiddleware "orderease/interfaces/middleware"
+	"orderease/middleware"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ func NewRouter(db *gorm.DB, services *services.ServiceContainer) *Router {
 		productHandler: NewProductHandler(services.ProductService, services.ShopService),
 		shopHandler:    NewShopHandler(services.ShopService),
 		userHandler:    NewUserHandler(services.UserService),
-		authHandler:    NewAuthHandler(db, services.ShopService, services.UserService),
+		authHandler:    NewAuthHandler(db, services.ShopService, services.UserService, services.TempTokenService),
 		exportHandler:  NewExportHandler(db),
 		importHandler:  NewImportHandler(db),
 	}
@@ -82,7 +83,7 @@ func (r *Router) setupNoAuthRoutes(api *gin.RouterGroup) {
 // 店主路由（需要认证）
 func (r *Router) setupShopOwnerRoutes(api *gin.RouterGroup) {
 	shopOwner := api.Group("/shopOwner")
-	shopOwner.Use(middleware.AuthMiddleware())
+	shopOwner.Use(imiddleware.AuthMiddleware())
 	{
 		// 认证管理
 		shopOwner.POST("/logout", r.authHandler.Logout)
@@ -153,7 +154,7 @@ func (r *Router) setupShopOwnerRoutes(api *gin.RouterGroup) {
 // 管理员路由（需要管理员权限）
 func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 	admin := api.Group("/admin")
-	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+	admin.Use(imiddleware.AuthMiddleware(), imiddleware.AdminMiddleware())
 	{
 		// 认证管理
 		admin.POST("/logout", r.authHandler.Logout)
@@ -226,6 +227,10 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 
 // 前端路由（面向最终用户）
 func (r *Router) setupFrontendRoutes(frontend *gin.RouterGroup) {
+	// 前端路由需要认证和限流
+	frontend.Use(middleware.RateLimitMiddleware())
+	frontend.Use(middleware.FrontendAuthMiddleware())
+
 	{
 		// 店铺管理
 		frontend.GET("/shop/detail", r.shopHandler.GetShopInfo)
@@ -247,6 +252,8 @@ func (r *Router) setupFrontendRoutes(frontend *gin.RouterGroup) {
 
 		// 标签管理
 		frontend.GET("/tag/list", r.shopHandler.GetShopTags)
+		frontend.GET("/tag/detail", r.shopHandler.GetTag)
+		frontend.GET("/tag/bound-products", r.shopHandler.GetTagBoundProducts)
 	}
 }
 

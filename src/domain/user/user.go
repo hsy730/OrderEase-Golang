@@ -58,7 +58,7 @@ func NewUser(name string, role UserRole, userType UserType, password string) (*U
 	now := time.Now()
 
 	return &User{
-		ID:        shared.ID(0),
+		ID:        shared.NewID(),
 		Name:      name,
 		Role:      role,
 		Type:      userType,

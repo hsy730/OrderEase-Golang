@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/snowflake"
+	"orderease/utils"
 )
 
 type ID snowflake.ID
 
 func NewID() ID {
-	return ID(snowflake.ID(0))
+	return ID(utils.GenerateSnowflakeID())
 }
 
 func (id ID) Value() snowflake.ID {

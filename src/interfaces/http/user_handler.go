@@ -82,17 +82,17 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
-		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
-		return
-	}
+	// idStr := c.Query("id")
+	// if idStr == "" {
+	// 	errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+	// 	return
+	// }
 
-	id, err := shared.ParseIDFromString(idStr)
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
-		return
-	}
+	// id, err := shared.ParseIDFromString(idStr)
+	// if err != nil {
+	// 	errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+	// 	return
+	// }
 
 	var req dto.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -100,7 +100,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	req.ID = id
+	// req.ID = id
 	response, err := h.userService.UpdateUser(&req)
 	if err != nil {
 		log2.Errorf("更新用户失败: %v", err)

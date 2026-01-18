@@ -34,6 +34,7 @@ func InitializeServiceContainer(db *gorm.DB) (*ServiceContainer, error) {
 		NewProductService,
 		NewShopService,
 		NewUserService,
+		NewTempTokenService,
 
 		// Container
 		NewServiceContainer,
@@ -89,4 +90,5 @@ var ServiceProviderSet = wire.NewSet(
 	NewProductService,
 	NewShopService,
 	NewUserService,
+	NewTempTokenService,
 )

@@ -10,7 +10,7 @@ import (
 	"orderease/handlers"
 	httpinterfaces "orderease/interfaces/http"
 	// oldroutes "orderease/routes" // @Deprecated - 旧路由已废弃
-	oldservices "orderease/services"
+	// oldservices "orderease/services" // @Deprecated - 旧服务已禁用，等测试通过后删除
 	"orderease/tasks"
 	"orderease/utils/log2"
 	"os"
@@ -181,10 +181,14 @@ func main() {
 	cleanupTask := tasks.NewCleanupTask(db)
 	cleanupTask.StartCleanupTask()
 
-	// 初始化临时令牌服务并启动定时刷新任务
-	tempTokenService := oldservices.NewTempTokenService()
-	tempTokenService.SetupCronJob()
-	log2.Info("临时令牌定时刷新任务已启动")
+	// @Deprecated: 旧的临时令牌服务已禁用，使用新的 application/services/temp_token_service.go
+	// 旧的定时刷新任务已注释，等新服务测试通过后可以删除旧代码
+	// tempTokenService := oldservices.NewTempTokenService()
+	// tempTokenService.SetupCronJob()
+	// log2.Info("临时令牌定时刷新任务已启动")
+
+	// 注意：新的 TempTokenService 在 ServiceContainer 中初始化，无需单独创建
+	log2.Info("使用新的 TempTokenService (application/services/temp_token_service.go)")
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
