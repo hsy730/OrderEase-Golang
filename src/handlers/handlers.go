@@ -24,6 +24,7 @@ type Handler struct {
 	productRepo      *repositories.ProductRepository
 	userRepo         *repositories.UserRepository
 	adminRepo        *repositories.AdminRepository
+	orderRepo        *repositories.OrderRepository
 	tempTokenService *services.TempTokenService
 }
 
@@ -34,6 +35,7 @@ func NewHandler(db *gorm.DB) *Handler {
 		productRepo:      repositories.NewProductRepository(db),
 		userRepo:         repositories.NewUserRepository(db),
 		adminRepo:        repositories.NewAdminRepository(db),
+		orderRepo:        repositories.NewOrderRepository(db),
 		logger:           log2.GetLogger(),
 		tempTokenService: services.NewTempTokenService(),
 	}

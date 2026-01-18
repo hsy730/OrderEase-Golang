@@ -275,21 +275,9 @@ func (h *Handler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * pageSize
-
-	var total int64
-	if err := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID).Count(&total).Error; err != nil {
-		h.logger.Errorf("获取订单总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
-		return
-	}
-
-	var orders []models.Order
-	// 预加载Items和Items.Options
-	if err := h.DB.Where("shop_id = ?", validShopID).Offset(offset).Limit(pageSize).
-		Order("created_at DESC").
-		Find(&orders).Error; err != nil {
-		h.logger.Errorf("查询订单列表失败: %v", err)
+	// 使用 repository 查询订单
+	orders, total, err := h.orderRepo.GetOrdersByShop(validShopID, page, pageSize)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
@@ -339,25 +327,11 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	var order models.Order
-	// 预加载Items和Items.Options
-	if err := h.DB.Preload("Items").
-		Preload("Items.Options").
-		Where("shop_id = ?", validShopID).
-		Joins("User").
-		First(&order, id).Error; err != nil {
-		h.logger.Errorf("查询订单失败, ID: %s, 错误: %v", id, err)
+	// 使用 repository 查询订单
+	order, err := h.orderRepo.GetOrderByIDAndShopIDStr(id, validShopID)
+	if err != nil {
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
-	}
-
-	// 添加日志，打印查询到的订单信息
-	h.logger.Infof("查询到的订单信息: %+v", order)
-	for _, item := range order.Items {
-		h.logger.Infof("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
-		for _, option := range item.Options {
-			h.logger.Infof("选项ID: %s, 名称: %s", option.ID, option.OptionName)
-		}
 	}
 
 	successResponse(c, order)
@@ -389,27 +363,10 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 	if pageSize > 100 {
 		pageSize = 100 // 限制最大页面大小
 	}
-	offset := (page - 1) * pageSize
 
-	var orders []models.Order
-	// 预加载Items和Items.Options
-	query := h.DB.Where("user_id = ?", userID).Where("shop_id = ?", validShopID)
-
-	// 获取总数
-	var total int64
-	if err := query.Model(&models.Order{}).Count(&total).Error; err != nil {
-		log2.Errorf("查询订单总数失败, 用户ID: %s, 错误: %v", userID, err)
-		errorResponse(c, http.StatusInternalServerError, "查询订单总数失败")
-		return
-	}
-
-	// 分页查询订单
-	if err := query.Order("created_at DESC").
-		Offset(offset).Limit(pageSize).
-		// Preload("Items").
-		// Preload("Items.Options").
-		Find(&orders).Error; err != nil {
-		log2.Errorf("查询用户订单失败, 用户ID: %s, 错误: %v", userID, err)
+	// 使用 repository 查询订单
+	orders, total, err := h.orderRepo.GetOrdersByUser(userID, validShopID, page, pageSize)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "查询用户订单失败")
 		return
 	}
@@ -698,7 +655,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 获取订单信息
-	order, err := h.productRepo.GetOrderByIDAndShopID(orderID, validShopID)
+	order, err := h.orderRepo.GetOrderByIDAndShopID(orderID, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -983,22 +940,9 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * pageSize
-
-	var total int64
-	// 查询未完成订单总数，status在未完成状态列表中
-	if err := h.DB.Model(&models.Order{}).Where("shop_id = ? AND status IN (?)", validShopID, unfinishedStatuses).Count(&total).Error; err != nil {
-		h.logger.Errorf("获取未完成订单总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
-		return
-	}
-
-	var orders []models.Order
-	// 查询未完成订单列表
-	if err := h.DB.Where("shop_id = ? AND status IN (?)", validShopID, unfinishedStatuses).Offset(offset).Limit(pageSize).
-		Order("created_at DESC").
-		Find(&orders).Error; err != nil {
-		h.logger.Errorf("查询未完成订单列表失败: %v", err)
+	// 使用 repository 查询未完成订单
+	orders, total, err := h.orderRepo.GetUnfinishedOrders(validShopID, unfinishedStatuses, page, pageSize)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取未完成订单列表失败")
 		return
 	}
