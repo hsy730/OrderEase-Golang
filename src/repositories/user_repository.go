@@ -43,6 +43,31 @@ func (r *UserRepository) CheckUsernameExists(username string) (bool, error) {
 	return count > 0, nil
 }
 
+// CheckPhoneExists 检查手机号是否存在
+func (r *UserRepository) CheckPhoneExists(phone string) (bool, error) {
+	var count int64
+	err := r.DB.Model(&models.User{}).Where("phone = ?", phone).Count(&count).Error
+	if err != nil {
+		log2.Errorf("CheckPhoneExists failed: %v", err)
+		return false, errors.New("检查手机号失败")
+	}
+	return count > 0, nil
+}
+
+// GetByUsername 根据用户名获取用户
+func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
+	var user models.User
+	err := r.DB.Where("name = ?", username).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("用户不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetByUsername failed: %v", err)
+		return nil, errors.New("查询用户失败")
+	}
+	return &user, nil
+}
+
 // GetUsers 获取用户列表（分页+搜索）
 func (r *UserRepository) GetUsers(page, pageSize int, search string) ([]models.User, int64, error) {
 	var users []models.User
@@ -104,4 +129,31 @@ func (r *UserRepository) GetUserSimpleList(page, pageSize int, search string) ([
 		}
 	}
 	return result, total, nil
+}
+
+// Create 创建用户
+func (r *UserRepository) Create(user *models.User) error {
+	if err := r.DB.Create(user).Error; err != nil {
+		log2.Errorf("Create user failed: %v", err)
+		return errors.New("创建用户失败")
+	}
+	return nil
+}
+
+// Update 更新用户
+func (r *UserRepository) Update(user *models.User) error {
+	if err := r.DB.Save(user).Error; err != nil {
+		log2.Errorf("Update user failed: %v", err)
+		return errors.New("更新用户失败")
+	}
+	return nil
+}
+
+// Delete 删除用户
+func (r *UserRepository) Delete(user *models.User) error {
+	if err := r.DB.Delete(user).Error; err != nil {
+		log2.Errorf("Delete user failed: %v", err)
+		return errors.New("删除用户失败")
+	}
+	return nil
 }

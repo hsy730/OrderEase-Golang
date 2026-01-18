@@ -53,8 +53,13 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		}
 
 		// 检查手机号唯一性
-		var existingUser models.User
-		if h.DB.Where("phone = ?", user.Phone).First(&existingUser).Error == nil {
+		exists, err := h.userRepo.CheckPhoneExists(user.Phone)
+		if err != nil {
+			h.logger.Errorf("检查手机号失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "检查手机号失败")
+			return
+		}
+		if exists {
 			errorResponse(c, http.StatusConflict, "该手机号已注册")
 			return
 		}
@@ -63,7 +68,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	// 生成用户ID
 	user.ID = utils.GenerateSnowflakeID()
 
-	if err := h.DB.Create(&user).Error; err != nil {
+	if err := h.userRepo.Create(&user); err != nil {
 		h.logger.Errorf("创建用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
 		return
@@ -201,8 +206,8 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	}
 
 	// 查询现有用户
-	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
+	user, err := h.userRepo.GetUserByID(id)
+	if err != nil {
 		h.logger.Errorf("更新用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
@@ -226,14 +231,15 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		user.Role = updateData.Role
 	}
 
-	if err := h.DB.Save(&user).Error; err != nil {
+	if err := h.userRepo.Update(user); err != nil {
 		h.logger.Errorf("更新用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新用户失败")
 		return
 	}
 
 	// 重新获取更新后的用户信息
-	if err := h.DB.First(&user, id).Error; err != nil {
+	user, err = h.userRepo.GetUserByID(id)
+	if err != nil {
 		h.logger.Errorf("获取更新后的用户信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的用户信息失败")
 		return
@@ -262,14 +268,14 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	// 	return
 	// }
 
-	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
+	user, err := h.userRepo.GetUserByID(id)
+	if err != nil {
 		h.logger.Errorf("删除用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
-	if err := h.DB.Delete(&user).Error; err != nil {
+	if err := h.userRepo.Delete(user); err != nil {
 		h.logger.Errorf("删除用户记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除用户失败")
 		return
@@ -359,8 +365,13 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 	}
 
 	// 检查用户名是否已存在
-	var existingUser models.User
-	if h.DB.Where("name = ?", req.Username).First(&existingUser).Error == nil {
+	exists, err := h.userRepo.CheckUsernameExists(req.Username)
+	if err != nil {
+		h.logger.Errorf("检查用户名失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
+		return
+	}
+	if exists {
 		errorResponse(c, http.StatusConflict, "用户名已存在")
 		return
 	}
@@ -374,7 +385,7 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 		Role:     models.UserRolePublic,   // 默认公开用户
 	}
 
-	if err := h.DB.Create(&user).Error; err != nil {
+	if err := h.userRepo.Create(&user); err != nil {
 		h.logger.Errorf("创建用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "注册失败")
 		return
@@ -418,8 +429,8 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 	}
 
 	// 查询用户
-	var user models.User
-	if err := h.DB.Where("name = ?", req.Username).First(&user).Error; err != nil {
+	user, err := h.userRepo.GetByUsername(req.Username)
+	if err != nil {
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}

@@ -29,7 +29,7 @@ func (h *Handler) CreateTag(c *gin.Context) {
 
 	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
-	if err := h.DB.Create(&tag).Error; err != nil {
+	if err := h.tagRepo.Create(&tag); err != nil {
 		h.logger.Errorf("创建标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建标签失败")
 		return
@@ -181,8 +181,8 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 检查标签是否存在
-	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", req.ShopID).First(&tag, req.TagID).Error; err != nil {
+	tag, err := h.tagRepo.GetByIDAndShopID(req.TagID, req.ShopID)
+	if err != nil {
 		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -250,7 +250,7 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 
 	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
-	if err := h.DB.Save(&tag).Error; err != nil {
+	if err := h.tagRepo.Update(&tag); err != nil {
 		h.logger.Errorf("更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新标签失败")
 		return
@@ -280,8 +280,9 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	}
 
 	// 检查标签是否存在
-	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
+	tagIDInt, _ := strconv.Atoi(id)
+	tag, err := h.tagRepo.GetByIDAndShopID(tagIDInt, validShopID)
+	if err != nil {
 		h.logger.Errorf("标签不存在, ID: %s", id)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -303,7 +304,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	}
 
 	// 删除标签
-	if err := h.DB.Delete(&tag).Error; err != nil {
+	if err := h.tagRepo.Delete(tag); err != nil {
 		h.logger.Errorf("删除标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除标签失败")
 		return
@@ -339,7 +340,8 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	}
 
 	// 查询所有标签
-	if err := h.DB.Where("shop_id = ?", validShopID).Order("created_at DESC").Find(&tags).Error; err != nil {
+	tags, err = h.tagRepo.GetListByShopID(validShopID)
+	if err != nil {
 		h.logger.Errorf("获取标签列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取标签列表失败")
 		return
@@ -614,8 +616,9 @@ func (h *Handler) GetTag(c *gin.Context) {
 		return
 	}
 
-	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, id).Error; err != nil {
+	tagIDInt, _ := strconv.Atoi(id)
+	tag, err := h.tagRepo.GetByIDAndShopID(tagIDInt, validShopID)
+	if err != nil {
 		h.logger.Errorf("获取标签详情失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -646,12 +649,13 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 检查标签是否存在
-	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, req.TagID).Error; err != nil {
+	tag, err := h.tagRepo.GetByIDAndShopID(int(req.TagID), validShopID)
+	if err != nil {
 		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
+	_ = tag // 使用tag避免unused变量警告
 
 	// 批量删除关联
 	result := h.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", req.ShopID, req.TagID, req.ProductIDs).

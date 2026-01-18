@@ -1,11 +1,75 @@
 package repositories
 
 import (
+	"errors"
 	"orderease/models"
 	"orderease/utils/log2"
 
 	"github.com/bwmarrin/snowflake"
+	"gorm.io/gorm"
 )
+
+// TagRepository 标签数据访问层
+type TagRepository struct {
+	DB *gorm.DB
+}
+
+// NewTagRepository 创建TagRepository实例
+func NewTagRepository(db *gorm.DB) *TagRepository {
+	return &TagRepository{DB: db}
+}
+
+// Create 创建标签
+func (r *TagRepository) Create(tag *models.Tag) error {
+	if err := r.DB.Create(tag).Error; err != nil {
+		log2.Errorf("Create tag failed: %v", err)
+		return errors.New("创建标签失败")
+	}
+	return nil
+}
+
+// Update 更新标签
+func (r *TagRepository) Update(tag *models.Tag) error {
+	if err := r.DB.Save(tag).Error; err != nil {
+		log2.Errorf("Update tag failed: %v", err)
+		return errors.New("更新标签失败")
+	}
+	return nil
+}
+
+// Delete 删除标签
+func (r *TagRepository) Delete(tag *models.Tag) error {
+	if err := r.DB.Delete(tag).Error; err != nil {
+		log2.Errorf("Delete tag failed: %v", err)
+		return errors.New("删除标签失败")
+	}
+	return nil
+}
+
+// GetByIDAndShopID 根据ID和店铺ID获取标签
+func (r *TagRepository) GetByIDAndShopID(id int, shopID uint64) (*models.Tag, error) {
+	var tag models.Tag
+	err := r.DB.Where("shop_id = ?", shopID).First(&tag, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("标签不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetByIDAndShopID failed: %v", err)
+		return nil, errors.New("查询标签失败")
+	}
+	return &tag, nil
+}
+
+// GetListByShopID 获取店铺的标签列表
+func (r *TagRepository) GetListByShopID(shopID uint64) ([]models.Tag, error) {
+	var tags []models.Tag
+	err := r.DB.Where("shop_id = ?", shopID).Order("created_at DESC").Find(&tags).Error
+	if err != nil {
+		log2.Errorf("GetListByShopID failed: %v", err)
+		return nil, errors.New("查询标签列表失败")
+	}
+	return tags, nil
+}
 
 // 在 ProductRepository 结构体新增方法
 func (r *ProductRepository) GetCurrentProductTags(productID snowflake.ID, shopID uint64) ([]models.Tag, error) {
