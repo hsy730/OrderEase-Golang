@@ -377,7 +377,7 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 // 前端用户注册请求结构体
 type FrontendUserRegisterRequest struct {
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required,min=6,max=6"`
+	Password string `json:"password" binding:"required,min=6,max=20"`
 }
 
 // 前端用户注册
@@ -499,15 +499,23 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 	successResponse(c, responseData)
 }
 
-// 验证密码格式：6位字母或数字
+// 验证密码格式：6-20位，必须包含字母和数字，可以有特殊字符
 func isValidPassword(password string) bool {
-	if len(password) != 6 {
+	if len(password) < 6 || len(password) > 20 {
 		return false
 	}
+
+	hasLetter := false
+	hasDigit := false
+
 	for _, c := range password {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
-			return false
+		switch {
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+			hasLetter = true
+		case c >= '0' && c <= '9':
+			hasDigit = true
 		}
 	}
-	return true
+
+	return hasLetter && hasDigit
 }
