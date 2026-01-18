@@ -231,7 +231,7 @@ func (h *AuthHandler) RefreshShopToken(c *gin.Context) {
 
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据:"+err.Error())
 		return
 	}
 
@@ -251,7 +251,7 @@ func (h *AuthHandler) RefreshAdminToken(c *gin.Context) {
 
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据:"+err.Error())
 		return
 	}
 
@@ -273,7 +273,7 @@ func (h *AuthHandler) TempTokenLogin(c *gin.Context) {
 	var req TempTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("无效的临时令牌登录数据: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据"+err.Error())
 		return
 	}
 
@@ -336,7 +336,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据:"+err.Error())
 		return
 	}
 

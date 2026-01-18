@@ -170,6 +170,7 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 		admin.GET("/shop/check-name", r.shopHandler.CheckShopNameExists)
 		admin.GET("/shop/image", r.shopHandler.GetShopImage)
 		admin.POST("/shop/upload-image", r.shopHandler.UploadShopImage)
+		admin.GET("/shop/temp-token", r.authHandler.GetShopTempToken)
 
 		// 商品管理
 		admin.POST("/product/create", r.productHandler.CreateProduct)
@@ -194,6 +195,8 @@ func (r *Router) setupAdminRoutes(api *gin.RouterGroup) {
 		admin.POST("/order/advance-search", r.orderHandler.GetAdvanceSearchOrders)
 		admin.GET("/order/status-flow", r.orderHandler.GetOrderStatusFlow)
 		admin.GET("/order/user/list", r.orderHandler.GetOrdersByUser)
+		admin.GET("/order/unfinished", r.orderHandler.GetUnfinishedOrders)
+		admin.GET("/order/user-orders", r.orderHandler.GetOrdersByUser)
 
 		// 标签管理
 		admin.POST("/tag/create", r.shopHandler.CreateTag)

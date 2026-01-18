@@ -47,7 +47,8 @@ func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) 
 // CheckShopExists 校验店铺ID合法性
 func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
     var count int64
-    if err := r.DB.Model(&models.Shop{}).Where("id = ?", snowflake.ID(shopID)).Count(&count).Error; err != nil {
+    // 直接使用 uint64 类型的 shopID，避免 snowflake.ID(uint64) 类型转换可能导致的溢出问题
+    if err := r.DB.Model(&models.Shop{}).Where("id = ?", shopID).Count(&count).Error; err != nil {
         log2.Errorf("CheckShopExists failed: %v", err)
         return false, errors.New("店铺校验失败")
     }

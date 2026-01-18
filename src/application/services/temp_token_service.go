@@ -33,6 +33,7 @@ func (s *TempTokenService) CreateShopSystemUser(shopID shared.ID) (models.User, 
 
 	// 创建新的系统用户
 	user := models.User{
+		ID:       utils.GenerateSnowflakeID(),
 		Name:     expectedName,
 		Role:     models.UserRolePublic,
 		Type:     "system",

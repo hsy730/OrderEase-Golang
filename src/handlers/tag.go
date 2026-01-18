@@ -264,7 +264,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 
 	// 检查标签是否存在
 	var tag models.Tag
-	if err := h.DB.Where("shop_id = ?", req.ShopID).First(&tag, req.TagID).Error; err != nil {
+	if err := h.DB.Where("shop_id = ?", validShopID).First(&tag, req.TagID).Error; err != nil {
 		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
@@ -275,7 +275,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 
 	// 批量查询商品的店铺信息
 	var validProducts []models.Product
-	if err := h.DB.Select("id").Where("id IN (?) AND shop_id = ?", req.ProductIDs, tag.ShopID).Find(&validProducts).Error; err != nil {
+	if err := h.DB.Select("id").Where("id IN (?) AND shop_id = ?", req.ProductIDs, validShopID).Find(&validProducts).Error; err != nil {
 		h.logger.Errorf("批量查询商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量操作失败")
 		return
@@ -728,7 +728,7 @@ func (h *Handler) getUnboundProducts(shopID snowflake.ID, page int, pageSize int
 	var total int64
 
 	query := h.DB.Model(&models.Product{}).
-		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)", shopID)
+		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags WHERE shop_id = ?)", shopID, shopID)
 
 	// 获取总数
 	if err := query.
@@ -797,7 +797,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	var req request
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Errorf("批量解绑标签, 数据绑定错误: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据:"+err.Error())
 		return
 	}
 
@@ -817,7 +817,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	}
 
 	// 批量删除关联
-	result := h.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", req.ShopID, req.TagID, req.ProductIDs).
+	result := h.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", validShopID, req.TagID, req.ProductIDs).
 		Delete(&models.ProductTag{})
 
 	if result.Error != nil {

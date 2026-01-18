@@ -36,3 +36,13 @@ type UserInfo struct {
 	Username string
 	IsAdmin  bool
 }
+
+// IsAdminUser 检查是否是管理员用户
+func (u UserInfo) IsAdminUser() bool {
+	return u.IsAdmin
+}
+
+// GetUserID 获取用户ID
+func (u UserInfo) GetUserID() uint64 {
+	return u.UserID
+}

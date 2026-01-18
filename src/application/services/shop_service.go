@@ -9,20 +9,22 @@ import (
 	"orderease/domain/product"
 	"orderease/domain/shared"
 	"orderease/domain/shop"
+	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 )
 
 type ShopService struct {
-	shopRepo       shop.ShopRepository
-	tagRepo        shop.TagRepository
-	productRepo    product.ProductRepository
-	db             *gorm.DB
+	shopRepo    shop.ShopRepository
+	tagRepo     shop.TagRepository
+	productRepo product.ProductRepository
+	db          *gorm.DB
 }
 
 func NewShopService(
@@ -320,18 +322,18 @@ func (s *ShopService) GetTag(id int) (*dto.TagResponse, error) {
 
 func (s *ShopService) toShopResponse(shopEntity *shop.Shop) *dto.ShopResponse {
 	return &dto.ShopResponse{
-		ID:            shopEntity.ID,
-		Name:          shopEntity.Name,
-		OwnerUsername: shopEntity.OwnerUsername,
-		ContactPhone:  shopEntity.ContactPhone,
-		ContactEmail:  shopEntity.ContactEmail,
-		Address:       shopEntity.Address,
-		Description:   shopEntity.Description,
-		CreatedAt:     shopEntity.CreatedAt,
-		UpdatedAt:     shopEntity.UpdatedAt,
-		ValidUntil:    shopEntity.ValidUntil,
-		Settings:      shopEntity.Settings,
-		ImageURL:      shopEntity.ImageURL,
+		ID:              shopEntity.ID,
+		Name:            shopEntity.Name,
+		OwnerUsername:   shopEntity.OwnerUsername,
+		ContactPhone:    shopEntity.ContactPhone,
+		ContactEmail:    shopEntity.ContactEmail,
+		Address:         shopEntity.Address,
+		Description:     shopEntity.Description,
+		CreatedAt:       shopEntity.CreatedAt,
+		UpdatedAt:       shopEntity.UpdatedAt,
+		ValidUntil:      shopEntity.ValidUntil,
+		Settings:        shopEntity.Settings,
+		ImageURL:        shopEntity.ImageURL,
 		OrderStatusFlow: shopEntity.OrderStatusFlow,
 	}
 }
@@ -393,7 +395,7 @@ func (s *ShopService) GetUnboundTags(productID string, shopID uint64) ([]interfa
 }
 
 // BatchTagProducts 批量打标签
-func (s *ShopService) BatchTagProducts(tagID string, productIDs []string, shopID uint64) error {
+func (s *ShopService) BatchTagProducts(tagID int, productIDs []string, shopID uint64) error {
 	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -402,27 +404,27 @@ func (s *ShopService) BatchTagProducts(tagID string, productIDs []string, shopID
 	}()
 
 	for _, productID := range productIDs {
-			var existingCount int64
-			if err := tx.Raw("SELECT COUNT(*) FROM product_tags WHERE product_id = ? AND tag_id = ?",
-				productID, tagID).Count(&existingCount).Error; err != nil {
+		var existingCount int64
+		if err := tx.Raw("SELECT COUNT(*) FROM product_tags WHERE product_id = ? AND tag_id = ? AND shop_id = ?",
+			productID, tagID, shopID).Count(&existingCount).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if existingCount == 0 {
+			if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id, shop_id) VALUES (?, ?, ?)",
+				productID, tagID, shopID).Error; err != nil {
 				tx.Rollback()
 				return err
 			}
-
-			if existingCount == 0 {
-				if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id) VALUES (?, ?)",
-					productID, tagID).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
 		}
+	}
 
 	return tx.Commit().Error
 }
 
 // BatchUntagProducts 批量解绑商品标签
-func (s *ShopService) BatchUntagProducts(tagID string, productIDs []string, shopID uint64) error {
+func (s *ShopService) BatchUntagProducts(tagID int, productIDs []string, shopID uint64) error {
 	tx := s.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -451,15 +453,15 @@ func (s *ShopService) BatchTagProduct(productID string, tagIDs []string, shopID 
 	}()
 
 	// 先删除该商品的所有标签关联
-	if err := tx.Exec("DELETE FROM product_tags WHERE product_id = ?", productID).Error; err != nil {
+	if err := tx.Exec("DELETE FROM product_tags WHERE product_id = ? AND shop_id = ?", productID, shopID).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	// 批量插入新的标签关联
 	for _, tagID := range tagIDs {
-		if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id) VALUES (?, ?)",
-			productID, tagID).Error; err != nil {
+		if err := tx.Exec("INSERT INTO product_tags (product_id, tag_id, shop_id) VALUES (?, ?, ?)",
+			productID, tagID, shopID).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -484,23 +486,48 @@ func (s *ShopService) GetTagBoundProducts(tagID string, shopID uint64, page, pag
 	offset := (page - 1) * pageSize
 
 	var total int64
-	if err := s.db.Raw(`
-		SELECT COUNT(*) FROM products
-		JOIN product_tags ON product_tags.product_id = products.id
-		WHERE product_tags.tag_id = ? AND products.shop_id = ?`, tagID, shopID).Scan(&total).Error; err != nil {
-		return nil, err
-	}
-
 	var products []ProductResult
-	if err := s.db.Raw(`
-		SELECT products.id, products.shop_id, products.name, products.description,
-		       products.price, products.stock, products.status, products.image_url
-		FROM products
-		JOIN product_tags ON product_tags.product_id = products.id
-		WHERE product_tags.tag_id = ? AND products.shop_id = ?
-		ORDER BY products.created_at DESC
-		LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error; err != nil {
-		return nil, err
+
+	// tag_id=-1 表示查询未绑定任何标签的商品
+	if tagID == "-1" {
+		// 查询未绑定任何标签的商品
+		if err := s.db.Raw(`
+			SELECT COUNT(*) FROM products
+			WHERE shop_id = ? AND id NOT IN (
+				SELECT product_id FROM product_tags WHERE shop_id = ?
+			)`, shopID, shopID).Scan(&total).Error; err != nil {
+			return nil, err
+		}
+
+		if err := s.db.Raw(`
+			SELECT id, shop_id, name, description, price, stock, status, image_url
+			FROM products
+			WHERE shop_id = ? AND id NOT IN (
+				SELECT product_id FROM product_tags WHERE shop_id = ?
+			)
+			ORDER BY created_at DESC
+			LIMIT ? OFFSET ?`, shopID, shopID, pageSize, offset).Scan(&products).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		// 查询指定标签绑定的商品
+		if err := s.db.Raw(`
+			SELECT COUNT(*) FROM products
+			JOIN product_tags ON product_tags.product_id = products.id
+			WHERE product_tags.tag_id = ? AND products.shop_id = ?`, tagID, shopID).Scan(&total).Error; err != nil {
+			return nil, err
+		}
+
+		if err := s.db.Raw(`
+			SELECT products.id, products.shop_id, products.name, products.description,
+			       products.price, products.stock, products.status, products.image_url
+			FROM products
+			JOIN product_tags ON product_tags.product_id = products.id
+			WHERE product_tags.tag_id = ? AND products.shop_id = ?
+			ORDER BY products.created_at DESC
+			LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	result := make([]interface{}, len(products))
@@ -514,6 +541,31 @@ func (s *ShopService) GetTagBoundProducts(tagID string, shopID uint64, page, pag
 		"page_size": pageSize,
 		"data":      result,
 	}, nil
+}
+
+func (h *Handler) getUnboundProducts(shopID snowflake.ID, page int, pageSize int) ([]models.Product, int64, error) {
+	offset := (page - 1) * pageSize
+	var products []models.Product
+	var total int64
+
+	query := h.DB.Model(&models.Product{}).
+		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags WHERE shop_id = ?)", shopID, shopID)
+
+	// 获取总数
+	if err := query.
+		Model(&models.Product{}).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Offset(offset).
+		Limit(pageSize).Order("created_at DESC").
+		Preload("OptionCategories.Options").
+		Find(&products).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return products, total, nil
 }
 
 // GetUnboundProductsForTag 获取标签未绑定的商品列表

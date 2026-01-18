@@ -492,13 +492,13 @@ func (h *ShopHandler) GetUnboundTags(c *gin.Context) {
 // @Router /shopOwner/tag/batch-tag [post]
 func (h *ShopHandler) BatchTagProducts(c *gin.Context) {
 	var req struct {
-		TagID      string   `json:"tag_id" binding:"required"`
+		TagID      int      `json:"tag_id" binding:"required"`
 		ProductIDs []string `json:"product_ids" binding:"required"`
 		ShopID     string   `json:"shop_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
+		errorResponse(c, http.StatusBadRequest, "无效的请求参数:"+err.Error())
 		return
 	}
 
@@ -516,7 +516,7 @@ func (h *ShopHandler) BatchTagProducts(c *gin.Context) {
 
 	if err := h.shopService.BatchTagProducts(req.TagID, req.ProductIDs, validShopID.ToUint64()); err != nil {
 		log2.Errorf("批量打标签失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "批量打标签失败")
+		errorResponse(c, http.StatusInternalServerError, "批量打标签失败:"+err.Error())
 		return
 	}
 
@@ -538,7 +538,7 @@ func (h *ShopHandler) BatchTagProducts(c *gin.Context) {
 // @Router /shopOwner/tag/batch-untag [delete]
 func (h *ShopHandler) BatchUntagProducts(c *gin.Context) {
 	var req struct {
-		TagID      string   `json:"tag_id" binding:"required"`
+		TagID      int      `json:"tag_id" binding:"required"`
 		ProductIDs []string `json:"product_ids" binding:"required"`
 		ShopID     string   `json:"shop_id" binding:"required"`
 	}
