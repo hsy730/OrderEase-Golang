@@ -27,8 +27,8 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	}
 
 	// 尝试管理员登录
-	var admin models.Admin
-	if err := h.DB.Where("username = ?", loginData.Username).First(&admin).Error; err == nil {
+	admin, err := h.adminRepo.GetAdminByUsername(loginData.Username)
+	if err == nil {
 		if !admin.CheckPassword(loginData.Password) {
 			log2.Errorf("管理员密码验证失败, 用户名: %s", loginData.Username)
 			errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
@@ -100,8 +100,8 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 	}
 
 	// 获取唯一的管理员账户
-	var admin models.Admin
-	if err := h.DB.First(&admin).Error; err != nil {
+	admin, err := h.adminRepo.GetFirstAdmin()
+	if err != nil {
 		log2.Errorf("查找管理员失败: %v", err)
 		errorResponse(c, http.StatusNotFound, "管理员账户不存在")
 		return

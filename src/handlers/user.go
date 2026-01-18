@@ -96,25 +96,8 @@ func (h *Handler) GetUsers(c *gin.Context) {
 		return
 	}
 
-	var users []models.User
-	var total int64
-
-	baseQuery := h.DB.Model(&models.User{})
-
-	// 如果提供了用户名参数，则添加模糊匹配条件
-	if search != "" {
-		baseQuery = baseQuery.Where("name LIKE ?", "%"+search+"%")
-	}
-
-	if err := baseQuery.Count(&total).Error; err != nil {
-		h.logger.Errorf("获取用户总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
-		return
-	}
-
-	offset := (page - 1) * pageSize
-	if err := baseQuery.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error; err != nil {
-		h.logger.Errorf("查询用户列表失败: %v", err)
+	users, total, err := h.userRepo.GetUsers(page, pageSize, search)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
@@ -147,9 +130,8 @@ func (h *Handler) GetUser(c *gin.Context) {
 	// 	return
 	// }
 
-	var user models.User
-	if err := h.DB.First(&user, id).Error; err != nil {
-		h.logger.Errorf("查询用户失败, ID: %s, 错误: %v", id, err)
+	user, err := h.userRepo.GetUserByID(id)
+	if err != nil {
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
 	}
@@ -165,19 +147,14 @@ func (h *Handler) CheckUsernameExists(c *gin.Context) {
 		return
 	}
 
-	var user models.User
-	err := h.DB.Where("name = ?", username).First(&user).Error
+	exists, err := h.userRepo.CheckUsernameExists(username)
 	if err != nil {
-		// 用户不存在，返回false
-		successResponse(c, gin.H{
-			"exists": false,
-		})
+		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
 		return
 	}
 
-	// 用户存在，返回true
 	successResponse(c, gin.H{
-		"exists": true,
+		"exists": exists,
 	})
 }
 
@@ -317,10 +294,6 @@ func isValidPhone(phone string) bool {
 
 // 获取简单用户列表（只返回ID和名称）
 func (h *Handler) GetUserSimpleList(c *gin.Context) {
-	var users []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
 	// 获取分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -339,39 +312,19 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	// 获取搜索关键词
 	search := c.Query("search")
 
-	// 构建查询
-	query := h.DB.Model(&models.User{}).Select("id, name")
-
-	// 如果有搜索关键词，添加模糊搜索条件
-	if search != "" {
-		query = query.Where("name LIKE ?", "%"+search+"%")
-	}
-
-	// 获取总数
-	var total int64
-	if err := query.Model(&models.User{}).Count(&total).Error; err != nil {
-		h.logger.Errorf("查询用户总数失败: %v", err)
+	// 调用repository
+	users, total, err := h.userRepo.GetUserSimpleList(page, pageSize, search)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
 		return
 	}
 
-	// 计算偏移量
-	offset := (page - 1) * pageSize
-
-	// 查询分页数据
-	if err := query.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
-		h.logger.Errorf("查询用户列表失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
-		return
-	}
-
-	if err := query.Find(&users).Error; err != nil {
-		h.logger.Errorf("查询用户列表失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取用户列表失败")
-		return
-	}
-
-	successResponse(c, users)
+	successResponse(c, gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"data":     users,
+	})
 }
 
 // 前端用户注册请求结构体
