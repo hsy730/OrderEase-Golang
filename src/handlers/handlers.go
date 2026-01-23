@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"orderease/domain/user"
 	"orderease/models"
 	"orderease/services"
 	"orderease/utils/log2"
@@ -28,20 +29,68 @@ type Handler struct {
 	shopRepo         *repositories.ShopRepository
 	tagRepo          *repositories.TagRepository
 	tempTokenService *services.TempTokenService
+	userDomain       *user.Service
 }
 
 // 创建处理器实例
 func NewHandler(db *gorm.DB) *Handler {
+	userRepo := repositories.NewUserRepository(db)
+
+	// 创建 Repository 适配器，将 repositories.UserRepository 适配到 domain.Repository
+	userRepoAdapter := user.NewRepositoryAdapter(
+		// createFunc
+		func(u *user.User) error {
+			model := u.ToModel()
+			return userRepo.Create(model)
+		},
+		// getByIDFunc
+		func(id user.UserID) (*user.User, error) {
+			// 从 models.User 转换为 domain.User
+			model, err := userRepo.GetUserByID(string(id))
+			if err != nil {
+				return nil, err
+			}
+			return user.UserFromModel(model), nil
+		},
+		// getByUsernameFunc
+		func(username string) (*user.User, error) {
+			// 需要先在 UserRepository 中添加 GetByUsername 方法
+			// 暂时返回错误，表示未实现
+			return nil, errors.New("GetByUsername not implemented")
+		},
+		// phoneExistsFunc
+		func(phone string) (bool, error) {
+			return userRepo.CheckPhoneExists(phone)
+		},
+		// usernameExistsFunc
+		func(username string) (bool, error) {
+			return userRepo.CheckUsernameExists(username)
+		},
+		// updateFunc
+		func(u *user.User) error {
+			model := u.ToModel()
+			return userRepo.Update(model)
+		},
+		// deleteFunc
+		func(u *user.User) error {
+			model := u.ToModel()
+			return userRepo.Delete(model)
+		},
+	)
+
+	userDomain := user.NewService(userRepoAdapter)
+
 	return &Handler{
 		DB:               db,
 		productRepo:      repositories.NewProductRepository(db),
-		userRepo:         repositories.NewUserRepository(db),
+		userRepo:         userRepo,
 		adminRepo:        repositories.NewAdminRepository(db),
 		orderRepo:        repositories.NewOrderRepository(db),
 		shopRepo:         repositories.NewShopRepository(db),
 		tagRepo:          repositories.NewTagRepository(db),
 		logger:           log2.GetLogger(),
 		tempTokenService: services.NewTempTokenService(),
+		userDomain:       userDomain,
 	}
 }
 
