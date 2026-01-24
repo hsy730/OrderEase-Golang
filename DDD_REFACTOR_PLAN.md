@@ -10,7 +10,7 @@
 
 ### 已完成 ✅
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
-- `domain/order/` 聚合根（实体 + 业务方法）
+- `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shared/value_objects/` (Phone, Password, OrderStatus)
 - `utils/order_validation.go` (订单验证和库存管理函数)
 - `models/shop_helpers.go` (Shop 业务逻辑临时存放)
@@ -24,8 +24,9 @@
 - **Step 7**: 创建 Order 聚合根（空壳）✅
 - **Step 8**: 为 Order 添加业务方法 ✅
 - **Step 12**: 移除 Shop.BeforeSave 钩子 ✅
+- **Step 13**: 创建 Order 领域服务 ✅
 
-### DDD成熟度：65% (过渡阶段)
+### DDD成熟度：70% (过渡阶段)
 
 ---
 
@@ -222,16 +223,22 @@
 
 ---
 
-### Step 13: 创建 Order 领域服务
+### Step 13: 创建 Order 领域服务 ✅
 **目标**: 将跨实体的订单编排逻辑移到领域服务
 
 **改动**:
 - 创建 `src/domain/order/service.go`
-  - `func (s *Service) CreateOrder(...) (*Order, error)`
-- 在 Handler 中注入并调用
+  - `Service` 结构体（接受 gorm.DB 依赖）
+  - `CreateOrder()`: 创建订单（接受 DTO，返回订单和总价）
+  - `processOrderItems()`: 处理订单项（验证库存、保存快照、计算价格、扣减库存）
+  - `ValidateOrder()`: 验证订单基础数据
+  - `CalculateTotal()`: 计算订单总价
+  - `RestoreStock()`: 恢复商品库存
+  - DTO 结构（CreateOrderDTO, CreateOrderItemDTO, CreateOrderItemOptionDTO）
+- Handler 暂未调用服务（保持原有逻辑不变）
 
-**验证**: 运行测试
-**提交**: `feat(domain): 创建 Order 领域服务`
+**验证**: 运行测试 ✅ (72 passed in 163s)
+**提交**: `feat(domain): Step 13 创建 Order 领域服务` ✅
 
 ---
 
