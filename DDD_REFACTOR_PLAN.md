@@ -11,14 +11,16 @@
 ### 已完成 ✅
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/shared/value_objects/` (Phone, Password, OrderStatus)
+- `utils/order_validation.go` (订单验证和库存管理函数)
 - 所有 Repository 实现（但返回 models.* 而非领域实体）
 - **Step 1**: 提取 Shop 业务方法到独立函数 ✅
 - **Step 2**: 统一密码验证规则 ✅
 - **Step 3**: 移除 User.BeforeSave 钩子，密码哈希移到领域层 ✅
 - **Step 4**: 创建 OrderStatus 值对象 ✅
 - **Step 5**: 提取订单验证逻辑到独立函数 ✅
+- **Step 6**: 提取库存扣减逻辑到独立函数 ✅
 
-### DDD成熟度：45% (过渡阶段)
+### DDD成熟度：50% (过渡阶段)
 
 ---
 
