@@ -2,6 +2,8 @@ package user
 
 import (
 	"errors"
+
+	"orderease/domain/shared/value_objects"
 )
 
 // Service 用户领域服务
@@ -72,7 +74,13 @@ func (s *Service) Register(dto RegisterUserDTO) (*User, error) {
 		}
 	}
 
-	// 5. 创建用户实体（值对象会自动验证）
+	// 5. 验证密码（管理员创建用户使用强密码规则）
+	_, err = value_objects.NewStrictPassword(dto.Password)
+	if err != nil {
+		return nil, ErrInvalidPassword
+	}
+
+	// 6. 创建用户实体（使用 NewUser，内部会用宽松规则验证）
 	user, err := NewUser(
 		dto.Username,
 		dto.Phone,
@@ -87,7 +95,7 @@ func (s *Service) Register(dto RegisterUserDTO) (*User, error) {
 		return nil, err
 	}
 
-	// 6. 持久化
+	// 7. 持久化
 	if err := s.repo.Create(user); err != nil {
 		return nil, err
 	}

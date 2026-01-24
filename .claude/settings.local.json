@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(go build:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(where:*)",
+      "Bash(py -m pytest:*)",
+      "Bash(git add:*)",
+      "Bash(tree:*)"
+    ]
+  }
+}

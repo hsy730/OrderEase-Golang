@@ -1,12 +1,9 @@
 package models
 
 import (
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type User struct {
@@ -30,14 +27,3 @@ const (
 	UserRolePrivate = "private_user" // 普通用户
 	UserRolePublic  = "public_user"  // 公共用户
 )
-
-func (u *User) BeforeSave(tx *gorm.DB) error {
-	if u.Password != "" && !strings.HasPrefix(u.Password, "$2a$") {
-		hashed, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-		u.Password = string(hashed)
-	}
-	return nil
-}

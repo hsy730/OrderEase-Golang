@@ -1,7 +1,10 @@
 package user
 
 import (
+	"strings"
+
 	"github.com/bwmarrin/snowflake"
+	"golang.org/x/crypto/bcrypt"
 	"orderease/domain/shared/value_objects"
 	"orderease/models"
 	"orderease/utils"
@@ -180,11 +183,20 @@ func (u *User) ToModel() *models.User {
 		}
 	}
 
+	// 对密码进行哈希（如果不是哈希值）
+	password := u.password.String()
+	if !strings.HasPrefix(password, "$2a$") && !strings.HasPrefix(password, "$2b$") {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err == nil {
+			password = string(hashed)
+		}
+	}
+
 	return &models.User{
 		ID:       id,
 		Name:     u.name,
 		Phone:    u.phone.String(),
-		Password: u.password.String(),
+		Password: password,
 		Type:     string(u.userType),
 		Role:     string(u.role),
 		Address:  u.address,

@@ -28,32 +28,23 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, "无效的用户数据: "+err.Error())
 		return
 	}
-	// 创建用户对象并设置密码
-	user := models.User{
-		Name:     req.Name,
-		Phone:    req.Phone,
-		Password: req.Password, // 存储哈希后的密码
-		Type:     req.Type,
-		Role:     req.Role,    // 明确设置默认值
-		Address:  req.Address, // 初始化地址字段
-	}
 
 	// 验证用户类型
-	if user.Type != models.UserTypeDelivery && user.Type != models.UserTypePickup {
+	if req.Type != models.UserTypeDelivery && req.Type != models.UserTypePickup {
 		errorResponse(c, http.StatusBadRequest, "无效的用户类型")
 		return
 	}
 
-	if user.Phone != "" { // 电话选填
+	if req.Phone != "" { // 电话选填
 		// 增强版手机号验证
-		if !utils.ValidatePhoneWithRegex(user.Phone) {
-			h.logger.Errorf("无效的手机号格式: %s", user.Phone)
+		if !utils.ValidatePhoneWithRegex(req.Phone) {
+			h.logger.Errorf("无效的手机号格式: %s", req.Phone)
 			errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
 			return
 		}
 
 		// 检查手机号唯一性
-		exists, err := h.userRepo.CheckPhoneExists(user.Phone)
+		exists, err := h.userRepo.CheckPhoneExists(req.Phone)
 		if err != nil {
 			h.logger.Errorf("检查手机号失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "检查手机号失败")
@@ -65,8 +56,24 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		}
 	}
 
-	// 生成用户ID
-	user.ID = utils.GenerateSnowflakeID()
+	// 对密码进行哈希
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Errorf("密码加密失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
+		return
+	}
+
+	// 创建用户对象
+	user := models.User{
+		ID:       utils.GenerateSnowflakeID(),
+		Name:     req.Name,
+		Phone:    req.Phone,
+		Password: string(hashedPassword), // 存储哈希后的密码
+		Type:     req.Type,
+		Role:     req.Role,    // 明确设置默认值
+		Address:  req.Address, // 初始化地址字段
+	}
 
 	if err := h.userRepo.Create(&user); err != nil {
 		h.logger.Errorf("创建用户失败: %v", err)
@@ -223,9 +230,15 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	if updateData.Address != "" {
 		user.Address = updateData.Address
 	}
-	// 处理密码更新：如果密码不为空字符串，则更新密码
+	// 处理密码更新：如果密码不为空字符串，则哈希并更新密码
 	if updateData.Password != "" {
-		user.Password = updateData.Password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updateData.Password), bcrypt.DefaultCost)
+		if err != nil {
+			h.logger.Errorf("密码加密失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新用户失败")
+			return
+		}
+		user.Password = string(hashedPassword)
 	}
 	if updateData.Role != "" {
 		user.Role = updateData.Role
@@ -358,9 +371,9 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 		return
 	}
 
-	// 验证密码格式：6位字母或数字
+	// 验证密码格式：6-20位，必须包含字母和数字
 	if !isValidPassword(req.Password) {
-		errorResponse(c, http.StatusBadRequest, "密码必须为6位字母或数字")
+		errorResponse(c, http.StatusBadRequest, "密码必须为6-20位，且包含字母和数字")
 		return
 	}
 
@@ -376,13 +389,21 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 		return
 	}
 
+	// 对密码进行哈希
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Errorf("密码加密失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "注册失败")
+		return
+	}
+
 	// 创建用户对象
 	user := models.User{
 		ID:       utils.GenerateSnowflakeID(),
 		Name:     req.Username,
-		Password: req.Password,            // 存储明文密码（6位字母或数字）
-		Type:     models.UserTypeDelivery, // 默认邮寄配送
-		Role:     models.UserRolePublic,   // 默认公开用户
+		Password: string(hashedPassword),   // 存储哈希后的密码
+		Type:     models.UserTypeDelivery,  // 默认邮寄配送
+		Role:     models.UserRolePublic,    // 默认公开用户
 	}
 
 	if err := h.userRepo.Create(&user); err != nil {
