@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
@@ -175,10 +176,18 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		orderStatusFlow = *shopData.OrderStatusFlow
 	}
 
+	// 对密码进行哈希
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(shopData.OwnerPassword), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Errorf("密码加密失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "创建店铺失败")
+		return
+	}
+
 	newShop := models.Shop{
 		Name:            shopData.Name,
 		OwnerUsername:   shopData.OwnerUsername,
-		OwnerPassword:   shopData.OwnerPassword, // 密码将在BeforeSave钩子中加密
+		OwnerPassword:   string(hashedPassword),
 		ContactPhone:    shopData.ContactPhone,
 		ContactEmail:    shopData.ContactEmail,
 		Description:     shopData.Description,
@@ -312,7 +321,14 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 	// 处理密码更新：如果密码不为null，则更新密码
 	if updateData.OwnerPassword != nil {
-		shop.OwnerPassword = *updateData.OwnerPassword
+		// 对密码进行哈希
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*updateData.OwnerPassword), bcrypt.DefaultCost)
+		if err != nil {
+			h.logger.Errorf("密码加密失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
+			return
+		}
+		shop.OwnerPassword = string(hashedPassword)
 	}
 
 	if err := h.DB.Save(&shop).Error; err != nil {

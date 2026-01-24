@@ -4,10 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // OrderStatusAction 订单状态动作
@@ -71,18 +68,7 @@ func (s *Shop) CheckPassword(password string) error {
 	return CheckShopPassword(s, password)
 }
 
-// HashPassword 对店铺密码进行哈希（调用 models 包内独立函数）
-func (s *Shop) HashPassword() error {
-	return HashShopPassword(s)
-}
-
-// 在创建/更新钩子中添加
-func (s *Shop) BeforeSave(tx *gorm.DB) error {
-	if s.OwnerPassword != "" && !strings.HasPrefix(s.OwnerPassword, "$2a$") {
-		return s.HashPassword()
-	}
-	return nil
-}
+// BeforeSave 钩子已移除 - 密码哈希现在在 handler 和 domain 层处理
 
 // IsExpired 判断店铺是否到期（调用 models 包内独立函数）
 func (s *Shop) IsExpired() bool {

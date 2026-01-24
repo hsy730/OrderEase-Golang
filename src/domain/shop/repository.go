@@ -1,9 +1,5 @@
 package shop
 
-import (
-	"github.com/bwmarrin/snowflake"
-)
-
 // Repository 店铺仓储接口
 type Repository interface {
 	// Create 创建店铺

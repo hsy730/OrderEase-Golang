@@ -1,8 +1,10 @@
 package shop
 
 import (
+	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"orderease/models"
 )
 
@@ -149,13 +151,22 @@ func (s *Shop) SetUpdatedAt(t time.Time) {
 	s.updatedAt = t
 }
 
-// ToModel 转换为持久化模型
+// ToModel 转换为持久化模型（用于保存到数据库）
 func (s *Shop) ToModel() *models.Shop {
+	// 对密码进行哈希（如果不是哈希值）
+	password := s.ownerPassword
+	if !strings.HasPrefix(password, "$2a$") && !strings.HasPrefix(password, "$2b$") {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err == nil {
+			password = string(hashed)
+		}
+	}
+
 	return &models.Shop{
 		ID:              s.id,
 		Name:            s.name,
 		OwnerUsername:   s.ownerUsername,
-		OwnerPassword:   s.ownerPassword,
+		OwnerPassword:   password,
 		ContactPhone:    s.contactPhone,
 		ContactEmail:    s.contactEmail,
 		Address:         s.address,
