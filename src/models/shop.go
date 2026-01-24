@@ -75,7 +75,4 @@ func (s *Shop) IsExpired() bool {
 	return IsShopExpired(s)
 }
 
-// RemainingDays 获取剩余有效天数（负数表示已过期）（调用 models 包内独立函数）
-func (s *Shop) RemainingDays() int {
-	return GetShopRemainingDays(s)
-}
+// RemainingDays 方法已移除（未被使用，helper 函数 GetShopRemainingDays 也已删除）
