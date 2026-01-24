@@ -10,8 +10,10 @@
 
 ### 已完成 ✅
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
+- `domain/order/` 聚合根（空壳）
 - `domain/shared/value_objects/` (Phone, Password, OrderStatus)
 - `utils/order_validation.go` (订单验证和库存管理函数)
+- `models/shop_helpers.go` (Shop 业务逻辑临时存放)
 - 所有 Repository 实现（但返回 models.* 而非领域实体）
 - **Step 1**: 提取 Shop 业务方法到独立函数 ✅
 - **Step 2**: 统一密码验证规则 ✅
@@ -19,8 +21,9 @@
 - **Step 4**: 创建 OrderStatus 值对象 ✅
 - **Step 5**: 提取订单验证逻辑到独立函数 ✅
 - **Step 6**: 提取库存扣减逻辑到独立函数 ✅
+- **Step 7**: 创建 Order 聚合根（空壳）✅
 
-### DDD成熟度：50% (过渡阶段)
+### DDD成熟度：55% (过渡阶段)
 
 ---
 

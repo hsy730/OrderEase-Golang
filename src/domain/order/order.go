@@ -1,6 +1,8 @@
 package order
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/bwmarrin/snowflake"
@@ -142,4 +144,68 @@ func OrderFromModel(model *models.Order) *Order {
 		createdAt:  model.CreatedAt,
 		updatedAt:  model.UpdatedAt,
 	}
+}
+
+// ==================== 业务方法 ====================
+
+// ValidateItems 验证订单项
+func (o *Order) ValidateItems() error {
+	if len(o.items) == 0 {
+		return errors.New("订单项不能为空")
+	}
+
+	for _, item := range o.items {
+		if item.productID == 0 {
+			return errors.New("商品ID不能为空")
+		}
+		if item.quantity <= 0 {
+			return fmt.Errorf("商品数量必须大于0，当前值: %d", item.quantity)
+		}
+	}
+
+	return nil
+}
+
+// CalculateTotal 计算订单总价
+// 根据订单项的数量、价格和选项计算总价
+func (o *Order) CalculateTotal() models.Price {
+	total := float64(0)
+
+	for _, item := range o.items {
+		// 基础价格：商品单价 × 数量
+		itemTotal := float64(item.quantity) * float64(item.price)
+
+		// 加上选项价格调整
+		for _, opt := range item.options {
+			itemTotal += float64(item.quantity) * opt.PriceAdjustment
+		}
+
+		total += itemTotal
+	}
+
+	return models.Price(total)
+}
+
+// CanTransitionTo 判断是否可以转换到目标状态
+func (o *Order) CanTransitionTo(to value_objects.OrderStatus) bool {
+	return o.status.CanTransitionTo(to)
+}
+
+// IsFinal 判断订单是否处于最终状态
+func (o *Order) IsFinal() bool {
+	return o.status.IsFinal()
+}
+
+// GetItemCount 获取订单项数量
+func (o *Order) GetItemCount() int {
+	return len(o.items)
+}
+
+// GetTotalQuantity 获取商品总数量
+func (o *Order) GetTotalQuantity() int {
+	total := 0
+	for _, item := range o.items {
+		total += item.quantity
+	}
+	return total
 }
