@@ -59,12 +59,12 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
-	if shop.IsExpired() {
+	if models.IsShopExpired(&shop) {
 		errorResponse(c, http.StatusUnauthorized, "店铺已到期")
 		return
 	}
 
-	if err := shop.CheckPassword(loginData.Password); err != nil {
+	if err := models.CheckShopPassword(&shop, loginData.Password); err != nil {
 		log2.Errorf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
@@ -162,13 +162,13 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 		return
 	}
 
-	if shop.IsExpired() {
+	if models.IsShopExpired(&shop) {
 		errorResponse(c, http.StatusForbidden, "店铺服务已到期")
 		return
 	}
 
 	// 验证旧密码
-	if err := shop.CheckPassword(passwordData.OldPassword); err != nil {
+	if err := models.CheckShopPassword(&shop, passwordData.OldPassword); err != nil {
 		errorResponse(c, http.StatusUnauthorized, "旧密码错误")
 		return
 	}
@@ -181,7 +181,7 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 
 	// 更新密码
 	shop.OwnerPassword = passwordData.NewPassword
-	if err := shop.HashPassword(); err != nil {
+	if err := models.HashShopPassword(&shop); err != nil {
 		log2.Errorf("密码加密失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return
@@ -235,7 +235,7 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 			return
 		}
 
-		if shop.IsExpired() {
+		if models.IsShopExpired(&shop) {
 			log2.Warnf("店铺服务已到期: %s (ID: %d)", shop.Name, shop.ID)
 			errorResponse(c, http.StatusForbidden, "店铺服务已到期")
 			return

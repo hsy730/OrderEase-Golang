@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 // OrderStatusAction 订单状态动作
@@ -68,17 +66,14 @@ type Shop struct {
 	Tags            []Tag           `gorm:"foreignKey:ShopID" json:"tags"`
 }
 
+// CheckPassword 检查店铺密码是否正确（调用 models 包内独立函数）
 func (s *Shop) CheckPassword(password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(s.OwnerPassword), []byte(password))
+	return CheckShopPassword(s, password)
 }
 
+// HashPassword 对店铺密码进行哈希（调用 models 包内独立函数）
 func (s *Shop) HashPassword() error {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(s.OwnerPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	s.OwnerPassword = string(hashed)
-	return nil
+	return HashShopPassword(s)
 }
 
 // 在创建/更新钩子中添加
@@ -89,14 +84,12 @@ func (s *Shop) BeforeSave(tx *gorm.DB) error {
 	return nil
 }
 
-// IsExpired 判断店铺是否到期
+// IsExpired 判断店铺是否到期（调用 models 包内独立函数）
 func (s *Shop) IsExpired() bool {
-	now := time.Now().UTC()
-	return s.ValidUntil.Before(now)
+	return IsShopExpired(s)
 }
 
-// RemainingDays 获取剩余有效天数（负数表示已过期）
+// RemainingDays 获取剩余有效天数（负数表示已过期）（调用 models 包内独立函数）
 func (s *Shop) RemainingDays() int {
-	hours := time.Until(s.ValidUntil.UTC()).Hours()
-	return int(hours / 24) // 向下取整
+	return GetShopRemainingDays(s)
 }
