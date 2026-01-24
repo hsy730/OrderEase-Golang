@@ -199,3 +199,16 @@ func ShopFromModel(model *models.Shop) *Shop {
 		orderStatusFlow: model.OrderStatusFlow,
 	}
 }
+
+// ==================== 业务方法 ====================
+
+// CheckPassword 检查店铺密码是否正确
+func (s *Shop) CheckPassword(password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(s.ownerPassword), []byte(password))
+}
+
+// IsExpired 判断店铺是否到期
+func (s *Shop) IsExpired() bool {
+	now := time.Now().UTC()
+	return s.validUntil.Before(now)
+}

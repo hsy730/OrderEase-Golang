@@ -63,16 +63,9 @@ type Shop struct {
 	Tags            []Tag           `gorm:"foreignKey:ShopID" json:"tags"`
 }
 
-// CheckPassword 检查店铺密码是否正确（调用 models 包内独立函数）
-func (s *Shop) CheckPassword(password string) error {
-	return CheckShopPassword(s, password)
-}
+// 业务方法已迁移到 domain/shop/shop.go
+// CheckPassword 和 IsExpired 现在是领域实体的方法
 
 // BeforeSave 钩子已移除 - 密码哈希现在在 handler 和 domain 层处理
 
-// IsExpired 判断店铺是否到期（调用 models 包内独立函数）
-func (s *Shop) IsExpired() bool {
-	return IsShopExpired(s)
-}
-
-// RemainingDays 方法已移除（未被使用，helper 函数 GetShopRemainingDays 也已删除）
+// RemainingDays 方法已移除（未被使用）
