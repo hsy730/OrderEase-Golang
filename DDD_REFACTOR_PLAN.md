@@ -11,6 +11,8 @@
 ### 已完成 ✅
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
+- `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
+- `domain/product/` 聚合根（实体 + 业务方法）
 - `domain/shared/value_objects/` (Phone, Password, OrderStatus)
 - `utils/order_validation.go` (已清理，保留函数标记为 DEPRECATED)
 - `models/shop_helpers.go` (已清理，保留函数标记为 DEPRECATED)
@@ -26,8 +28,9 @@
 - **Step 12**: 移除 Shop.BeforeSave 钩子 ✅
 - **Step 13**: 创建 Order 领域服务 ✅
 - **Step 14**: 清理 utils 包中的领域逻辑 ✅
+- **Step 15-17**: Shop 业务方法迁移到领域层 ✅
 
-### DDD成熟度：75% (过渡阶段)
+### DDD成熟度：80% (过渡阶段)
 
 ---
 
@@ -263,6 +266,26 @@
 
 **验证**: 运行测试 ✅ (72 passed in 163s)
 **提交**: `refactor(utils): Step 14 清理 utils 中的领域逻辑` ✅
+
+---
+
+### Step 15-17: Shop 业务方法迁移到领域层 ✅
+
+**Step 15: 为 Shop 实体添加业务方法**
+- `domain/shop/shop.go`: 添加 CheckPassword() 和 IsExpired() 方法
+
+**Step 16: 更新 Handler 使用 Shop 领域方法**
+- `handlers/auth.go`: 导入 shop domain 包
+- UniversalLogin: 使用 shop.ShopFromModel() 转换后调用领域方法
+- ChangeShopPassword: 使用 shop.ShopFromModel() 转换后调用领域方法
+- RefreshToken: 使用 shop.ShopFromModel() 转换后调用 IsExpired()
+
+**Step 17: 清理 models.Shop**
+- `models/shop.go`: 移除 CheckPassword() 和 IsExpired() wrapper 方法
+- 添加注释说明业务方法已迁移到 domain 层
+
+**验证**: 运行测试 ✅ (72 passed in 163s)
+**提交**: `feat(domain): Step 15-17 为 Shop 添加业务方法并迁移到 Handler` ✅
 
 ---
 
