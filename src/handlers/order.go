@@ -87,7 +87,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	utils.SanitizeOrder(&order)
 
 	// 验证订单数据
-	if err := validateOrder(&order); err != nil {
+	if err := utils.ValidateOrder(&order); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -739,26 +739,6 @@ func errorResponse(c *gin.Context, code int, message string) {
 // 添加成功响应辅助函数
 func successResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, data)
-}
-
-// 添加订单验证函数
-func validateOrder(order *models.Order) error {
-	if order.UserID == 0 {
-		return fmt.Errorf("用户ID不能为空")
-	}
-
-	if len(order.Items) == 0 {
-		return fmt.Errorf("订单项不能为空")
-	}
-	for _, item := range order.Items {
-		if item.ProductID == 0 {
-			return fmt.Errorf("商品ID不能为空")
-		}
-		if item.Quantity <= 0 {
-			return fmt.Errorf("商品数量必须大于0")
-		}
-	}
-	return nil
 }
 
 // 高级查询订单

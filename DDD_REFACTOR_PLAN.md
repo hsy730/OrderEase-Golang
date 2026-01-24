@@ -10,13 +10,14 @@
 
 ### 已完成 ✅
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
-- `domain/shared/value_objects/` (Phone, Password)
+- `domain/shared/value_objects/` (Phone, Password, OrderStatus)
 - 所有 Repository 实现（但返回 models.* 而非领域实体）
 - **Step 1**: 提取 Shop 业务方法到独立函数 ✅
 - **Step 2**: 统一密码验证规则 ✅
 - **Step 3**: 移除 User.BeforeSave 钩子，密码哈希移到领域层 ✅
+- **Step 4**: 创建 OrderStatus 值对象 ✅
 
-### DDD成熟度：35% (过渡阶段)
+### DDD成熟度：40% (过渡阶段)
 
 ---
 
