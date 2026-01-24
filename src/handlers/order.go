@@ -577,7 +577,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	}
 
 	var order models.Order
-	if err := h.DB.Where("shop_id = ?", validShopID).First(&order, id).Error; err != nil {
+	if err := h.DB.Preload("Items").Where("shop_id = ?", validShopID).First(&order, id).Error; err != nil {
 		h.logger.Errorf("删除订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
@@ -585,6 +585,16 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 	// 开启事务
 	tx := h.DB.Begin()
+
+	// 恢复商品库存（仅在订单未取消且未完成时）
+	if order.Status != models.OrderStatusCanceled && order.Status != models.OrderStatusComplete {
+		if err := utils.RestoreProductStock(tx, order); err != nil {
+			tx.Rollback()
+			h.logger.Errorf("恢复商品库存失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "删除订单失败")
+			return
+		}
+	}
 
 	// 删除订单项
 	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
