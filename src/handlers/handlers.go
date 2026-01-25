@@ -147,3 +147,12 @@ func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, e
 	}
 	return shopID, nil
 }
+
+// checkShopExpiration 检查店铺是否过期
+func (h *Handler) checkShopExpiration(shopModel *models.Shop) error {
+	shopDomain := shop.ShopFromModel(shopModel)
+	if shopDomain.IsExpired() {
+		return errors.New("店铺服务已到期")
+	}
+	return nil
+}

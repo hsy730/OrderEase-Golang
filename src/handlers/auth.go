@@ -60,14 +60,14 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
-	// 转换为领域实体
-	shopDomain := shop.ShopFromModel(&shopModel)
-
-	if shopDomain.IsExpired() {
-		errorResponse(c, http.StatusUnauthorized, "店铺已到期")
+	// 检查店铺是否过期
+	if err := h.checkShopExpiration(&shopModel); err != nil {
+		errorResponse(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
+	// 转换为领域实体验证密码
+	shopDomain := shop.ShopFromModel(&shopModel)
 	if err := shopDomain.CheckPassword(loginData.Password); err != nil {
 		log2.Errorf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
@@ -166,15 +166,14 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 		return
 	}
 
-	// 转换为领域实体
-	shopDomain := shop.ShopFromModel(&shopModel)
-
-	if shopDomain.IsExpired() {
-		errorResponse(c, http.StatusForbidden, "店铺服务已到期")
+	// 检查店铺是否过期
+	if err := h.checkShopExpiration(&shopModel); err != nil {
+		errorResponse(c, http.StatusForbidden, err.Error())
 		return
 	}
 
-	// 验证旧密码
+	// 转换为领域实体验证密码
+	shopDomain := shop.ShopFromModel(&shopModel)
 	if err := shopDomain.CheckPassword(passwordData.OldPassword); err != nil {
 		errorResponse(c, http.StatusUnauthorized, "旧密码错误")
 		return
@@ -238,12 +237,10 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 			return
 		}
 
-		// 转换为领域实体
-		shopDomain := shop.ShopFromModel(&shopModel)
-
-		if shopDomain.IsExpired() {
+		// 检查店铺是否过期
+		if err := h.checkShopExpiration(&shopModel); err != nil {
 			log2.Warnf("店铺服务已到期: %s (ID: %d)", shopModel.Name, shopModel.ID)
-			errorResponse(c, http.StatusForbidden, "店铺服务已到期")
+			errorResponse(c, http.StatusForbidden, err.Error())
 			return
 		}
 	}
