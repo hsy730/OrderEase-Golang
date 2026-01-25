@@ -214,6 +214,20 @@ func (s *Shop) IsExpired() bool {
 	return s.validUntil.Before(now)
 }
 
+// IsActive 判断店铺是否处于激活状态
+// 激活状态：未到期且不在即将到期范围内
+func (s *Shop) IsActive() bool {
+	return !s.IsExpired() && !s.IsExpiringSoon()
+}
+
+// IsExpiringSoon 判断店铺是否即将到期
+// 即将到期：距离有效期结束不足7天
+func (s *Shop) IsExpiringSoon() bool {
+	now := time.Now().UTC()
+	daysUntilExpiry := int(s.validUntil.Sub(now).Hours() / 24)
+	return daysUntilExpiry >= 0 && daysUntilExpiry < 7
+}
+
 // CanDelete 检查店铺是否可以删除
 // 店铺删除需要满足：无关联商品且无关联订单
 func (s *Shop) CanDelete(productCount int, orderCount int) error {
