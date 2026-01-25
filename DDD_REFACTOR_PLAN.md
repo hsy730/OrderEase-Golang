@@ -35,8 +35,13 @@
 - **Step 22**: 迁移 User Handler 到领域服务 ✅
 - **Step 23**: 迁移 UpdateOrder 到领域服务 ✅
 - **Step 24**: 迁移 Product Handler 使用领域实体 ✅
+- **Step 25**: 提取分页参数验证到公共函数 ✅
+- **Step 26**: 统一手机号验证到 Domain 值对象 ✅
+- **Step 27**: 移除 Handler 层冗余的密码哈希 ✅
+- **Step 28**: 迁移 validateNextStatus 到 Order Domain ✅
+- **Step 29**: 完善 Shop 业务方法 ✅
 
-### DDD成熟度：92% (过渡阶段)
+### DDD成熟度：93% (完善阶段)
 
 ---
 
