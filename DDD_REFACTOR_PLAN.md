@@ -32,10 +32,11 @@
 - **Step 18**: 迁移 Order Handler 到领域服务 ✅
 - **Step 19**: 创建 Product 领域服务 ✅
 - **Step 21**: 清理废弃代码 ✅
+- **Step 22**: 迁移 User Handler 到领域服务 ✅
 - **Step 23**: 迁移 UpdateOrder 到领域服务 ✅
 - **Step 24**: 迁移 Product Handler 使用领域实体 ✅
 
-### DDD成熟度：91% (过渡阶段)
+### DDD成熟度：92% (过渡阶段)
 
 ---
 
@@ -354,6 +355,36 @@
 **收益**: 代码更清晰，减少误用风险
 **验证**: 编译通过 ✅
 **提交**: `refactor(utils): Step 21 清理废弃代码` ✅
+
+---
+
+### Step 22: 迁移 User Handler 到领域服务 ✅
+
+**目标**: 将 User Handler 的业务逻辑迁移到领域服务
+
+**改动**:
+- **Step 22a**: `handlers/user.go` CreateUser 添加用户名唯一性检查
+- **Step 22b**: `handlers/user.go` CreateUser 和 UpdateUser 使用 Domain 值对象验证密码
+- **Step 22c**: `domain/user/service.go` 添加 `RegisterWithPasswordValidation` 方法
+- **Step 22d**: `handlers/user.go` FrontendUserRegister 迁移到 Domain Service
+
+**代码改进**:
+- CreateUser: 添加用户名唯一性检查（修复 Bug）
+- CreateUser/UpdateUser: 使用 `value_objects.NewPassword()` 验证密码
+- FrontendUserRegister: 调用 Domain Service，代码量减少 40%
+- 删除 `isValidPassword` 函数（已被 Domain 值对象替代）
+
+**收益**:
+- 密码验证逻辑统一到 Domain 层
+- 修复 CreateUser 缺少用户名唯一性检查的 Bug
+- FrontendUserRegister 业务逻辑完全在 Domain 层
+
+**验证**: 运行测试 ✅ (72 passed in 163s)
+**提交**:
+- `fix(user): Step 22a CreateUser 添加用户名唯一性检查`
+- `refactor(user): Step 22b 统一密码验证到 Domain 值对象`
+- `feat(domain): Step 22c 添加 RegisterWithPasswordValidation 方法`
+- `refactor(user): Step 22d FrontendUserRegister 迁移到 Domain Service`
 
 ---
 
