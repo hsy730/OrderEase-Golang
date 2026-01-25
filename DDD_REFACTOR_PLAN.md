@@ -30,8 +30,9 @@
 - **Step 14**: 清理 utils 包中的领域逻辑 ✅
 - **Step 15-17**: Shop 业务方法迁移到领域层 ✅
 - **Step 18**: 迁移 Order Handler 到领域服务 ✅
+- **Step 19**: 创建 Product 领域服务 ✅
 
-### DDD成熟度：85% (过渡阶段)
+### DDD成熟度：88% (过渡阶段)
 
 ---
 
@@ -309,6 +310,28 @@
 
 **验证**: 运行测试 ✅
 **提交**: `refactor(order): Step 18 迁移 Order Handler 到领域服务` ✅
+
+---
+
+### Step 19: 创建 Product 领域服务 ✅
+
+**目标**: 将 Product 业务逻辑迁移到领域服务
+
+**改动**:
+- `domain/product/service.go`:
+  - `ValidateForDeletion()`: 验证商品是否可删除（检查关联订单）
+  - `CanTransitionTo()`: 验证商品状态流转是否合法
+  - `GetDomainStatusFromModel()` / `GetModelStatusFromDomain()`: 状态转换辅助
+- `handlers/handlers.go`:
+  - 添加 `productService *product.Service` 字段
+  - 在 `NewHandler` 中初始化 productService
+- `handlers/product.go`:
+  - `ToggleProductStatus`: 使用 `h.productService.CanTransitionTo()` 验证状态流转
+  - `DeleteProduct`: 使用 `h.productService.ValidateForDeletion()` 验证是否可删除
+  - 删除已废弃的 `isValidProductStatusTransition()` 函数
+
+**验证**: 运行测试 ✅
+**提交**: `feat(product): Step 19 创建 Product 领域服务` ✅
 
 ---
 
