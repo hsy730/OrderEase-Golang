@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"orderease/models"
+	value_objects "orderease/domain/shared/value_objects"
 	"orderease/utils"
 	"strconv"
 	"time"
@@ -65,6 +66,14 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 	if exists {
 		errorResponse(c, http.StatusConflict, "用户名已存在")
+		return
+	}
+
+	// 使用 Domain 值对象验证密码（保持与现有行为一致：宽松规则）
+	_, err = value_objects.NewPassword(req.Password)
+	if err != nil {
+		h.logger.Errorf("密码验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
 		return
 	}
 
@@ -242,8 +251,16 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	if updateData.Address != "" {
 		user.Address = updateData.Address
 	}
-	// 处理密码更新：如果密码不为空字符串，则哈希并更新密码
+	// 处理密码更新：如果密码不为空字符串，则验证并哈希
 	if updateData.Password != "" {
+		// 使用 Domain 值对象验证密码
+		_, err = value_objects.NewPassword(updateData.Password)
+		if err != nil {
+			h.logger.Errorf("密码验证失败: %v", err)
+			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
+			return
+		}
+		// 对密码进行哈希
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updateData.Password), bcrypt.DefaultCost)
 		if err != nil {
 			h.logger.Errorf("密码加密失败: %v", err)
