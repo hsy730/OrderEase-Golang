@@ -171,22 +171,8 @@ func (h *Handler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	var simpleOrders []models.OrderElement
-	// 初始化为空切片，确保即使没有订单也会返回[]
-	simpleOrders = make([]models.OrderElement, 0)
-
-	for _, order := range orders {
-		simpleOrders = append(simpleOrders, models.OrderElement{
-			ID:         order.ID,
-			UserID:     order.UserID,
-			ShopID:     order.ShopID,
-			TotalPrice: order.TotalPrice,
-			Status:     order.Status,
-			Remark:     order.Remark,
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-		})
-	}
+	// 使用 Domain 辅助函数转换订单列表
+	simpleOrders := orderdomain.ToOrderElements(orders)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -260,22 +246,8 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		return
 	}
 
-	var simpleOrders []models.OrderElement
-	// 初始化为空切片，确保即使没有订单也会返回[]
-	simpleOrders = make([]models.OrderElement, 0)
-
-	for _, order := range orders {
-		simpleOrders = append(simpleOrders, models.OrderElement{
-			ID:         order.ID,
-			UserID:     order.UserID,
-			ShopID:     order.ShopID,
-			TotalPrice: order.TotalPrice,
-			Status:     order.Status,
-			Remark:     order.Remark,
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-		})
-	}
+	// 使用 Domain 辅助函数转换订单列表
+	simpleOrders := orderdomain.ToOrderElements(orders)
 
 	successResponse(c, gin.H{
 		"code":     200,
@@ -661,22 +633,8 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 		return
 	}
 
-	// 转换为响应格式
-	var simpleOrders []models.OrderElement
-	simpleOrders = make([]models.OrderElement, 0, len(orders))
-
-	for _, order := range orders {
-		simpleOrders = append(simpleOrders, models.OrderElement{
-			ID:         order.ID,
-			UserID:     order.UserID,
-			ShopID:     order.ShopID,
-			TotalPrice: order.TotalPrice,
-			Status:     order.Status,
-			Remark:     order.Remark,
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-		})
-	}
+	// 使用 Domain 辅助函数转换订单列表
+	simpleOrders := orderdomain.ToOrderElements(orders)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -784,22 +742,8 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 		return
 	}
 
-	var simpleOrders []models.OrderElement
-	// 初始化为空切片，确保即使没有订单也会返回[]
-	simpleOrders = make([]models.OrderElement, 0)
-
-	for _, order := range orders {
-		simpleOrders = append(simpleOrders, models.OrderElement{
-			ID:         order.ID,
-			UserID:     order.UserID,
-			ShopID:     order.ShopID,
-			TotalPrice: order.TotalPrice,
-			Status:     order.Status,
-			Remark:     order.Remark,
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-		})
-	}
+	// 使用 Domain 辅助函数转换订单列表
+	simpleOrders := orderdomain.ToOrderElements(orders)
 
 	successResponse(c, gin.H{
 		"total":    total,

@@ -231,3 +231,23 @@ func (o *Order) HasItems() bool {
 func (o *Order) IsEmpty() bool {
 	return len(o.items) == 0
 }
+
+// ==================== 辅助函数 ====================
+
+// ToOrderElements 批量转换订单为轻量级响应对象
+func ToOrderElements(orders []models.Order) []models.OrderElement {
+	elements := make([]models.OrderElement, 0, len(orders))
+	for _, order := range orders {
+		elements = append(elements, models.OrderElement{
+			ID:         order.ID,
+			UserID:     order.UserID,
+			ShopID:     order.ShopID,
+			TotalPrice: order.TotalPrice,
+			Status:     order.Status,
+			Remark:     order.Remark,
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+		})
+	}
+	return elements
+}
