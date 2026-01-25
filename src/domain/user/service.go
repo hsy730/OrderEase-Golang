@@ -128,6 +128,48 @@ func (s *Service) SimpleRegister(dto SimpleRegisterDTO) (*User, error) {
 	return user, nil
 }
 
+// RegisterWithPasswordValidationDTO 注册DTO（带密码验证）
+type RegisterWithPasswordValidationDTO struct {
+	Username string
+	Password string
+}
+
+// RegisterWithPasswordValidation 前端用户注册（6-20位密码）
+func (s *Service) RegisterWithPasswordValidation(dto RegisterWithPasswordValidationDTO) (*User, error) {
+	// 1. 检查用户名唯一性
+	exists, err := s.repo.UsernameExists(dto.Username)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrUsernameAlreadyExists
+	}
+
+	// 2. 使用与 FrontendUserRegister 相同的密码规则 (6-20位 + 字母数字)
+	passwordVO, err := value_objects.NewPassword(dto.Password)
+	if err != nil {
+		return nil, ErrInvalidPassword
+	}
+
+	// 3. 创建用户实体
+	phoneVO, _ := value_objects.NewPhone("")
+	user := &User{
+		id:       NewUserID(),
+		name:     dto.Username,
+		phone:    phoneVO,
+		password: passwordVO,
+		userType: UserTypeDelivery,
+		role:     UserRolePublic,
+	}
+
+	// 4. 持久化
+	if err := s.repo.Create(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // GetByID 根据ID获取用户
 func (s *Service) GetByID(id UserID) (*User, error) {
 	return s.repo.GetByID(id)
