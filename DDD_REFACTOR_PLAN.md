@@ -29,8 +29,9 @@
 - **Step 13**: 创建 Order 领域服务 ✅
 - **Step 14**: 清理 utils 包中的领域逻辑 ✅
 - **Step 15-17**: Shop 业务方法迁移到领域层 ✅
+- **Step 18**: 迁移 Order Handler 到领域服务 ✅
 
-### DDD成熟度：80% (过渡阶段)
+### DDD成熟度：85% (过渡阶段)
 
 ---
 
@@ -286,6 +287,28 @@
 
 **验证**: 运行测试 ✅ (72 passed in 163s)
 **提交**: `feat(domain): Step 15-17 为 Shop 添加业务方法并迁移到 Handler` ✅
+
+---
+
+### Step 18: 迁移 Order Handler 到领域服务 ✅
+
+**目标**: 将 `handlers/order.go` 的业务逻辑迁移到 `order.Service`
+
+**改动**:
+- `handlers/handlers.go`:
+  - 添加 `orderService *order.Service` 字段
+  - 在 `NewHandler` 中初始化 orderService
+- `handlers/order.go`:
+  - **CreateOrder** (行 52-165): 使用 `h.orderService.CreateOrder` 处理库存验证、快照、价格计算、库存扣减
+  - **DeleteOrder** (行 476-541): 使用 `h.orderService.RestoreStock` 恢复库存
+  - **ToggleOrderStatus** (行 544-637): 使用 `orderdomain.OrderFromModel` + `IsFinal()` 验证终态
+
+**代码改进**:
+- CreateOrder 代码量减少约 40% (从 197 行减少到 113 行)
+- 消除重复的库存验证、快照保存、价格计算逻辑
+
+**验证**: 运行测试 ✅
+**提交**: `refactor(order): Step 18 迁移 Order Handler 到领域服务` ✅
 
 ---
 
