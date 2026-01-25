@@ -1,7 +1,10 @@
 package shop
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"orderease/models"
@@ -78,4 +81,40 @@ func (s *Service) DeleteShop(shopID uint64) error {
 	}
 
 	return nil
+}
+
+// ProcessValidUntil 处理店铺有效期
+// 解析用户提供的有效期字符串，如果为空则使用默认值（1年）
+func (s *Service) ProcessValidUntil(validUntilStr string) (time.Time, error) {
+	// 默认有效期1年
+	validUntil := time.Now().AddDate(1, 0, 0)
+
+	// 如果提供了有效期，则解析
+	if validUntilStr != "" {
+		parsedValidUntil, err := time.Parse(time.RFC3339, validUntilStr)
+		if err != nil {
+			return time.Time{}, errors.New("无效的有效期格式，请使用 RFC3339 格式（如：2024-01-01T00:00:00Z）")
+		}
+		validUntil = parsedValidUntil
+	}
+
+	return validUntil, nil
+}
+
+// ParseOrderStatusFlow 解析订单状态流转配置
+// 如果提供了配置则使用提供的配置，否则使用默认配置
+func (s *Service) ParseOrderStatusFlow(orderStatusFlow *models.OrderStatusFlow) (models.OrderStatusFlow, error) {
+	var flow models.OrderStatusFlow
+
+	// 解析默认订单流转配置
+	if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &flow); err != nil {
+		return models.OrderStatusFlow{}, errors.New("解析默认订单流转配置失败")
+	}
+
+	// 如果提供了订单流转配置，则使用提供的配置
+	if orderStatusFlow != nil {
+		flow = *orderStatusFlow
+	}
+
+	return flow, nil
 }

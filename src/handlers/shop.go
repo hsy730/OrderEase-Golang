@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
-	"gorm.io/gorm"
 
 	shopdomain "orderease/domain/shop"
 	"orderease/models"
@@ -51,9 +49,10 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 		return
 	}
 
-	var shop models.Shop
-	if err := h.DB.Preload("Tags").First(&shop, shopIDInt).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 使用 Repository 获取店铺及其标签
+	shop, err := h.shopRepo.GetWithTags(uint64(shopIDInt))
+	if err != nil {
+		if err.Error() == "店铺不存在" {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
@@ -142,36 +141,31 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		return
 	}
 
-	// 检查用户名是否已存在
-	var count int64
-	h.DB.Model(&models.Shop{}).Where("owner_username = ?", shopData.OwnerUsername).Count(&count)
-	if count > 0 {
+	// 使用 Repository 检查用户名是否已存在
+	exists, err := h.shopRepo.CheckUsernameExists(shopData.OwnerUsername)
+	if err != nil {
+		h.logger.Errorf("检查用户名失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
+		return
+	}
+	if exists {
 		errorResponse(c, http.StatusConflict, "店主用户名已存在")
 		return
 	}
 
-	// 处理有效期
-	validUntil := time.Now().AddDate(1, 0, 0) // 默认有效期1年
-	if shopData.ValidUntil != "" {
-		parsedValidUntil, err := time.Parse(time.RFC3339, shopData.ValidUntil)
-		if err != nil {
-			errorResponse(c, http.StatusBadRequest, "无效的有效期格式")
-			return
-		}
-		validUntil = parsedValidUntil
-	}
-
-	// 解析默认订单流转配置
-	var orderStatusFlow models.OrderStatusFlow
-	if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &orderStatusFlow); err != nil {
-		h.logger.Errorf("解析默认订单流转配置失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "解析默认订单流转配置失败")
+	// 使用 Domain Service 处理有效期
+	validUntil, err := h.shopService.ProcessValidUntil(shopData.ValidUntil)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// 如果提供了订单流转配置，则使用提供的配置
-	if shopData.OrderStatusFlow != nil {
-		orderStatusFlow = *shopData.OrderStatusFlow
+	// 使用 Domain Service 解析订单状态流转配置
+	orderStatusFlow, err := h.shopService.ParseOrderStatusFlow(shopData.OrderStatusFlow)
+	if err != nil {
+		h.logger.Errorf("解析订单流转配置失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "解析订单流转配置失败")
+		return
 	}
 
 	// 使用 Domain 实体创建店铺（密码哈希由 ToModel() 处理）
@@ -189,7 +183,8 @@ func (h *Handler) CreateShop(c *gin.Context) {
 	// 转换为 Model（自动处理密码哈希）
 	newShop := shopDomain.ToModel()
 
-	if err := h.DB.Create(&newShop).Error; err != nil {
+	// 使用 Repository 创建店铺
+	if err := h.shopRepo.Create(newShop); err != nil {
 		h.logger.Errorf("创建店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建店铺失败")
 		return
@@ -323,7 +318,8 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		shop.OwnerPassword = shopModel.OwnerPassword
 	}
 
-	if err := h.DB.Save(&shop).Error; err != nil {
+	// 使用 Repository 更新店铺
+	if err := h.shopRepo.Update(shop); err != nil {
 		h.logger.Errorf("更新店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
 		return
@@ -408,10 +404,10 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		return
 	}
 
-	// 查询店铺
-	var shop models.Shop
-	if err := h.DB.First(&shop, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 使用 Repository 查询店铺
+	shop, err := h.shopRepo.GetShopByID(id)
+	if err != nil {
+		if err.Error() == "店铺不存在" {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
@@ -478,8 +474,8 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		log2.Infof("图片压缩成功，原始大小: %d 字节，压缩后: %d 字节", file.Size, compressedSize)
 	}
 
-	// 更新店铺图片URL
-	if err := h.DB.Model(&shop).Update("image_url", filename).Error; err != nil {
+	// 使用 Repository 更新店铺图片URL
+	if err := h.shopRepo.UpdateImageURL(shop.ID, filename); err != nil {
 		log2.Errorf("更新店铺图片失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新店铺图片失败")
 		return
@@ -531,10 +527,14 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 		return
 	}
 
-	// 验证店铺是否存在
-	var shop models.Shop
-	if err := h.DB.Where("id = ?", shopID).First(&shop).Error; err != nil {
-		errorResponse(c, http.StatusNotFound, "店铺不存在")
+	// 使用 Repository 验证店铺是否存在
+	_, err = h.shopRepo.GetShopByID(shopID)
+	if err != nil {
+		if err.Error() == "店铺不存在" {
+			errorResponse(c, http.StatusNotFound, "店铺不存在")
+			return
+		}
+		errorResponse(c, http.StatusInternalServerError, "查询店铺失败")
 		return
 	}
 
@@ -574,7 +574,8 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	// 更新订单流转状态配置
 	shop.OrderStatusFlow = req.OrderStatusFlow
 
-	if err := h.DB.Save(&shop).Error; err != nil {
+	// 使用 Repository 更新店铺
+	if err := h.shopRepo.Update(shop); err != nil {
 		h.logger.Errorf("更新店铺订单流转状态配置失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新店铺订单流转状态配置失败")
 		return

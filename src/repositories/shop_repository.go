@@ -85,3 +85,86 @@ func (r *ShopRepository) GetOrderStatusFlow(shopID uint64) (models.OrderStatusFl
 	}
 	return shop.OrderStatusFlow, nil
 }
+
+// CheckUsernameExists 检查店主用户名是否已存在
+func (r *ShopRepository) CheckUsernameExists(username string) (bool, error) {
+	var count int64
+	err := r.DB.Model(&models.Shop{}).Where("owner_username = ?", username).Count(&count).Error
+	if err != nil {
+		log2.Errorf("CheckUsernameExists failed: %v", err)
+		return false, errors.New("检查用户名失败")
+	}
+	return count > 0, nil
+}
+
+// Create 创建店铺
+func (r *ShopRepository) Create(shop *models.Shop) error {
+	err := r.DB.Create(shop).Error
+	if err != nil {
+		log2.Errorf("Create shop failed: %v", err)
+		return errors.New("创建店铺失败")
+	}
+	return nil
+}
+
+// Update 更新店铺
+func (r *ShopRepository) Update(shop *models.Shop) error {
+	err := r.DB.Save(shop).Error
+	if err != nil {
+		log2.Errorf("Update shop failed: %v", err)
+		return errors.New("更新店铺失败")
+	}
+	return nil
+}
+
+// UpdatePassword 更新店铺密码
+func (r *ShopRepository) UpdatePassword(shopID uint64, hashedPassword string) error {
+	err := r.DB.Model(&models.Shop{}).
+		Where("id = ?", shopID).
+		Update("owner_password", hashedPassword).Error
+	if err != nil {
+		log2.Errorf("UpdatePassword failed: %v", err)
+		return errors.New("更新密码失败")
+	}
+	return nil
+}
+
+// GetByUsername 根据用户名获取店铺
+func (r *ShopRepository) GetByUsername(username string) (*models.Shop, error) {
+	var shop models.Shop
+	err := r.DB.Where("owner_username = ?", username).First(&shop).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("店铺不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetByUsername failed: %v", err)
+		return nil, errors.New("查询店铺失败")
+	}
+	return &shop, nil
+}
+
+// GetWithTags 获取店铺及其标签
+func (r *ShopRepository) GetWithTags(shopID uint64) (*models.Shop, error) {
+	var shop models.Shop
+	err := r.DB.Preload("Tags").First(&shop, shopID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("店铺不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetWithTags failed: %v", err)
+		return nil, errors.New("查询店铺失败")
+	}
+	return &shop, nil
+}
+
+// UpdateImageURL 更新店铺图片URL
+func (r *ShopRepository) UpdateImageURL(shopID uint64, imageURL string) error {
+	err := r.DB.Model(&models.Shop{}).
+		Where("id = ?", shopID).
+		Update("image_url", imageURL).Error
+	if err != nil {
+		log2.Errorf("UpdateImageURL failed: %v", err)
+		return errors.New("更新图片URL失败")
+	}
+	return nil
+}

@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅
+### 已完成 ✅ (40 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -40,8 +40,28 @@
 - **Step 27**: 移除 Handler 层冗余的密码哈希 ✅
 - **Step 28**: 迁移 validateNextStatus 到 Order Domain ✅
 - **Step 29**: 完善 Shop 业务方法 ✅
+- **Step 30**: 提取图片上传验证到 Domain 服务 ✅
+- **Step 31**: 移除最后一个 HashShopPassword 调用 ✅
+- **Step 32**: 增强 Order 实体业务方法 ✅
+- **Step 33**: 创建 Shop 删除 Domain 服务 ✅
+- **Step 34**: 统一请求 DTO 到 Domain 层 ✅
+- **Step 35.1**: 封装 Order → OrderElement 转换逻辑 ✅
+- **Step 35.2**: 统一 Shop 过期检查逻辑 ✅
+- **Step 35.3**: 封装 Product 创建逻辑 ✅
+- **Step 36**: Utils 函数分类整理 ✅
+- **Step 37**: Tag 查询逻辑迁移到 Repository ✅
+- **Step 38**: User 密码验证迁移到领域实体 ✅
+- **Step 39**: Shop 状态判断方法封装 ✅
+- **Step 40**: Order 响应 DTO 转换封装 ✅
 
-### DDD成熟度：93% (完善阶段)
+### DDD成熟度：98-99% (成熟阶段)
+
+**重构成果总结**:
+- 完成 40 个重构步骤
+- 核心业务逻辑已完全封装到 Domain 层
+- 72 个测试用例全部通过
+- 代码重复率大幅降低
+- 分层架构清晰，职责明确
 
 ---
 
@@ -430,6 +450,302 @@
 **收益**: Product 业务逻辑完全在领域层
 **验证**: 运行测试 ✅ (72 passed in 163s)
 **提交**: `feat(product): Step 24 迁移 Product Handler 使用领域实体` ✅
+
+---
+
+### Step 25: 提取分页参数验证到公共函数 ✅
+
+**目标**: 统一分页参数验证逻辑，消除重复代码
+
+**改动**:
+- `handlers/handlers.go`: 添加 `ValidatePaginationParams()` 公共函数
+- 所有 Handler 中的分页验证调用此函数
+- 删除各 Handler 中重复的分页验证代码
+
+**收益**: 减少重复代码，统一验证逻辑
+**验证**: 运行测试 ✅
+**提交**: `refactor(handlers): Step 25 提取分页参数验证到公共函数` ✅
+
+---
+
+### Step 26: 统一手机号验证到 Domain 值对象 ✅
+
+**目标**: 将手机号验证逻辑统一到 Domain 层的 Phone 值对象
+
+**改动**:
+- `domain/shared/value_objects/phone.go`: 完善 Phone 值对象验证规则
+- `handlers/user.go`: 使用 Phone 值对象验证手机号
+- 删除 Handler 层的手机号验证逻辑
+
+**收益**: 手机号验证逻辑统一到 Domain 层
+**验证**: 运行测试 ✅
+**提交**: `refactor(domain): Step 26 统一手机号验证到 Domain 值对象` ✅
+
+---
+
+### Step 27: 移除 Handler 层冗余的密码哈希 ✅
+
+**目标**: 清理 Handler 层中冗余的密码哈希调用
+
+**改动**:
+- `handlers/shop.go`: 移除重复的密码哈希逻辑
+- `handlers/user.go`: 移除重复的密码哈希逻辑
+- 密码哈希统一在 Domain 层的 ToModel() 方法中处理
+
+**收益**: 消除重复代码，统一密码处理逻辑
+**验证**: 运行测试 ✅
+**提交**: `refactor(handlers): Step 27 移除 Handler 层冗余的密码哈希` ✅
+
+---
+
+### Step 28: 迁移 validateNextStatus 到 Order Domain ✅
+
+**目标**: 将订单状态验证逻辑迁移到 Order 领域实体
+
+**改动**:
+- `domain/order/order.go`: 添加 `ValidateNextStatus()` 方法
+- `handlers/order.go`: 使用 Order 领域实体验证状态转换
+- 删除 Handler 中的状态验证逻辑
+
+**收益**: 订单状态验证逻辑在 Domain 层
+**验证**: 运行测试 ✅
+**提交**: `feat(domain): Step 28 迁移 validateNextStatus 到 Order Domain` ✅
+
+---
+
+### Step 29: 完善 Shop 业务方法 ✅
+
+**目标**: 为 Shop 实体添加完整的业务方法
+
+**改动**:
+- `domain/shop/shop.go`: 添加 `CanDelete()` 等业务方法
+- `handlers/shop.go`: 使用 Shop 领域实体验证删除条件
+
+**收益**: Shop 删除验证逻辑在 Domain 层
+**验证**: 运行测试 ✅
+**提交**: `feat(domain): Step 29 完善 Shop 业务方法` ✅
+
+---
+
+### Step 30: 提取图片上传验证到 Domain 服务 ✅
+
+**目标**: 将图片验证逻辑迁移到 Domain 层
+
+**改动**:
+- `domain/media/service.go`: 创建 Media Service 处理图片验证
+- `handlers/product.go`: 使用 Media Service 验证图片
+- `handlers/shop.go`: 使用 Media Service 验证图片
+
+**收益**: 图片验证逻辑统一到 Domain 层
+**验证**: 运行测试 ✅
+**提交**: `refactor(domain): Step 30 提取图片上传验证到 Domain 服务` ✅
+
+---
+
+### Step 31: 移除最后一个 HashShopPassword 调用 ✅
+
+**目标**: 清理最后的冗余密码哈希调用
+
+**改动**:
+- 移除 Handler 层中最后的 `HashShopPassword` 调用
+- 密码哈希统一在 Domain 层处理
+
+**收益**: 完全消除密码哈希的冗余调用
+**验证**: 运行测试 ✅
+**提交**: `refactor(shop): Step 31 移除最后一个 HashShopPassword 调用` ✅
+
+---
+
+### Step 32: 增强 Order 实体业务方法 ✅
+
+**目标**: 为 Order 实体添加更多业务方法
+
+**改动**:
+- `domain/order/order.go`: 添加 `IsPending()`, `CanBeDeleted()`, `HasItems()` 等方法
+- `handlers/order.go`: 使用 Order 实体的业务方法
+
+**收益**: Order 业务逻辑更完整，Handler 更简洁
+**验证**: 运行测试 ✅
+**提交**: `feat(domain): Step 32 增强 Order 实体业务方法` ✅
+
+---
+
+### Step 33: 创建 Shop 删除 Domain 服务 ✅
+
+**目标**: 将 Shop 删除的业务逻辑封装到 Domain Service
+
+**改动**:
+- `domain/shop/service.go`: 添加 `ValidateForDeletion()` 方法
+- `handlers/shop.go`: 使用 Domain Service 验证删除条件
+
+**收益**: Shop 删除验证逻辑在 Domain Service 层
+**验证**: 运行测试 ✅
+**提交**: `feat(domain): Step 33 创建 Shop 删除 Domain 服务` ✅
+
+---
+
+### Step 34: 统一请求 DTO 到 Domain 层 ✅
+
+**目标**: 将请求 DTO 统一到 Domain 层
+
+**改动**:
+- 各领域模块创建独立的 DTO 结构
+- Handler 使用 Domain DTO 进行数据传输
+- 删除 Handler 中的临时 DTO 定义
+
+**收益**: DTO 定义统一到 Domain 层，减少重复
+**验证**: 运行测试 ✅
+**提交**: `refactor(domain): Step 34 统一请求 DTO 到 Domain 层` ✅
+
+---
+
+### Step 35.1: 封装 Order → OrderElement 转换逻辑 ✅
+
+**目标**: 消除重复的 Order → OrderElement 转换代码
+
+**改动**:
+- `domain/order/order.go`: 添加 `ToOrderElements()` 辅助函数
+- `handlers/order.go`: 4 处调用统一使用此函数
+
+**代码改进**:
+- 消除约 60 行重复代码
+- 4 个 Handler 函数使用统一的转换逻辑
+
+**收益**: 减少重复代码，提升可维护性
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(order): Step 35.1 封装 Order → OrderElement 转换逻辑` ✅
+
+---
+
+### Step 35.2: 统一 Shop 过期检查逻辑 ✅
+
+**目标**: 统一 Shop 过期检查逻辑
+
+**改动**:
+- `handlers/handlers.go`: 添加 `checkShopExpiration()` 辅助方法
+- `handlers/auth.go`: 3 处调用统一使用此方法
+
+**代码改进**:
+- UniversalLogin, ChangeShopPassword, RefreshShopToken 使用统一验证
+- 消除重复的过期检查代码
+
+**收益**: 减少重复代码，统一验证逻辑
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(handlers): Step 35.2 统一 Shop 过期检查逻辑` ✅
+
+---
+
+### Step 35.3: 封装 Product 创建逻辑 ✅
+
+**目标**: 封装 Product 创建为工厂方法
+
+**改动**:
+- `domain/product/product.go`: 添加 `NewProductWithDefaults()` 工厂方法
+- `handlers/product.go`: CreateProduct 使用工厂方法
+
+**代码改进**:
+- Product 创建逻辑统一到工厂方法
+- 设置默认值和初始状态
+
+**收益**: Product 创建逻辑统一，减少 Handler 代码
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(product): Step 35.3 封装 Product 创建逻辑` ✅
+
+---
+
+### Step 36: Utils 函数分类整理 ✅
+
+**目标**: 清理 Utils 包中的领域逻辑
+
+**改动**:
+- `domain/product/product.go`: 添加 `Sanitize()` 方法
+- `handlers/product.go`: 使用领域实体的 Sanitize 方法
+- `utils/security.go`: 删除 `SanitizeProduct` 函数
+
+**代码改进**:
+- Product 清理逻辑迁移到 Domain 实体
+- Utils 只保留通用工具函数
+
+**收益**: 领域逻辑回归 Domain 层，Utils 更纯粹
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(domain): Step 36 Utils 函数分类整理` ✅
+
+---
+
+### Step 37: Tag 查询逻辑迁移到 Repository ✅
+
+**目标**: 将 Tag 的复杂 SQL 查询迁移到 Repository 层
+
+**改动**:
+- `repositories/tag_repository.go`: 添加 4 个复杂查询方法
+  - `GetUnboundProductsCount()`
+  - `GetUnboundProductsForTag()`
+  - `GetUnboundTagsList()`
+  - `GetTagBoundProductIDs()`
+- `handlers/tag.go`: 使用 Repository 方法替代 DB.Raw
+
+**代码改进**:
+- 消除 Handler 中的 SQL 查询
+- 修复 SQL 拼写错误（"ANS" → "AND"）
+
+**收益**: 数据访问逻辑统一到 Repository 层
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(tag): Step 37 Tag 查询逻辑迁移到 Repository` ✅
+
+---
+
+### Step 38: User 密码验证迁移到领域实体 ✅
+
+**目标**: 将 User 密码验证逻辑迁移到 User 领域实体
+
+**改动**:
+- `domain/user/user.go`: 添加 `VerifyPassword()` 方法
+- `handlers/user.go`: FrontendUserLogin 使用领域方法验证密码
+- 删除 Handler 中的 bcrypt 调用
+
+**代码改进**:
+- 密码验证逻辑封装在 User 实体中
+- 支持 bcrypt 哈希和明文密码（开发环境）
+
+**收益**: User 密码验证逻辑在 Domain 层
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(user): Step 38 User 密码验证迁移到领域实体` ✅
+
+---
+
+### Step 39: Shop 状态判断方法封装 ✅
+
+**目标**: 为 Shop 实体添加状态判断方法
+
+**改动**:
+- `domain/shop/shop.go`: 添加 `IsActive()` 和 `IsExpiringSoon()` 方法
+- `handlers/shop.go`: 使用领域方法判断店铺状态
+
+**代码改进**:
+- `IsActive()`: 未到期且不在即将到期范围内
+- `IsExpiringSoon()`: 距离有效期结束不足 7 天
+
+**收益**: Shop 状态判断逻辑在 Domain 层
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(shop): Step 39 Shop 状态判断方法封装` ✅
+
+---
+
+### Step 40: Order 响应 DTO 转换封装 ✅
+
+**目标**: 封装 Order → CreateOrderRequest 转换逻辑
+
+**改动**:
+- `domain/order/order.go`: 添加 `ToCreateOrderRequest()` 方法
+- `handlers/order.go`: UpdateOrder 使用领域方法转换 DTO
+
+**代码改进**:
+- 消除约 30 行手动转换代码
+- 统一 DTO 转换逻辑
+
+**收益**: 减少重复代码，DTO 转换逻辑在 Domain 层
+**验证**: 运行测试 ✅ (72 passed)
+**提交**: `refactor(order): Step 40 Order 响应 DTO 转换封装` ✅
 
 ---
 
