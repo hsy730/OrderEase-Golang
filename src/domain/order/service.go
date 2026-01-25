@@ -275,3 +275,31 @@ func (s *Service) UpdateOrder(dto UpdateOrderDTO) (*models.Order, float64, error
 
 	return order, totalPrice, nil
 }
+
+// ValidateStatusTransition 验证订单状态流转是否合法
+// 检查从当前状态流转到下一个状态是否符合店铺的订单状态配置
+func (s *Service) ValidateStatusTransition(currentStatus int, nextStatus int, flow models.OrderStatusFlow) error {
+	// 查找当前状态在店铺流转定义中的配置
+	for _, status := range flow.Statuses {
+		if status.Value == currentStatus {
+			// 检查是否为终态
+			if status.IsFinal {
+				return fmt.Errorf("当前状态为终态，不允许转换")
+			}
+
+			// 检查请求的next_status是否在当前状态允许的动作列表中
+			for _, action := range status.Actions {
+				if action.NextStatus == nextStatus {
+					// 找到匹配的动作，允许转换
+					return nil
+				}
+			}
+
+			// 没有找到匹配的动作
+			return fmt.Errorf("当前状态不允许转换到指定的下一个状态")
+		}
+	}
+
+	// 如果在店铺流转定义中找不到当前状态
+	return fmt.Errorf("当前状态不允许转换")
+}

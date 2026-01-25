@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
-	"orderease/domain/order"
 	orderdomain "orderease/domain/order"
 	"orderease/models"
 	"orderease/utils"
@@ -75,16 +73,16 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	tx := h.DB.Begin()
 
 	// 构建领域服务 DTO
-	var itemsDTO []order.CreateOrderItemDTO
+	var itemsDTO []orderdomain.CreateOrderItemDTO
 	for _, itemReq := range req.Items {
-		var optionsDTO []order.CreateOrderItemOptionDTO
+		var optionsDTO []orderdomain.CreateOrderItemOptionDTO
 		for _, optionReq := range itemReq.Options {
-			optionsDTO = append(optionsDTO, order.CreateOrderItemOptionDTO{
+			optionsDTO = append(optionsDTO, orderdomain.CreateOrderItemOptionDTO{
 				OptionID:   optionReq.OptionID,
 				CategoryID: optionReq.CategoryID,
 			})
 		}
-		itemsDTO = append(itemsDTO, order.CreateOrderItemDTO{
+		itemsDTO = append(itemsDTO, orderdomain.CreateOrderItemDTO{
 			ProductID: itemReq.ProductID,
 			Quantity:  itemReq.Quantity,
 			Options:   optionsDTO,
@@ -92,7 +90,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 调用领域服务创建订单（处理库存验证、快照、价格计算、库存扣减）
-	orderModel, totalPrice, err := h.orderService.CreateOrder(order.CreateOrderDTO{
+	orderModel, totalPrice, err := h.orderService.CreateOrder(orderdomain.CreateOrderDTO{
 		UserID: req.UserID,
 		ShopID: validShopID,
 		Items:  itemsDTO,
@@ -563,7 +561,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 验证请求的next_status是否在店铺的订单流转定义中允许（店铺配置验证）
-	if err := validateNextStatus(order.Status, req.NextStatus, shop.OrderStatusFlow); err != nil {
+	if err := h.orderService.ValidateStatusTransition(order.Status, req.NextStatus, shop.OrderStatusFlow); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -602,33 +600,6 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		"new_status": req.NextStatus,
 		"order":      order,
 	})
-}
-
-// validateNextStatus 验证请求的next_status是否在店铺的订单流转定义中允许
-func validateNextStatus(currentStatus int, nextStatus int, flow models.OrderStatusFlow) error {
-	// 查找当前状态在店铺流转定义中的配置
-	for _, status := range flow.Statuses {
-		if status.Value == currentStatus {
-			// 检查是否为终态
-			if status.IsFinal {
-				return fmt.Errorf("当前状态为终态，不允许转换")
-			}
-
-			// 检查请求的next_status是否在当前状态允许的动作列表中
-			for _, action := range status.Actions {
-				if action.NextStatus == nextStatus {
-					// 找到匹配的动作，允许转换
-					return nil
-				}
-			}
-
-			// 没有找到匹配的动作
-			return fmt.Errorf("当前状态不允许转换到指定的下一个状态")
-		}
-	}
-
-	// 如果在店铺流转定义中找不到当前状态
-	return fmt.Errorf("当前状态不允许转换")
 }
 
 // 添加错误响应辅助函数
