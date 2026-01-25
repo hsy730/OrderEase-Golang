@@ -53,21 +53,21 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 	}
 
 	// 管理员登录失败，尝试店主登录
-	var shopModel models.Shop
-	if err := h.DB.Where("owner_username = ?", loginData.Username).First(&shopModel).Error; err != nil {
+	shopModel, err := h.shopRepo.GetByUsername(loginData.Username)
+	if err != nil {
 		log2.Errorf("登录失败，用户名: %s, 错误: %v", loginData.Username, err)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
 	// 检查店铺是否过期
-	if err := h.checkShopExpiration(&shopModel); err != nil {
+	if err := h.checkShopExpiration(shopModel); err != nil {
 		errorResponse(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	// 转换为领域实体验证密码
-	shopDomain := shop.ShopFromModel(&shopModel)
+	shopDomain := shop.ShopFromModel(shopModel)
 	if err := shopDomain.CheckPassword(loginData.Password); err != nil {
 		log2.Errorf("店主密码验证失败, 用户名: %s", loginData.Username)
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
@@ -131,7 +131,8 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Save(&admin).Error; err != nil {
+	// 使用 Repository 更新管理员
+	if err := h.adminRepo.Update(admin); err != nil {
 		log2.Errorf("保存新密码失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return
@@ -159,21 +160,25 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 	}
 
 	// 获取当前店主账户
-	var shopModel models.Shop
-	if err := h.DB.First(&shopModel, shopID).Error; err != nil {
+	shopModel, err := h.shopRepo.GetShopByID(shopID)
+	if err != nil {
 		log2.Errorf("查找店主失败: %v", err)
-		errorResponse(c, http.StatusNotFound, "店铺账户不存在")
+		if err.Error() == "店铺不存在" {
+			errorResponse(c, http.StatusNotFound, "店铺账户不存在")
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "查询店铺失败")
+		}
 		return
 	}
 
 	// 检查店铺是否过期
-	if err := h.checkShopExpiration(&shopModel); err != nil {
+	if err := h.checkShopExpiration(shopModel); err != nil {
 		errorResponse(c, http.StatusForbidden, err.Error())
 		return
 	}
 
 	// 转换为领域实体验证密码
-	shopDomain := shop.ShopFromModel(&shopModel)
+	shopDomain := shop.ShopFromModel(shopModel)
 	if err := shopDomain.CheckPassword(passwordData.OldPassword); err != nil {
 		errorResponse(c, http.StatusUnauthorized, "旧密码错误")
 		return
@@ -187,9 +192,10 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 
 	// 更新密码（使用 Domain 实体自动哈希）
 	shopDomain.SetOwnerPassword(passwordData.NewPassword)
-	shopModel = *shopDomain.ToModel()
+	updatedShop := shopDomain.ToModel()
 
-	if err := h.DB.Save(&shopModel).Error; err != nil {
+	// 使用 Repository 更新店铺
+	if err := h.shopRepo.Update(updatedShop); err != nil {
 		log2.Errorf("保存新密码失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return
@@ -229,16 +235,20 @@ func (h *Handler) RefreshToken(c *gin.Context, isShopOwner bool) {
 		// 去掉用户名前缀
 		rawUsername := strings.TrimPrefix(claims.Username, "shop_")
 
-		// 查询当前店铺状态
-		var shopModel models.Shop
-		if err := h.DB.Where("owner_username = ?", rawUsername).First(&shopModel).Error; err != nil {
+		// 使用 Repository 查询当前店铺状态
+		shopModel, err := h.shopRepo.GetByUsername(rawUsername)
+		if err != nil {
 			log2.Errorf("店铺查询失败: %s, 错误: %v", rawUsername, err)
-			errorResponse(c, http.StatusUnauthorized, "店铺账户不存在")
+			if err.Error() == "店铺不存在" {
+				errorResponse(c, http.StatusUnauthorized, "店铺账户不存在")
+			} else {
+				errorResponse(c, http.StatusUnauthorized, "查询店铺失败")
+			}
 			return
 		}
 
 		// 检查店铺是否过期
-		if err := h.checkShopExpiration(&shopModel); err != nil {
+		if err := h.checkShopExpiration(shopModel); err != nil {
 			log2.Warnf("店铺服务已到期: %s (ID: %d)", shopModel.Name, shopModel.ID)
 			errorResponse(c, http.StatusForbidden, err.Error())
 			return
@@ -287,7 +297,8 @@ func (h *Handler) Logout(c *gin.Context) {
 		CreatedAt: time.Now(),
 	}
 
-	if err := h.DB.Create(&blacklistedToken).Error; err != nil {
+	// 使用 Repository 添加 token 到黑名单
+	if err := h.tokenRepo.CreateBlacklistedToken(&blacklistedToken); err != nil {
 		log2.Errorf("添加token到黑名单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登出失败")
 		return
@@ -330,9 +341,9 @@ func (h *Handler) TempTokenLogin(c *gin.Context) {
 		return
 	}
 
-	// 获取店铺信息
-	var shop models.Shop
-	if err := h.DB.Where("id = ?", loginData.ShopID).First(&shop).Error; err != nil {
+	// 使用 Repository 获取店铺信息
+	shop, err := h.shopRepo.GetShopByID(loginData.ShopID)
+	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
 		return
 	}

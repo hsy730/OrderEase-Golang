@@ -45,3 +45,13 @@ func (r *AdminRepository) GetFirstAdmin() (*models.Admin, error) {
 	}
 	return &admin, nil
 }
+
+// Update 更新管理员
+func (r *AdminRepository) Update(admin *models.Admin) error {
+	err := r.DB.Save(admin).Error
+	if err != nil {
+		log2.Errorf("Update admin failed: %v", err)
+		return errors.New("更新管理员失败")
+	}
+	return nil
+}
