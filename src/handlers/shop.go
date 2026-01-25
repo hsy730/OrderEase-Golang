@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -357,38 +355,23 @@ func (h *Handler) DeleteShop(c *gin.Context) {
 		return
 	}
 
-	// 开启事务
-	tx := h.DB.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
+	// 使用 Shop Domain Service 处理删除逻辑
+	if err := h.shopService.DeleteShop(shopID); err != nil {
+		// 根据错误类型返回不同的 HTTP 状态码
+		if err.Error() == "店铺不存在" {
+			errorResponse(c, http.StatusNotFound, err.Error())
+			return
 		}
-	}()
-
-	// 检查是否存在关联商品
-	var productCount int64
-	if err := tx.Model(&models.Product{}).Where("shop_id = ?", shopID).Count(&productCount).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("查询关联商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
-		return
-	}
-
-	if productCount > 0 {
-		tx.Rollback()
-		errorResponse(c, http.StatusConflict, "存在关联商品，无法删除店铺")
-		return
-	}
-
-	// 删除店铺记录
-	if err := tx.Where("id = ?", shopID).Delete(&models.Shop{}).Error; err != nil {
-		tx.Rollback()
+		if err.Error() == "存在关联商品，无法删除店铺" ||
+		   err.Error() == "存在关联订单，无法删除店铺" {
+			errorResponse(c, http.StatusConflict, err.Error())
+			return
+		}
 		h.logger.Errorf("删除店铺失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除店铺失败")
 		return
 	}
 
-	tx.Commit()
 	successResponse(c, gin.H{"message": "店铺删除成功"})
 }
 
@@ -445,44 +428,45 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		return
 	}
 
-	// 检查文件类型
-	if !utils.IsValidImageType(file.Header.Get("Content-Type")) {
-		errorResponse(c, http.StatusBadRequest, "不支持的文件类型")
+	// 使用 Media Service 验证文件类型
+	if _, err := h.mediaService.ValidateImageType(file.Header.Get("Content-Type")); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 使用 Media Service 验证文件大小
+	if err := h.mediaService.ValidateImageSize(file, maxFileSize); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 创建上传目录
 	uploadDir := "./uploads/shops"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		log2.Errorf("创建上传目录失败: %v", err)
+	if err := h.mediaService.CreateUploadDir(uploadDir); err != nil {
+		h.logger.Errorf("创建上传目录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建上传目录失败")
 		return
 	}
 
-	// 如果已有图片，先删除旧图片
-	if shop.ImageURL != "" {
-		oldImagePath := strings.TrimPrefix(shop.ImageURL, "/")
-		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
-			log2.Errorf("删除旧图片失败: %v", err)
-		}
+	// 使用 Media Service 删除旧图片
+	if err := h.mediaService.RemoveOldImage(shop.ImageURL); err != nil {
+		log2.Errorf("删除旧图片失败: %v", err)
 	}
 
-	// 生成新文件名
-	filename := fmt.Sprintf("shop_%d_%d%s",
-		id,
-		time.Now().Unix(),
-		filepath.Ext(file.Filename))
+	// 使用 Media Service 生成文件名
+	filename := h.mediaService.GenerateUniqueFileName("shop", id, file.Filename)
 
-	// 构建图片URL和文件路径
-	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
+	// 使用 Media Service 构建文件路径
+	filePath := h.mediaService.BuildFilePath(uploadDir, filename)
 
-	// 保存上传文件
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		log2.Errorf("保存文件失败: %v", err)
+	// 使用 Media Service 保存文件
+	if err := h.mediaService.SaveUploadedFile(c, file, filePath); err != nil {
+		h.logger.Errorf("保存文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return
 	}
-	// 压缩图片
+
+	// 压缩图片（继续使用 utils.CompressImage，未来可迁移到 Media Service）
 	compressedSize, err := utils.CompressImage(filePath, maxZipSize)
 	if err != nil {
 		log2.Errorf("压缩图片失败: %v", err)
@@ -501,16 +485,9 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 		return
 	}
 
-	// 构建响应消息
-	message := "图片更新成功"
-	if shop.ImageURL == "" {
-		message = "图片上传成功"
-	}
-
-	operationType := "update"
-	if message == "图片上传成功" {
-		operationType = "create"
-	}
+	// 使用 Media Service 获取消息和操作类型
+	message := h.mediaService.GetUploadMessage(shop.ImageURL == "" && filename == "")
+	operationType := h.mediaService.GetOperationType(message)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": message,

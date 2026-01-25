@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"orderease/models"
-	"orderease/domain/user"
+	userdomain "orderease/domain/user"
 	"orderease/utils"
 	"strconv"
 	"time"
@@ -13,21 +13,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// 创建用户请求结构体
-type CreateUserRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Phone    string `json:"phone"`
-	Type     string `json:"type" binding:"required,oneof=delivery pickup"`
-	Address  string `json:"address"`
-	Role     string `json:"role"`
-}
-
 // 创建用户
 func (h *Handler) CreateUser(c *gin.Context) {
-	req := CreateUserRequest{}
+	req := userdomain.CreateUserRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的用户数据: "+err.Error())
+		return
+	}
+
+	// 使用 Domain DTO 的验证方法
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -38,7 +34,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	// 调用 Domain Service 进行用户注册
-	userDomain, err := h.userDomain.Register(user.RegisterUserDTO{
+	userDomain, err := h.userDomain.Register(userdomain.RegisterUserDTO{
 		Username: req.Name,
 		Phone:    req.Phone,
 		Password: req.Password,
@@ -46,15 +42,15 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		Role:     role,
 	})
 	if err != nil {
-		if errors.Is(err, user.ErrUsernameAlreadyExists) {
+		if errors.Is(err, userdomain.ErrUsernameAlreadyExists) {
 			errorResponse(c, http.StatusConflict, "用户名已存在")
-		} else if errors.Is(err, user.ErrPhoneAlreadyExists) {
+		} else if errors.Is(err, userdomain.ErrPhoneAlreadyExists) {
 			errorResponse(c, http.StatusConflict, "该手机号已注册")
-		} else if errors.Is(err, user.ErrInvalidPassword) {
+		} else if errors.Is(err, userdomain.ErrInvalidPassword) {
 			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
-		} else if errors.Is(err, user.ErrInvalidUserType) {
+		} else if errors.Is(err, userdomain.ErrInvalidUserType) {
 			errorResponse(c, http.StatusBadRequest, "无效的用户类型")
-		} else if errors.Is(err, user.ErrInvalidRole) {
+		} else if errors.Is(err, userdomain.ErrInvalidRole) {
 			errorResponse(c, http.StatusBadRequest, "无效的角色")
 		} else {
 			h.logger.Errorf("创建用户失败: %v", err)
@@ -189,9 +185,9 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	// 使用 Domain Service 更新手机号（带验证和唯一性检查）
 	if updateData.Phone != "" {
-		userID := user.UserID(id)
+		userID := userdomain.UserID(id)
 		if err := h.userDomain.UpdatePhone(userID, updateData.Phone); err != nil {
-			if errors.Is(err, user.ErrPhoneAlreadyExists) {
+			if errors.Is(err, userdomain.ErrPhoneAlreadyExists) {
 				errorResponse(c, http.StatusConflict, "该手机号已注册")
 			} else {
 				errorResponse(c, http.StatusBadRequest, err.Error())
@@ -202,9 +198,9 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 	// 使用 Domain Service 更新密码（带验证和哈希）
 	if updateData.Password != "" {
-		userID := user.UserID(id)
+		userID := userdomain.UserID(id)
 		if err := h.userDomain.UpdatePassword(userID, updateData.Password); err != nil {
-			if errors.Is(err, user.ErrInvalidPassword) {
+			if errors.Is(err, userdomain.ErrInvalidPassword) {
 				errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
 			} else {
 				errorResponse(c, http.StatusInternalServerError, "更新用户失败")
@@ -315,40 +311,29 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	})
 }
 
-// 前端用户注册请求结构体
-type FrontendUserRegisterRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required,min=6,max=20"`
-}
-
-// 前端用户注册
-// @Summary 前端用户注册
-// @Description 前端用户注册接口，密码为6位字母或数字
-// @Tags 前端用户
-// @Accept json
-// @Produce json
-// @Param request body FrontendUserRegisterRequest true "注册信息"
-// @Success 200 {object} map[string]interface{} "注册成功"
-// @Failure 400 {object} map[string]interface{} "请求参数错误"
-// @Failure 409 {object} map[string]interface{} "用户名或手机号已存在"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
-// @Router /user/register [post]
+// 前端用户注册（使用 Domain DTO）
 func (h *Handler) FrontendUserRegister(c *gin.Context) {
-	req := FrontendUserRegisterRequest{}
+	req := userdomain.FrontendUserRegisterRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的注册数据: "+err.Error())
 		return
 	}
 
+	// 使用 Domain DTO 的验证方法
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	// 调用 Domain Service
-	userDomain, err := h.userDomain.RegisterWithPasswordValidation(user.RegisterWithPasswordValidationDTO{
+	userDomain, err := h.userDomain.RegisterWithPasswordValidation(userdomain.RegisterWithPasswordValidationDTO{
 		Username: req.Username,
 		Password: req.Password, // 传递明文密码，由 Domain 层处理
 	})
 	if err != nil {
-		if errors.Is(err, user.ErrUsernameAlreadyExists) {
+		if errors.Is(err, userdomain.ErrUsernameAlreadyExists) {
 			errorResponse(c, http.StatusConflict, "用户名已存在")
-		} else if errors.Is(err, user.ErrInvalidPassword) {
+		} else if errors.Is(err, userdomain.ErrInvalidPassword) {
 			errorResponse(c, http.StatusBadRequest, "密码必须为6-20位，且包含字母和数字")
 		} else {
 			h.logger.Errorf("注册失败: %v", err)
@@ -372,28 +357,17 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 	successResponse(c, responseData)
 }
 
-// 前端用户登录请求结构体
-type FrontendUserLoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
-// 前端用户登录
-// @Summary 前端用户登录
-// @Description 前端用户登录接口
-// @Tags 前端用户
-// @Accept json
-// @Produce json
-// @Param request body FrontendUserLoginRequest true "登录信息"
-// @Success 200 {object} map[string]interface{} "登录成功"
-// @Failure 400 {object} map[string]interface{} "请求参数错误"
-// @Failure 401 {object} map[string]interface{} "用户名或密码错误"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
-// @Router /user/login [post]
+// 前端用户登录（使用 Domain DTO）
 func (h *Handler) FrontendUserLogin(c *gin.Context) {
-	req := FrontendUserLoginRequest{}
+	req := userdomain.FrontendUserLoginRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的登录数据: "+err.Error())
+		return
+	}
+
+	// 使用 Domain DTO 的验证方法
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

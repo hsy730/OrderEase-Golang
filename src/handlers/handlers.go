@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"errors"
+	"orderease/domain/media"
 	"orderease/domain/order"
 	"orderease/domain/product"
+	"orderease/domain/shop"
 	"orderease/domain/user"
 	"orderease/models"
 	"orderease/services"
@@ -34,6 +36,8 @@ type Handler struct {
 	userDomain       *user.Service
 	orderService     *order.Service
 	productService   *product.Service
+	mediaService     *media.ImageUploadService
+	shopService      *shop.Service
 }
 
 // 创建处理器实例
@@ -85,6 +89,8 @@ func NewHandler(db *gorm.DB) *Handler {
 	userDomain := user.NewService(userRepoAdapter)
 	orderService := order.NewService(db)
 	productService := product.NewService(db)
+	mediaService := media.NewImageUploadService(log2.GetLogger())
+	shopService := shop.NewService(db)
 
 	return &Handler{
 		DB:               db,
@@ -99,6 +105,8 @@ func NewHandler(db *gorm.DB) *Handler {
 		userDomain:       userDomain,
 		orderService:     orderService,
 		productService:   productService,
+		mediaService:     mediaService,
+		shopService:      shopService,
 	}
 }
 

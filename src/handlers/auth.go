@@ -186,13 +186,9 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 		return
 	}
 
-	// 更新密码
-	shopModel.OwnerPassword = passwordData.NewPassword
-	if err := models.HashShopPassword(&shopModel); err != nil {
-		log2.Errorf("密码加密失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
-		return
-	}
+	// 更新密码（使用 Domain 实体自动哈希）
+	shopDomain.SetOwnerPassword(passwordData.NewPassword)
+	shopModel = *shopDomain.ToModel()
 
 	if err := h.DB.Save(&shopModel).Error; err != nil {
 		log2.Errorf("保存新密码失败: %v", err)

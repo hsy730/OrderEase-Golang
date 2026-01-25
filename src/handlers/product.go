@@ -8,10 +8,8 @@ import (
 	"orderease/utils"
 	"orderease/utils/log2"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -441,35 +439,29 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	// 检查文件类型
-	if !utils.IsValidImageType(file.Header.Get("Content-Type")) {
-		errorResponse(c, http.StatusBadRequest, "不支持的文件类型")
+	// 使用 Media Service 验证文件类型
+	if _, err := h.mediaService.ValidateImageType(file.Header.Get("Content-Type")); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	uploadDir := "./uploads/products"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := h.mediaService.CreateUploadDir(uploadDir); err != nil {
 		log2.Errorf("创建上传目录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建上传目录失败")
 		return
 	}
 
-	// 如果已有图片，先删除旧图片
-	if product.ImageURL != "" {
-		oldImagePath := strings.TrimPrefix(product.ImageURL, "/")
-		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
-			log2.Errorf("删除旧图片失败: %v", err)
-		}
+	// 使用 Media Service 删除旧图片
+	if err := h.mediaService.RemoveOldImage(product.ImageURL); err != nil {
+		log2.Errorf("删除旧图片失败: %v", err)
 	}
 
-	filename := fmt.Sprintf("product_%d_%d%s",
-		id,
-		time.Now().Unix(),
-		filepath.Ext(file.Filename))
+	// 使用 Media Service 生成文件名
+	filename := h.mediaService.GenerateUniqueFileName("product", id, file.Filename)
 
-	// 修改：只保存文件名
-	imageURL := filename
-	filePath := fmt.Sprintf("%s/%s", uploadDir, filename)
+	// 使用 Media Service 构建文件路径
+	filePath := h.mediaService.BuildFilePath(uploadDir, filename)
 
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
 		log2.Errorf("保存文件失败: %v", err)
@@ -477,7 +469,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	// 压缩图片
+	// 压缩图片（继续使用 utils.CompressImage，未来可迁移到 Media Service）
 	compressedSize, err := utils.CompressImage(filePath, maxProductImageZipSize)
 	if err != nil {
 		log2.Errorf("压缩图片失败: %v", err)
@@ -489,31 +481,27 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		log2.Infof("图片压缩成功，原始大小: %d 字节，压缩后: %d 字节", file.Size, compressedSize)
 	}
 
-	if err := utils.ValidateImageURL(imageURL, "product"); err != nil {
+	// 使用 Media Service 验证图片 URL
+	// 注意：文件名格式是 product_xxx.jpg，folder 参数也需要是 "product"（单数）
+	if err := h.mediaService.ValidateImageURL(filename, "product"); err != nil {
 		log2.Errorf("图片URL验证失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的图片格式")
 		return
 	}
 
-	if err := h.DB.Model(&product).Update("image_url", imageURL).Error; err != nil {
+	if err := h.DB.Model(&product).Update("image_url", filename).Error; err != nil {
 		log2.Errorf("更新商品图片失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品图片失败")
 		return
 	}
 
-	message := "图片更新成功"
-	if product.ImageURL == "" {
-		message = "图片上传成功"
-	}
-
-	operationType := "update"
-	if message == "图片上传成功" {
-		operationType = "create"
-	}
+	// 使用 Media Service 获取消息和操作类型
+	message := h.mediaService.GetUploadMessage(product.ImageURL == "" && filename == "")
+	operationType := h.mediaService.GetOperationType(message)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": message,
-		"url":     imageURL,
+		"url":     filename,
 		"type":    operationType,
 	})
 }

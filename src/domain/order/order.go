@@ -209,3 +209,25 @@ func (o *Order) GetTotalQuantity() int {
 	}
 	return total
 }
+
+// IsPending 检查订单是否为待处理状态
+func (o *Order) IsPending() bool {
+	return o.status == value_objects.OrderStatusPending
+}
+
+// CanBeDeleted 检查订单是否可以删除
+// 订单可以删除的条件：未取消且未完成
+func (o *Order) CanBeDeleted() bool {
+	return o.status != value_objects.OrderStatusCanceled &&
+		o.status != value_objects.OrderStatusComplete
+}
+
+// HasItems 检查订单是否包含商品项
+func (o *Order) HasItems() bool {
+	return len(o.items) > 0
+}
+
+// IsEmpty 检查订单是否为空（无商品项）
+func (o *Order) IsEmpty() bool {
+	return len(o.items) == 0
+}

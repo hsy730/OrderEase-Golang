@@ -13,46 +13,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 高级查询订单请求
-
-type AdvanceSearchOrderRequest struct {
-	Page      int    `json:"page"`
-	PageSize  int    `json:"pageSize"`
-	UserID    string `json:"user_id"`
-	Status    []int  `json:"status"`
-	StartTime string `json:"start_time"`
-	EndTime   string `json:"end_time"`
-	ShopID    uint64 `json:"shop_id"`
-}
-
-// 创建订单
-
-type CreateOrderRequest struct {
-	ID     snowflake.ID             `json:"id"`
-	UserID snowflake.ID             `json:"user_id"`
-	ShopID uint64                   `json:"shop_id"`
-	Items  []CreateOrderItemRequest `json:"items"`
-	Remark string                   `json:"remark"`
-	Status int                      `json:"status"`
-}
-
-type CreateOrderItemRequest struct {
-	ProductID snowflake.ID            `json:"product_id"`
-	Quantity  int                     `json:"quantity"`
-	Price     float64                 `json:"price"`
-	Options   []CreateOrderItemOption `json:"options"`
-}
-
-type CreateOrderItemOption struct {
-	CategoryID snowflake.ID `json:"category_id"`
-	OptionID   snowflake.ID `json:"option_id"`
-}
+// 使用 Domain 层的 DTO 定义
+// - orderdomain.CreateOrderRequest
+// - orderdomain.CreateOrderItemRequest
+// - orderdomain.CreateOrderItemOption
+// - orderdomain.AdvanceSearchOrderRequest
+// - orderdomain.ToggleOrderStatusRequest
 
 // 创建订单请求结构体，添加参数支持
 func (h *Handler) CreateOrder(c *gin.Context) {
-	var req CreateOrderRequest
+	var req orderdomain.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的订单数据: "+err.Error())
+		return
+	}
+
+	// 使用 Domain DTO 的验证方法
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -323,9 +301,15 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	var updateData CreateOrderRequest
+	var updateData orderdomain.CreateOrderRequest
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的更新数据: "+err.Error())
+		return
+	}
+
+	// 使用 Domain DTO 的验证方法
+	if err := updateData.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -406,18 +390,18 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	}
 
 	// 转换为响应格式
-	var responseItems []CreateOrderItemRequest
+	var responseItems []orderdomain.CreateOrderItemRequest
 	for _, item := range order.Items {
-		var responseOptions []CreateOrderItemOption
+		var responseOptions []orderdomain.CreateOrderItemOption
 		for _, option := range item.Options {
-			responseOption := CreateOrderItemOption{
+			responseOption := orderdomain.CreateOrderItemOption{
 				CategoryID: option.CategoryID,
 				OptionID:   option.OptionID,
 			}
 			responseOptions = append(responseOptions, responseOption)
 		}
 
-		responseItem := CreateOrderItemRequest{
+		responseItem := orderdomain.CreateOrderItemRequest{
 			ProductID: item.ProductID,
 			Quantity:  item.Quantity,
 			Price:     float64(item.Price),
@@ -426,7 +410,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		responseItems = append(responseItems, responseItem)
 	}
 
-	response := CreateOrderRequest{
+	response := orderdomain.CreateOrderRequest{
 		ID:     order.ID,
 		UserID: order.UserID,
 		ShopID: order.ShopID,
@@ -468,8 +452,12 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	// 开启事务
 	tx := h.DB.Begin()
 
-	// 恢复商品库存（仅在订单未取消且未完成时）
-	if order.Status != models.OrderStatusCanceled && order.Status != models.OrderStatusComplete {
+	// 使用领域实体验证是否可删除
+	orderDomain := orderdomain.OrderFromModel(&order)
+	if !orderDomain.CanBeDeleted() {
+		// 订单已取消或已完成，无需恢复库存
+	} else {
+		// 恢复商品库存（仅在订单未取消且未完成时）
 		if err := h.orderService.RestoreStock(tx, order); err != nil {
 			tx.Rollback()
 			h.logger.Errorf("恢复商品库存失败: %v", err)
@@ -508,18 +496,17 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 // 翻转订单状态
 func (h *Handler) ToggleOrderStatus(c *gin.Context) {
-	// 定义请求结构体
-	type ToggleOrderStatusRequest struct {
-		ID         string `json:"id" binding:"required"`
-		ShopID     uint64 `json:"shop_id" binding:"required"`
-		NextStatus int    `json:"next_status" binding:"required"`
-	}
-
-	// 绑定请求体
-	var req ToggleOrderStatusRequest
+	// 使用 Domain DTO
+	var req orderdomain.ToggleOrderStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("无效的请求参数: %v", err)
 		errorResponse(c, http.StatusBadRequest, "无效的请求参数")
+		return
+	}
+
+	// 使用 Domain DTO 的验证方法
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -615,18 +602,16 @@ func successResponse(c *gin.Context, data interface{}) {
 
 // 高级查询订单
 func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
-	var req AdvanceSearchOrderRequest
+	var req orderdomain.AdvanceSearchOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的查询参数: "+err.Error())
 		return
 	}
 
-	// 验证分页参数
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 || req.PageSize > 100 {
-		req.PageSize = 10
+	// 使用 Domain DTO 的验证方法（包含分页参数和店铺ID验证）
+	if err := req.Validate(); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	// 验证并获取有效的店铺ID
