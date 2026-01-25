@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html"
 	"orderease/models"
-	"orderease/utils/log2"
 	"regexp"
 )
 
@@ -43,15 +42,4 @@ func ValidateImageURL(imageURL string, folder string) error {
 // 清理订单数据
 func SanitizeOrder(order *models.Order) {
 	order.Remark = SanitizeString(order.Remark)
-}
-
-// 清理商品数据
-func SanitizeProduct(product *models.Product) {
-	product.Name = SanitizeString(product.Name)
-	product.Description = SanitizeString(product.Description)
-	// 注意：文件名格式是 product_xxx.jpg，所以 folder 参数是 "product"（单数）
-	if err := ValidateImageURL(product.ImageURL, "product"); err != nil {
-		product.ImageURL = "" // 如果图片URL无效，清空它
-		log2.Errorf("Invalid image URL detected: %v", err)
-	}
 }

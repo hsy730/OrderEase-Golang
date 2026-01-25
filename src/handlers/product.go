@@ -30,8 +30,6 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	utils.SanitizeProduct(&request.Product)
-
 	validShopID, err := h.validAndReturnShopID(c, request.Product.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -48,6 +46,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		request.Product.ImageURL,
 		request.OptionCategories,
 	)
+
+	// 清理商品数据（防止XSS攻击）
+	productDomain.Sanitize()
 
 	// 转换为持久化模型
 	productModel := productDomain.ToModel()
@@ -280,19 +281,35 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	utils.SanitizeProduct(&request.Product)
-
-	// 使用领域实体验证库存（如果有更新库存）
+	// 更新领域实体字段
+	if request.Product.Name != "" {
+		productDomain.SetName(request.Product.Name)
+	}
+	if request.Product.Description != "" {
+		productDomain.SetDescription(request.Product.Description)
+	}
+	if request.Product.Price > 0 {
+		productDomain.SetPrice(request.Product.Price)
+	}
+	if request.Product.ImageURL != "" {
+		productDomain.SetImageURL(request.Product.ImageURL)
+	}
+	// 库存验证（使用领域实体验证）
 	if request.Product.Stock > 0 && request.Product.Stock != productDomain.Stock() {
-		// 可以添加业务验证逻辑
 		productDomain.SetStock(request.Product.Stock)
 	}
+
+	// 清理商品数据（防止XSS攻击）
+	productDomain.Sanitize()
+
+	// 转换回持久化模型
+	productModel = productDomain.ToModel()
 
 	// 开启事务
 	tx := h.DB.Begin()
 
-	// 更新商品基本信息
-	if err := tx.Model(&productModel).Updates(request.Product).Error; err != nil {
+	// 保存更新后的商品信息（已在 domain 中处理）
+	if err := tx.Save(&productModel).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("更新商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品失败")

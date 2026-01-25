@@ -5,6 +5,7 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"orderease/models"
+	"orderease/utils"
 )
 
 // ProductStatus 商品状态
@@ -186,6 +187,13 @@ func (p *Product) DecreaseStock(quantity int) {
 // IncreaseStock 增加库存
 func (p *Product) IncreaseStock(quantity int) {
 	p.stock += quantity
+}
+
+// Sanitize 清理商品数据，防止XSS攻击
+func (p *Product) Sanitize() {
+	p.name = utils.SanitizeString(p.name)
+	p.description = utils.SanitizeString(p.description)
+	// 图片验证已在 Media Service 处理
 }
 
 // ToModel 转换为持久化模型
