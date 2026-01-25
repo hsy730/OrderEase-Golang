@@ -31,8 +31,9 @@
 - **Step 15-17**: Shop 业务方法迁移到领域层 ✅
 - **Step 18**: 迁移 Order Handler 到领域服务 ✅
 - **Step 19**: 创建 Product 领域服务 ✅
+- **Step 21**: 清理废弃代码 ✅
 
-### DDD成熟度：88% (过渡阶段)
+### DDD成熟度：89% (过渡阶段)
 
 ---
 
@@ -332,6 +333,25 @@
 
 **验证**: 运行测试 ✅
 **提交**: `feat(product): Step 19 创建 Product 领域服务` ✅
+
+---
+
+### Step 21: 清理废弃代码 ✅
+
+**目标**: 删除已不被使用的辅助函数，减少代码冗余
+
+**改动**:
+- `utils/order_validation.go`:
+  - 删除 `RestoreProductStock`（已被 `order.Service.RestoreStock` 替代）
+  - 删除 `ValidateOrder`（已被 `order.Service.ValidateOrder` 替代）
+- `models/shop_helpers.go`:
+  - 删除 `CheckShopPassword`（已使用 `shop.CheckPassword`）
+  - 删除 `IsShopExpired`（已使用 `shop.IsExpired`）
+  - 保留 `HashShopPassword`（仍可能被使用）
+
+**收益**: 代码更清晰，减少误用风险
+**验证**: 编译通过 ✅
+**提交**: `refactor(utils): Step 21 清理废弃代码` ✅
 
 ---
 
