@@ -39,10 +39,11 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	if req.Phone != "" { // 电话选填
-		// 增强版手机号验证
-		if !utils.ValidatePhoneWithRegex(req.Phone) {
+		// 使用 Domain 值对象验证手机号
+		_, err := value_objects.NewPhone(req.Phone)
+		if err != nil {
 			h.logger.Errorf("无效的手机号格式: %s", req.Phone)
-			errorResponse(c, http.StatusBadRequest, "手机号必须为11位数字且以1开头")
+			errorResponse(c, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -219,9 +220,12 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	}
 
 	// 验证手机号
-	if updateData.Phone != "" && !isValidPhone(updateData.Phone) {
-		errorResponse(c, http.StatusBadRequest, "无效的手机号")
-		return
+	if updateData.Phone != "" {
+		_, err := value_objects.NewPhone(updateData.Phone)
+		if err != nil {
+			errorResponse(c, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	// 验证角色
@@ -321,20 +325,6 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	}
 
 	successResponse(c, gin.H{"message": "用户删除成功"})
-}
-
-// 验证手机号
-func isValidPhone(phone string) bool {
-	// 简单的手机号验证：11位数字，以1开头
-	if len(phone) != 11 || phone[0] != '1' {
-		return false
-	}
-	for _, c := range phone {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // 获取简单用户列表（只返回ID和名称）
