@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	productdomain "orderease/domain/product"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -31,23 +32,30 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	product := request.Product
-	utils.SanitizeProduct(&product)
-	product.Status = models.ProductStatusPending
-	product.ID = utils.GenerateSnowflakeID()
+	utils.SanitizeProduct(&request.Product)
 
-	validShopID, err := h.validAndReturnShopID(c, product.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, request.Product.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	product.ShopID = validShopID
+
+	// 使用领域实体创建商品（设置基础字段和初始状态）
+	productDomain := productdomain.NewProduct(validShopID, request.Product.Name, request.Product.Price, request.Product.Stock)
+	productDomain.SetDescription(request.Product.Description)
+	productDomain.SetImageURL(request.Product.ImageURL)
+	productDomain.SetOptionCategories(request.OptionCategories)
+
+	// 转换为持久化模型
+	productModel := productDomain.ToModel()
+	productModel.Status = models.ProductStatusPending
+	productModel.ID = utils.GenerateSnowflakeID()
 
 	// 开启事务
 	tx := h.DB.Begin()
 
 	// 创建商品
-	if err := tx.Create(&product).Error; err != nil {
+	if err := tx.Create(&productModel).Error; err != nil {
 		tx.Rollback()
 		h.logger.Errorf("创建商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
@@ -57,7 +65,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	// 创建商品参数类别和选项
 	for i := range request.OptionCategories {
 		category := request.OptionCategories[i]
-		category.ProductID = product.ID
+		category.ProductID = productModel.ID
 		category.ID = utils.GenerateSnowflakeID()
 
 		if err := tx.Create(&category).Error; err != nil {
@@ -71,9 +79,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	tx.Commit()
 	// 查询创建后的商品，包含参数信息
 	var createdProduct models.Product
-	if err := h.DB.First(&createdProduct, product.ID).Error; err != nil {
+	if err := h.DB.First(&createdProduct, productModel.ID).Error; err != nil {
 		h.logger.Errorf("获取创建后的商品失败: %v", err)
-		successResponse(c, product)
+		successResponse(c, productModel)
 		return
 	}
 	successResponse(c, createdProduct)
@@ -257,11 +265,14 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productRepo.GetProductByID(id, validShopID)
+	productModel, err := h.productRepo.GetProductByID(id, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
+
+	// 转换为领域实体（可以使用业务方法进行验证）
+	productDomain := productdomain.ProductFromModel(productModel)
 
 	var request struct {
 		models.Product
@@ -274,11 +285,17 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 	utils.SanitizeProduct(&request.Product)
 
+	// 使用领域实体验证库存（如果有更新库存）
+	if request.Product.Stock > 0 && request.Product.Stock != productDomain.Stock() {
+		// 可以添加业务验证逻辑
+		productDomain.SetStock(request.Product.Stock)
+	}
+
 	// 开启事务
 	tx := h.DB.Begin()
 
 	// 更新商品基本信息
-	if err := tx.Model(&product).Updates(request.Product).Error; err != nil {
+	if err := tx.Model(&productModel).Updates(request.Product).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("更新商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品失败")
@@ -288,7 +305,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	// 如果有提供参数类别，则先删除旧的参数类别和选项，再创建新的
 	// if len(request.OptionCategories) > 0 {
 	// 删除旧的参数类别
-	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+	if err := tx.Where("product_id = ?", productModel.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("删除旧商品参数类别失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品参数失败")
@@ -298,7 +315,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	// 创建新的参数类别和选项
 	for i := range request.OptionCategories {
 		category := request.OptionCategories[i]
-		category.ProductID = product.ID
+		category.ProductID = productModel.ID
 		category.ID = utils.GenerateSnowflakeID()
 
 		if err := tx.Create(&category).Error; err != nil {
