@@ -251,3 +251,34 @@ func ToOrderElements(orders []models.Order) []models.OrderElement {
 	}
 	return elements
 }
+
+// ToCreateOrderRequest 转换为创建订单响应 DTO
+// 用于 UpdateOrder 等需要返回完整订单信息的场景
+func (o *Order) ToCreateOrderRequest() CreateOrderRequest {
+	responseItems := make([]CreateOrderItemRequest, len(o.items))
+	for i, item := range o.items {
+		responseOptions := make([]CreateOrderItemOption, len(item.options))
+		for j, opt := range item.options {
+			responseOptions[j] = CreateOrderItemOption{
+				CategoryID: opt.CategoryID,
+				OptionID:   opt.OptionID,
+			}
+		}
+
+		responseItems[i] = CreateOrderItemRequest{
+			ProductID: item.ProductID(),
+			Quantity:  item.Quantity(),
+			Price:     float64(item.Price()),
+			Options:   responseOptions,
+		}
+	}
+
+	return CreateOrderRequest{
+		ID:     o.ID(),
+		UserID: o.UserID(),
+		ShopID: o.ShopID(),
+		Items:  responseItems,
+		Remark: o.Remark(),
+		Status: int(o.Status()),
+	}
+}

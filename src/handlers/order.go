@@ -361,35 +361,9 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	// 转换为响应格式
-	var responseItems []orderdomain.CreateOrderItemRequest
-	for _, item := range order.Items {
-		var responseOptions []orderdomain.CreateOrderItemOption
-		for _, option := range item.Options {
-			responseOption := orderdomain.CreateOrderItemOption{
-				CategoryID: option.CategoryID,
-				OptionID:   option.OptionID,
-			}
-			responseOptions = append(responseOptions, responseOption)
-		}
-
-		responseItem := orderdomain.CreateOrderItemRequest{
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-			Price:     float64(item.Price),
-			Options:   responseOptions,
-		}
-		responseItems = append(responseItems, responseItem)
-	}
-
-	response := orderdomain.CreateOrderRequest{
-		ID:     order.ID,
-		UserID: order.UserID,
-		ShopID: order.ShopID,
-		Items:  responseItems,
-		Remark: order.Remark,
-		Status: order.Status,
-	}
+	// 转换为领域实体并使用 ToCreateOrderRequest 方法
+	orderEntity := orderdomain.OrderFromModel(&order)
+	response := orderEntity.ToCreateOrderRequest()
 
 	successResponse(c, response)
 }
