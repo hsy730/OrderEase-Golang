@@ -32,8 +32,9 @@
 - **Step 18**: 迁移 Order Handler 到领域服务 ✅
 - **Step 19**: 创建 Product 领域服务 ✅
 - **Step 21**: 清理废弃代码 ✅
+- **Step 24**: 迁移 Product Handler 使用领域实体 ✅
 
-### DDD成熟度：89% (过渡阶段)
+### DDD成熟度：90% (过渡阶段)
 
 ---
 
@@ -352,6 +353,25 @@
 **收益**: 代码更清晰，减少误用风险
 **验证**: 编译通过 ✅
 **提交**: `refactor(utils): Step 21 清理废弃代码` ✅
+
+---
+
+### Step 24: 迁移 Product Handler 使用领域实体 ✅
+
+**目标**: Product 实体已有完整方法，Handler 应使用它
+
+**改动**:
+- `handlers/product.go`:
+  - `CreateProduct` (行 24-88): 使用 `productdomain.NewProduct()` 创建领域实体
+  - `UpdateProduct` (行 249-338): 使用 `productdomain.ProductFromModel()` 转换并验证
+
+**代码改进**:
+- CreateProduct: 使用领域实体创建商品，设置基础字段和初始状态
+- UpdateProduct: 使用领域实体进行库存验证
+
+**收益**: Product 业务逻辑完全在领域层
+**验证**: 运行测试 ✅ (72 passed in 163s)
+**提交**: `feat(product): Step 24 迁移 Product Handler 使用领域实体` ✅
 
 ---
 
