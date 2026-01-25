@@ -56,6 +56,18 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		}
 	}
 
+	// 检查用户名唯一性
+	exists, err := h.userRepo.CheckUsernameExists(req.Name)
+	if err != nil {
+		h.logger.Errorf("检查用户名失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
+		return
+	}
+	if exists {
+		errorResponse(c, http.StatusConflict, "用户名已存在")
+		return
+	}
+
 	// 对密码进行哈希
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
