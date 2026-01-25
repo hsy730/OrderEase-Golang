@@ -112,3 +112,86 @@ func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID uint64
 	}
 	return tags, nil
 }
+
+// ==================== Tag 复杂查询方法 ====================
+
+// GetUnboundProductsCount 获取店铺中未绑定任何标签的商品数量
+func (r *TagRepository) GetUnboundProductsCount(shopID uint64) (int64, error) {
+	var count int64
+	err := r.DB.Raw(`SELECT COUNT(*) FROM products
+		WHERE shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)`, shopID).Scan(&count).Error
+	if err != nil {
+		log2.Errorf("GetUnboundProductsCount failed: %v", err)
+		return 0, errors.New("查询未绑定商品数量失败")
+	}
+	return count, nil
+}
+
+// GetUnboundProductsForTag 获取可绑定到指定标签的商品列表（未绑定该标签的商品）
+func (r *TagRepository) GetUnboundProductsForTag(tagID int, shopID uint64, page, pageSize int) ([]models.Product, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var products []models.Product
+	err := r.DB.Raw(`
+		SELECT * FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ? AND shop_id = ?
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, shopID, pageSize, offset).Scan(&products).Error
+
+	if err != nil {
+		log2.Errorf("GetUnboundProductsForTag failed: %v", err)
+		return nil, 0, errors.New("查询未绑定商品失败")
+	}
+
+	var total int64
+	r.DB.Raw(`
+		SELECT COUNT(*) FROM products
+		WHERE id NOT IN (
+			SELECT product_id FROM product_tags
+			WHERE tag_id = ? AND shop_id = ?
+		)`, tagID, shopID).Scan(&total)
+
+	return products, total, nil
+}
+
+// GetUnboundTagsList 获取店铺中未绑定任何商品的标签列表（分页）
+func (r *TagRepository) GetUnboundTagsList(shopID uint64, page, pageSize int) ([]models.Tag, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var tags []models.Tag
+	err := r.DB.Raw(`
+		SELECT * FROM tags
+		WHERE shop_id = ? AND id NOT IN (
+			SELECT DISTINCT tag_id FROM product_tags
+		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, shopID, pageSize, offset).Scan(&tags).Error
+
+	if err != nil {
+		log2.Errorf("GetUnboundTagsList failed: %v", err)
+		return nil, 0, errors.New("查询未绑定标签失败")
+	}
+
+	var total int64
+	r.DB.Raw(`
+		SELECT COUNT(*) FROM tags
+		WHERE shop_id = ? AND id NOT IN (
+			SELECT DISTINCT tag_id FROM product_tags
+		)`, shopID).Scan(&total)
+
+	return tags, total, nil
+}
+
+// GetTagBoundProductIDs 获取已绑定到指定标签的商品ID列表
+func (r *TagRepository) GetTagBoundProductIDs(tagID int, shopID uint64) ([]uint, error) {
+	var productIDs []uint
+	err := r.DB.Raw(`
+		SELECT product_id FROM product_tags
+		WHERE tag_id = ? AND shop_id = ?`, tagID, shopID).Scan(&productIDs).Error
+
+	if err != nil {
+		log2.Errorf("GetTagBoundProductIDs failed: %v", err)
+		return nil, errors.New("获取绑定商品ID列表失败")
+	}
+
+	return productIDs, nil
+}

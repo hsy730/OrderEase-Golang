@@ -350,9 +350,10 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	// 检测是否存在未绑定标签的商品
 	if isFront {
 		log2.Debugf("GetTags isFront: %v ", isFront)
-		var unbindCount int64
-		h.DB.Raw(`SELECT COUNT(*) FROM products 
-        WHERE shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)`).Scan(&unbindCount)
+		unbindCount, err := h.tagRepo.GetUnboundProductsCount(validShopID)
+		if err != nil {
+			h.logger.Errorf("检查未绑定商品失败: %v", err)
+		}
 
 		// 如果存在未绑定商品，添加虚拟标签
 		if unbindCount > 0 {
@@ -396,32 +397,16 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	offset := (page - 1) * pageSize
 
-	var products []models.Product
-	var total int64
+	tagIDInt, _ := strconv.Atoi(tagID)
 
-	// 查询未绑定该标签的商品
-	err = h.DB.Raw(`
-		SELECT * FROM products
-		WHERE id NOT IN (
-			SELECT product_id FROM product_tags
-			WHERE tag_id = ? AND shop_id =?
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, tagID, validShopID, pageSize, offset).Scan(&products).Error
-
+	// 使用 Repository 方法查询未绑定该标签的商品
+	products, total, err := h.tagRepo.GetUnboundProductsForTag(tagIDInt, validShopID, page, pageSize)
 	if err != nil {
 		h.logger.Errorf("查询未绑定商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// 获取总数
-	h.DB.Raw(`
-		SELECT COUNT(*) FROM products
-		WHERE id NOT IN (
-			SELECT product_id FROM product_tags
-			WHERE tag_id = ? AND shop_id =?
-		) ORDER BY created_at DESC`, tagID, validShopID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -435,7 +420,6 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	offset := (page - 1) * pageSize
 
 	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 	if err != nil {
@@ -449,28 +433,13 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 		return
 	}
 
-	var tags []models.Tag
-	var total int64
-
-	// 查询没有绑定商品的标签
-	err = h.DB.Raw(`
-		SELECT * FROM tags
-		WHERE shop_id = ? ANS id NOT IN (
-			SELECT DISTINCT tag_id FROM product_tags
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, validShopID, pageSize, offset).Scan(&tags).Error
-
+	// 使用 Repository 方法查询未绑定商品的标签
+	tags, total, err := h.tagRepo.GetUnboundTagsList(validShopID, page, pageSize)
 	if err != nil {
 		h.logger.Errorf("查询未绑定商品标签失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// 获取总数
-	h.DB.Raw(`
-		SELECT COUNT(*) FROM tags
-		WHERE shop_id = ? AND id NOT IN (
-			SELECT DISTINCT tag_id FROM product_tags
-		) ORDER BY created_at DESC`, validShopID).Scan(&total)
 
 	successResponse(c, gin.H{
 		"total":    total,
@@ -523,15 +492,13 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	// 原有绑定标签商品的查询逻辑保持不变...
 	var total int64
 
-	// 获取已绑定商品的ID列表
-	var productIDs []snowflake.ID
-	err = h.DB.Raw(`
-		SELECT product_id FROM product_tags
-		WHERE tag_id = ? AND shop_id = ?`, tagID, validShopID).Pluck("product_id", &productIDs).Error
+	tagIDInt, _ := strconv.Atoi(tagID)
 
+	// 使用 Repository 方法获取已绑定商品的ID列表
+	productIDs, err := h.tagRepo.GetTagBoundProductIDs(tagIDInt, validShopID)
 	if err != nil {
 		h.logger.Errorf("获取商品ID列表失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
