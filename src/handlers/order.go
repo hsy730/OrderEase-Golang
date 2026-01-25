@@ -3,6 +3,8 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"orderease/domain/order"
+	orderdomain "orderease/domain/order"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -56,143 +58,59 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	var orderItems []models.OrderItem
-	for _, itemReq := range req.Items {
-		orderItem := models.OrderItem{
-			ProductID: itemReq.ProductID,
-			Quantity:  itemReq.Quantity,
-		}
-
-		// 处理选中的选项
-		var options []models.OrderItemOption
-		for _, optionReq := range itemReq.Options {
-			option := models.OrderItemOption{
-				OptionID:   optionReq.OptionID,
-				CategoryID: optionReq.CategoryID,
-			}
-			options = append(options, option)
-		}
-		orderItem.Options = options
-		orderItems = append(orderItems, orderItem)
-	}
-
-	order := models.Order{
-		ID:     req.ID,
-		UserID: req.UserID,
-		ShopID: req.ShopID,
-		Items:  orderItems,
-		Remark: req.Remark,
-		Status: 0,
-	}
-	utils.SanitizeOrder(&order)
-
-	// 验证订单数据
-	if err := utils.ValidateOrder(&order); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
 	// 假设存在一个 IsValidUserID 函数来验证用户ID的合法性
-	if !h.IsValidUserID(order.UserID) {
+	if !h.IsValidUserID(req.UserID) {
 		log2.Errorf("创建订单失败: 非法用户")
 		errorResponse(c, http.StatusBadRequest, "创建订单失败")
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, order.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	order.ShopID = validShopID // 更新订单的shopID
 
+	// 开启事务
 	tx := h.DB.Begin()
 
-	totalPrice := float64(0.0)
-	// 更新商品库存并保存商品快照
-	for i := range order.Items {
-		var product models.Product
-		if err := tx.First(&product, order.Items[i].ProductID).Error; err != nil {
-			tx.Rollback()
-			h.logger.Errorf("商品不存在, ID: %d, 错误: %v", order.Items[i].ProductID, err)
-			errorResponse(c, http.StatusBadRequest, "商品不存在")
-			return
+	// 构建领域服务 DTO
+	var itemsDTO []order.CreateOrderItemDTO
+	for _, itemReq := range req.Items {
+		var optionsDTO []order.CreateOrderItemOptionDTO
+		for _, optionReq := range itemReq.Options {
+			optionsDTO = append(optionsDTO, order.CreateOrderItemOptionDTO{
+				OptionID:   optionReq.OptionID,
+				CategoryID: optionReq.CategoryID,
+			})
 		}
-
-		if product.Stock < order.Items[i].Quantity {
-			tx.Rollback()
-			h.logger.Errorf("商品库存不足, ID: %d, 当前库存: %d, 需求数量: %d",
-				order.Items[i].ProductID, product.Stock, order.Items[i].Quantity)
-			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("商品 %s 库存不足", product.Name))
-			return
-		}
-
-		// 保存商品快照信息
-		order.Items[i].ProductName = product.Name
-		order.Items[i].ProductDescription = product.Description
-		order.Items[i].ProductImageURL = product.ImageURL
-		order.Items[i].Price = models.Price(product.Price) // 使用当前价格
-
-		// 处理订单项参数选项
-		itemTotalPrice := float64(order.Items[i].Quantity) * product.Price
-		for j := range order.Items[i].Options {
-			// 获取参数选项信息
-			var option models.ProductOption
-			if err := tx.First(&option, order.Items[i].Options[j].OptionID).Error; err != nil {
-				tx.Rollback()
-				h.logger.Errorf("商品参数选项不存在, ID: %d, 错误: %v", order.Items[i].Options[j].OptionID, err)
-				errorResponse(c, http.StatusBadRequest, "无效的商品参数选项")
-				return
-			}
-
-			// 获取参数类别信息
-			var category models.ProductOptionCategory
-			if err := tx.First(&category, option.CategoryID).Error; err != nil {
-				tx.Rollback()
-				h.logger.Errorf("商品参数类别不存在, ID: %d, 错误: %v", option.CategoryID, err)
-				errorResponse(c, http.StatusBadRequest, "无效的商品参数类别")
-				return
-			}
-
-			// 验证参数所属商品
-			if category.ProductID != product.ID {
-				tx.Rollback()
-				errorResponse(c, http.StatusBadRequest, "参数选项不属于指定商品")
-				return
-			}
-
-			// 保存参数选项快照
-			order.Items[i].Options[j].CategoryID = category.ID
-			order.Items[i].Options[j].OptionName = option.Name
-			order.Items[i].Options[j].CategoryName = category.Name
-			order.Items[i].Options[j].PriceAdjustment = option.PriceAdjustment
-
-			// 计算参数选项对总价的影响
-			itemTotalPrice += float64(order.Items[i].Quantity) * option.PriceAdjustment
-		}
-
-		// 设置订单项总价
-		order.Items[i].TotalPrice = models.Price(itemTotalPrice)
-
-		// 更新库存
-		product.Stock -= order.Items[i].Quantity
-		totalPrice += itemTotalPrice
-		if err := tx.Save(&product).Error; err != nil {
-			tx.Rollback()
-			h.logger.Errorf("更新商品库存失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "更新商品库存失败")
-			return
-		}
+		itemsDTO = append(itemsDTO, order.CreateOrderItemDTO{
+			ProductID: itemReq.ProductID,
+			Quantity:  itemReq.Quantity,
+			Options:   optionsDTO,
+		})
 	}
 
-	order.TotalPrice = models.Price(totalPrice)
+	// 调用领域服务创建订单（处理库存验证、快照、价格计算、库存扣减）
+	orderModel, totalPrice, err := h.orderService.CreateOrder(order.CreateOrderDTO{
+		UserID: req.UserID,
+		ShopID: validShopID,
+		Items:  itemsDTO,
+		Remark: req.Remark,
+	})
+	if err != nil {
+		tx.Rollback()
+		h.logger.Errorf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	orderModel.TotalPrice = models.Price(totalPrice)
 	// 雪花ID生成逻辑
-	order.ID = utils.GenerateSnowflakeID()
-	// 设置订单初始状态
-	order.Status = models.OrderStatusPending
+	orderModel.ID = utils.GenerateSnowflakeID()
 
 	// 数据库写入
-	if err := tx.Create(&order).Error; err != nil {
+	if err := tx.Create(&orderModel).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("创建订单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
@@ -200,10 +118,10 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 更新订单项选项的OrderItemID
-	for i := range order.Items {
-		for j := range order.Items[i].Options {
-			order.Items[i].Options[j].OrderItemID = order.Items[i].ID
-			if err := tx.Save(&order.Items[i].Options[j]).Error; err != nil {
+	for i := range orderModel.Items {
+		for j := range orderModel.Items[i].Options {
+			orderModel.Items[i].Options[j].OrderItemID = orderModel.Items[i].ID
+			if err := tx.Save(&orderModel.Items[i].Options[j]).Error; err != nil {
 				tx.Rollback()
 				log2.Errorf("更新订单项选项失败: %v", err)
 				errorResponse(c, http.StatusInternalServerError, "创建订单失败")
@@ -213,8 +131,8 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 添加日志，打印创建的订单信息
-	log2.Infof("创建的订单信息: %+v", order)
-	for _, item := range order.Items {
+	log2.Infof("创建的订单信息: %+v", orderModel)
+	for _, item := range orderModel.Items {
 		log2.Infof("订单项ID: %s, 选项数量: %d", item.ID, len(item.Options))
 		for _, option := range item.Options {
 			log2.Infof("选项ID: %s, 名称: %s", option.ID, option.OptionName)
@@ -223,9 +141,9 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	// 创建订单状态日志
 	statusLog := models.OrderStatusLog{
-		OrderID:     order.ID,
+		OrderID:     orderModel.ID,
 		OldStatus:   0,
-		NewStatus:   order.Status,
+		NewStatus:   orderModel.Status,
 		ChangedTime: time.Now(),
 	}
 	if err := tx.Create(&statusLog).Error; err != nil {
@@ -238,13 +156,13 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	tx.Commit()
 
 	// 触发SSE通知
-	go h.NotifyNewOrder(order)
+	go h.NotifyNewOrder(*orderModel)
 
 	successResponse(c, gin.H{
-		"order_id":    order.ID,
-		"total_price": order.TotalPrice,
-		"created_at":  order.CreatedAt,
-		"status":      order.Status,
+		"order_id":    orderModel.ID,
+		"total_price": orderModel.TotalPrice,
+		"created_at":  orderModel.CreatedAt,
+		"status":      orderModel.Status,
 	})
 }
 
@@ -588,7 +506,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 
 	// 恢复商品库存（仅在订单未取消且未完成时）
 	if order.Status != models.OrderStatusCanceled && order.Status != models.OrderStatusComplete {
-		if err := utils.RestoreProductStock(tx, order); err != nil {
+		if err := h.orderService.RestoreStock(tx, order); err != nil {
 			tx.Rollback()
 			h.logger.Errorf("恢复商品库存失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "删除订单失败")
@@ -671,7 +589,14 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// 验证请求的next_status是否在店铺的订单流转定义中允许
+	// 使用领域实体验证终态（基础验证）
+	orderDomain := orderdomain.OrderFromModel(order)
+	if orderDomain.IsFinal() {
+		errorResponse(c, http.StatusBadRequest, "当前状态为终态，不允许转换")
+		return
+	}
+
+	// 验证请求的next_status是否在店铺的订单流转定义中允许（店铺配置验证）
 	if err := validateNextStatus(order.Status, req.NextStatus, shop.OrderStatusFlow); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return

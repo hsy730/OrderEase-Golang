@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"orderease/domain/order"
 	"orderease/domain/user"
 	"orderease/models"
 	"orderease/services"
@@ -30,6 +31,7 @@ type Handler struct {
 	tagRepo          *repositories.TagRepository
 	tempTokenService *services.TempTokenService
 	userDomain       *user.Service
+	orderService     *order.Service
 }
 
 // 创建处理器实例
@@ -79,6 +81,7 @@ func NewHandler(db *gorm.DB) *Handler {
 	)
 
 	userDomain := user.NewService(userRepoAdapter)
+	orderService := order.NewService(db)
 
 	return &Handler{
 		DB:               db,
@@ -91,6 +94,7 @@ func NewHandler(db *gorm.DB) *Handler {
 		logger:           log2.GetLogger(),
 		tempTokenService: services.NewTempTokenService(),
 		userDomain:       userDomain,
+		orderService:     orderService,
 	}
 }
 
