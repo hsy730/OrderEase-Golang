@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/bwmarrin/snowflake"
@@ -171,6 +172,23 @@ func (u *User) ValidatePassword(plainPassword string) error {
 // HasPhone 是否有手机号
 func (u *User) HasPhone() bool {
 	return !u.phone.IsEmpty()
+}
+
+// VerifyPassword 验证用户密码（与存储的哈希密码比对）
+// 这是真实的密码验证，用于登录场景
+func (u *User) VerifyPassword(plainPassword string) error {
+	hashedPassword := u.password.String()
+
+	// 如果密码未哈希（开发测试环境），直接比对
+	if !strings.HasPrefix(hashedPassword, "$2a$") && !strings.HasPrefix(hashedPassword, "$2b$") {
+		if hashedPassword == plainPassword {
+			return nil
+		}
+		return errors.New("密码错误")
+	}
+
+	// 使用 bcrypt 验证哈希密码
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
 }
 
 // ToModel 转换为持久化模型（用于保存到数据库）

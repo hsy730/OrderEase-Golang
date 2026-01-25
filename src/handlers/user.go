@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // 创建用户
@@ -378,8 +377,9 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 		return
 	}
 
-	// 验证密码（使用bcrypt验证加密后的密码）
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+	// 转换为领域实体验证密码
+	userDomain := userdomain.UserFromModel(user)
+	if err := userDomain.VerifyPassword(req.Password); err != nil {
 		errorResponse(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}

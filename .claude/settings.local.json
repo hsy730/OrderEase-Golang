@@ -8,7 +8,8 @@
       "Bash(py -m pytest:*)",
       "Bash(git add:*)",
       "Bash(tree:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(dir:*)"
     ]
   }
 }
