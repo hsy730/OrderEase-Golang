@@ -171,13 +171,8 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	if page < 1 {
-		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
-		return
-	}
-
-	if pageSize < 1 || pageSize > 100 {
-		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+	if err := ValidatePaginationParams(page, pageSize); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

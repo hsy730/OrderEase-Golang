@@ -121,13 +121,8 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	search := c.Query("search") // 获取用户名搜索参数
 
-	if page < 1 {
-		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
-		return
-	}
-
-	if pageSize < 1 || pageSize > 100 {
-		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+	if err := ValidatePaginationParams(page, pageSize); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -349,13 +344,8 @@ func (h *Handler) GetUserSimpleList(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
 	// 校验分页参数
-	if page < 1 {
-		errorResponse(c, http.StatusBadRequest, "页码必须大于0")
-		return
-	}
-
-	if pageSize < 1 || pageSize > 100 {
-		errorResponse(c, http.StatusBadRequest, "每页数量必须在1-100之间")
+	if err := ValidatePaginationParams(page, pageSize); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
