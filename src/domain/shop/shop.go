@@ -1,6 +1,7 @@
 package shop
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -211,4 +212,37 @@ func (s *Shop) CheckPassword(password string) error {
 func (s *Shop) IsExpired() bool {
 	now := time.Now().UTC()
 	return s.validUntil.Before(now)
+}
+
+// CanDelete 检查店铺是否可以删除
+// 店铺删除需要满足：无关联商品且无关联订单
+func (s *Shop) CanDelete(productCount int, orderCount int) error {
+	if productCount > 0 {
+		return fmt.Errorf("店铺存在 %d 个关联商品，无法删除", productCount)
+	}
+	if orderCount > 0 {
+		return fmt.Errorf("店铺存在 %d 个关联订单，无法删除", orderCount)
+	}
+	return nil
+}
+
+// UpdateValidUntil 更新有效期（带业务验证）
+// 新有效期必须晚于当前时间
+func (s *Shop) UpdateValidUntil(newValidUntil time.Time) error {
+	now := time.Now().UTC()
+	if newValidUntil.Before(now) {
+		return fmt.Errorf("新有效期不能早于当前时间")
+	}
+	s.validUntil = newValidUntil
+	s.updatedAt = time.Now().UTC()
+	return nil
+}
+
+// ValidateOrderStatusFlow 验证订单流转配置是否合法
+// 确保至少有一个状态定义
+func (s *Shop) ValidateOrderStatusFlow(flow models.OrderStatusFlow) error {
+	if len(flow.Statuses) == 0 {
+		return fmt.Errorf("订单流转配置不能为空")
+	}
+	return nil
 }
