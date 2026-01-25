@@ -44,6 +44,25 @@ func NewProduct(shopID uint64, name string, price float64, stock int) *Product {
 	}
 }
 
+// NewProductWithDefaults 创建带完整默认值的商品
+// 封装商品创建逻辑，避免在 Handler 中多次调用 Setter
+func NewProductWithDefaults(shopID uint64, name string, price float64, stock int,
+	description string, imageURL string, optionCategories []models.ProductOptionCategory) *Product {
+
+	return &Product{
+		shopID:           shopID,
+		name:             name,
+		price:            price,
+		stock:            stock,
+		description:      description,
+		imageURL:         imageURL,
+		status:           ProductStatusPending, // 默认状态
+		optionCategories: optionCategories,
+		createdAt:        time.Now(),
+		updatedAt:        time.Now(),
+	}
+}
+
 // Getters
 func (p *Product) ID() snowflake.ID {
 	return p.id

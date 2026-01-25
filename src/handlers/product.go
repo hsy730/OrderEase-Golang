@@ -38,15 +38,19 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	// 使用领域实体创建商品（设置基础字段和初始状态）
-	productDomain := productdomain.NewProduct(validShopID, request.Product.Name, request.Product.Price, request.Product.Stock)
-	productDomain.SetDescription(request.Product.Description)
-	productDomain.SetImageURL(request.Product.ImageURL)
-	productDomain.SetOptionCategories(request.OptionCategories)
+	// 使用领域实体创建商品（封装完整创建逻辑）
+	productDomain := productdomain.NewProductWithDefaults(
+		validShopID,
+		request.Product.Name,
+		request.Product.Price,
+		request.Product.Stock,
+		request.Product.Description,
+		request.Product.ImageURL,
+		request.OptionCategories,
+	)
 
 	// 转换为持久化模型
 	productModel := productDomain.ToModel()
-	productModel.Status = models.ProductStatusPending
 	productModel.ID = utils.GenerateSnowflakeID()
 
 	// 开启事务
