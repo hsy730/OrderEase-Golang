@@ -221,3 +221,57 @@ func (s *Service) RestoreStock(tx *gorm.DB, order models.Order) error {
 	}
 	return nil
 }
+
+// UpdateOrderDTO 更新订单 DTO
+type UpdateOrderDTO struct {
+	OrderID snowflake.ID
+	ShopID  uint64
+	Items   []CreateOrderItemDTO
+	Remark  string
+	Status  int
+}
+
+// UpdateOrder 更新订单（领域服务方法）
+// 负责订单更新的核心逻辑：
+// 1. 处理订单项（验证商品、保存快照、计算价格）
+// 注意：不包含事务管理、订单验证等 Handler 层职责
+func (s *Service) UpdateOrder(dto UpdateOrderDTO) (*models.Order, float64, error) {
+	// 构建订单项
+	var orderItems []models.OrderItem
+	for _, itemReq := range dto.Items {
+		orderItem := models.OrderItem{
+			ProductID: itemReq.ProductID,
+			Quantity:  itemReq.Quantity,
+		}
+
+		// 处理选中的选项
+		var options []models.OrderItemOption
+		for _, optionReq := range itemReq.Options {
+			option := models.OrderItemOption{
+				OptionID:   optionReq.OptionID,
+				CategoryID: optionReq.CategoryID,
+			}
+			options = append(options, option)
+		}
+		orderItem.Options = options
+		orderItems = append(orderItems, orderItem)
+	}
+
+	order := &models.Order{
+		ID:     dto.OrderID,
+		ShopID: dto.ShopID,
+		Items:  orderItems,
+		Remark: dto.Remark,
+		Status: dto.Status,
+	}
+
+	// 执行订单项处理的核心逻辑（复用 processOrderItems）
+	totalPrice, err := s.processOrderItems(s.db, order)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	order.TotalPrice = models.Price(totalPrice)
+
+	return order, totalPrice, nil
+}
