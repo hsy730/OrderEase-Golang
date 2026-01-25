@@ -32,9 +32,10 @@
 - **Step 18**: 迁移 Order Handler 到领域服务 ✅
 - **Step 19**: 创建 Product 领域服务 ✅
 - **Step 21**: 清理废弃代码 ✅
+- **Step 23**: 迁移 UpdateOrder 到领域服务 ✅
 - **Step 24**: 迁移 Product Handler 使用领域实体 ✅
 
-### DDD成熟度：90% (过渡阶段)
+### DDD成熟度：91% (过渡阶段)
 
 ---
 
@@ -353,6 +354,27 @@
 **收益**: 代码更清晰，减少误用风险
 **验证**: 编译通过 ✅
 **提交**: `refactor(utils): Step 21 清理废弃代码` ✅
+
+---
+
+### Step 23: 迁移 UpdateOrder 到领域服务 ✅
+
+**目标**: `UpdateOrder` 中的复杂逻辑应该由领域服务处理
+
+**改动**:
+- `domain/order/service.go`:
+  - 添加 `UpdateOrderDTO` 结构体
+  - 添加 `UpdateOrder()` 方法，复用 `processOrderItems` 逻辑
+- `handlers/order.go`:
+  - `UpdateOrder` (行 318-446): 调用 `h.orderService.UpdateOrder()` 替代手动逻辑
+
+**代码改进**:
+- 消除 CreateOrder 和 UpdateOrder 之间的重复代码
+- Handler 代码量减少约 50%
+
+**收益**: 订单更新逻辑统一到领域层
+**验证**: 运行测试 ✅ (72 passed in 163s)
+**提交**: `refactor(order): Step 23 迁移 UpdateOrder 到领域服务` ✅
 
 ---
 
