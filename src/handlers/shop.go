@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	shopdomain "orderease/domain/shop"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -176,26 +176,20 @@ func (h *Handler) CreateShop(c *gin.Context) {
 		orderStatusFlow = *shopData.OrderStatusFlow
 	}
 
-	// 对密码进行哈希
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(shopData.OwnerPassword), bcrypt.DefaultCost)
-	if err != nil {
-		h.logger.Errorf("密码加密失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建店铺失败")
-		return
+	// 使用 Domain 实体创建店铺（密码哈希由 ToModel() 处理）
+	shopDomain := shopdomain.NewShop(shopData.Name, shopData.OwnerUsername, validUntil)
+	shopDomain.SetOwnerPassword(shopData.OwnerPassword) // 设置明文密码
+	shopDomain.SetContactPhone(shopData.ContactPhone)
+	shopDomain.SetContactEmail(shopData.ContactEmail)
+	shopDomain.SetDescription(shopData.Description)
+	shopDomain.SetAddress(shopData.Address)
+	shopDomain.SetOrderStatusFlow(orderStatusFlow)
+	if len(shopData.Settings) > 0 {
+		shopDomain.SetSettings(shopData.Settings)
 	}
 
-	newShop := models.Shop{
-		Name:            shopData.Name,
-		OwnerUsername:   shopData.OwnerUsername,
-		OwnerPassword:   string(hashedPassword),
-		ContactPhone:    shopData.ContactPhone,
-		ContactEmail:    shopData.ContactEmail,
-		Description:     shopData.Description,
-		ValidUntil:      validUntil,
-		Address:         shopData.Address,
-		Settings:        json.RawMessage(shopData.Settings), // 转换为json.RawMessage
-		OrderStatusFlow: orderStatusFlow,
-	}
+	// 转换为 Model（自动处理密码哈希）
+	newShop := shopDomain.ToModel()
 
 	if err := h.DB.Create(&newShop).Error; err != nil {
 		h.logger.Errorf("创建店铺失败: %v", err)
@@ -319,16 +313,16 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	if updateData.OwnerUsername != "" {
 		shop.OwnerUsername = updateData.OwnerUsername
 	}
-	// 处理密码更新：如果密码不为null，则更新密码
+	// 处理密码更新：如果密码不为null，则使用 Domain 实体更新密码
 	if updateData.OwnerPassword != nil {
-		// 对密码进行哈希
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*updateData.OwnerPassword), bcrypt.DefaultCost)
-		if err != nil {
-			h.logger.Errorf("密码加密失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
-			return
-		}
-		shop.OwnerPassword = string(hashedPassword)
+		// 转换为 Domain 实体（shop 已经是指针，不需要再取地址）
+		shopEntity := shopdomain.ShopFromModel(shop)
+		// 设置明文密码
+		shopEntity.SetOwnerPassword(*updateData.OwnerPassword)
+		// 转换回 Model（自动处理密码哈希）
+		shopModel := shopEntity.ToModel()
+		// 更新密码字段
+		shop.OwnerPassword = shopModel.OwnerPassword
 	}
 
 	if err := h.DB.Save(&shop).Error; err != nil {

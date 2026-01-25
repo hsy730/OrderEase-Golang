@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"orderease/models"
-	value_objects "orderease/domain/shared/value_objects"
 	"orderease/domain/user"
 	"orderease/utils"
 	"strconv"
@@ -32,86 +31,49 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 验证用户类型
-	if req.Type != models.UserTypeDelivery && req.Type != models.UserTypePickup {
-		errorResponse(c, http.StatusBadRequest, "无效的用户类型")
-		return
+	// 设置默认角色
+	role := req.Role
+	if role == "" {
+		role = models.UserRolePublic
 	}
 
-	if req.Phone != "" { // 电话选填
-		// 使用 Domain 值对象验证手机号
-		_, err := value_objects.NewPhone(req.Phone)
-		if err != nil {
-			h.logger.Errorf("无效的手机号格式: %s", req.Phone)
-			errorResponse(c, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		// 检查手机号唯一性
-		exists, err := h.userRepo.CheckPhoneExists(req.Phone)
-		if err != nil {
-			h.logger.Errorf("检查手机号失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "检查手机号失败")
-			return
-		}
-		if exists {
-			errorResponse(c, http.StatusConflict, "该手机号已注册")
-			return
-		}
-	}
-
-	// 检查用户名唯一性
-	exists, err := h.userRepo.CheckUsernameExists(req.Name)
-	if err != nil {
-		h.logger.Errorf("检查用户名失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
-		return
-	}
-	if exists {
-		errorResponse(c, http.StatusConflict, "用户名已存在")
-		return
-	}
-
-	// 使用 Domain 值对象验证密码（保持与现有行为一致：宽松规则）
-	_, err = value_objects.NewPassword(req.Password)
-	if err != nil {
-		h.logger.Errorf("密码验证失败: %v", err)
-		errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
-		return
-	}
-
-	// 对密码进行哈希
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		h.logger.Errorf("密码加密失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
-		return
-	}
-
-	// 创建用户对象
-	user := models.User{
-		ID:       utils.GenerateSnowflakeID(),
-		Name:     req.Name,
+	// 调用 Domain Service 进行用户注册
+	userDomain, err := h.userDomain.Register(user.RegisterUserDTO{
+		Username: req.Name,
 		Phone:    req.Phone,
-		Password: string(hashedPassword), // 存储哈希后的密码
-		Type:     req.Type,
-		Role:     req.Role,    // 明确设置默认值
-		Address:  req.Address, // 初始化地址字段
-	}
-
-	if err := h.userRepo.Create(&user); err != nil {
-		h.logger.Errorf("创建用户失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建用户失败")
+		Password: req.Password,
+		UserType: req.Type,
+		Role:     role,
+	})
+	if err != nil {
+		if errors.Is(err, user.ErrUsernameAlreadyExists) {
+			errorResponse(c, http.StatusConflict, "用户名已存在")
+		} else if errors.Is(err, user.ErrPhoneAlreadyExists) {
+			errorResponse(c, http.StatusConflict, "该手机号已注册")
+		} else if errors.Is(err, user.ErrInvalidPassword) {
+			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
+		} else if errors.Is(err, user.ErrInvalidUserType) {
+			errorResponse(c, http.StatusBadRequest, "无效的用户类型")
+		} else if errors.Is(err, user.ErrInvalidRole) {
+			errorResponse(c, http.StatusBadRequest, "无效的角色")
+		} else {
+			h.logger.Errorf("创建用户失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "创建用户失败")
+		}
 		return
 	}
+
+	// 转换为 Model 以获取正确格式的数据
+	userModel := userDomain.ToModel()
 
 	// 移除敏感字段后返回
 	responseData := gin.H{
-		"id":         user.ID,
-		"name":       user.Name,
-		"phone":      user.Phone,
-		"type":       user.Type,
-		"created_at": user.CreatedAt.Format(time.RFC3339),
+		"id":         userModel.ID,
+		"name":       userModel.Name,
+		"phone":      userModel.Phone,
+		"type":       userModel.Type,
+		"role":       userModel.Role,
+		"created_at": userModel.CreatedAt.Format(time.RFC3339),
 	}
 	successResponse(c, responseData)
 }
@@ -219,76 +181,72 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// 验证手机号
-	if updateData.Phone != "" {
-		_, err := value_objects.NewPhone(updateData.Phone)
-		if err != nil {
-			errorResponse(c, http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-
 	// 验证角色
 	if updateData.Role != "" && updateData.Role != models.UserRolePrivate && updateData.Role != models.UserRolePublic {
 		errorResponse(c, http.StatusBadRequest, "无效的角色")
 		return
 	}
 
-	// 查询现有用户
-	user, err := h.userRepo.GetUserByID(id)
+	// 使用 Domain Service 更新手机号（带验证和唯一性检查）
+	if updateData.Phone != "" {
+		userID := user.UserID(id)
+		if err := h.userDomain.UpdatePhone(userID, updateData.Phone); err != nil {
+			if errors.Is(err, user.ErrPhoneAlreadyExists) {
+				errorResponse(c, http.StatusConflict, "该手机号已注册")
+			} else {
+				errorResponse(c, http.StatusBadRequest, err.Error())
+			}
+			return
+		}
+	}
+
+	// 使用 Domain Service 更新密码（带验证和哈希）
+	if updateData.Password != "" {
+		userID := user.UserID(id)
+		if err := h.userDomain.UpdatePassword(userID, updateData.Password); err != nil {
+			if errors.Is(err, user.ErrInvalidPassword) {
+				errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
+			} else {
+				errorResponse(c, http.StatusInternalServerError, "更新用户失败")
+			}
+			return
+		}
+	}
+
+	// 查询现有用户并更新其他字段
+	userModel, err := h.userRepo.GetUserByID(id)
 	if err != nil {
 		h.logger.Errorf("更新用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户未找到")
 		return
 	}
 
-	// 更新字段
+	// 更新其他字段
 	if updateData.Type != "" {
-		user.Type = updateData.Type
-	}
-	if updateData.Phone != "" {
-		user.Phone = updateData.Phone
+		userModel.Type = updateData.Type
 	}
 	if updateData.Address != "" {
-		user.Address = updateData.Address
-	}
-	// 处理密码更新：如果密码不为空字符串，则验证并哈希
-	if updateData.Password != "" {
-		// 使用 Domain 值对象验证密码
-		_, err = value_objects.NewPassword(updateData.Password)
-		if err != nil {
-			h.logger.Errorf("密码验证失败: %v", err)
-			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
-			return
-		}
-		// 对密码进行哈希
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updateData.Password), bcrypt.DefaultCost)
-		if err != nil {
-			h.logger.Errorf("密码加密失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "更新用户失败")
-			return
-		}
-		user.Password = string(hashedPassword)
+		userModel.Address = updateData.Address
 	}
 	if updateData.Role != "" {
-		user.Role = updateData.Role
+		userModel.Role = updateData.Role
 	}
 
-	if err := h.userRepo.Update(user); err != nil {
+	if err := h.userRepo.Update(userModel); err != nil {
 		h.logger.Errorf("更新用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新用户失败")
 		return
 	}
 
 	// 重新获取更新后的用户信息
-	user, err = h.userRepo.GetUserByID(id)
+	userModel, err = h.userRepo.GetUserByID(id)
 	if err != nil {
 		h.logger.Errorf("获取更新后的用户信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的用户信息失败")
 		return
 	}
 
-	successResponse(c, user)
+	successResponse(c, userModel)
 }
 
 // 删除用户
