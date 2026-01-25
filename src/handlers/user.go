@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"orderease/models"
 	value_objects "orderease/domain/shared/value_objects"
+	"orderease/domain/user"
 	"orderease/utils"
 	"strconv"
 	"time"
@@ -400,54 +402,33 @@ func (h *Handler) FrontendUserRegister(c *gin.Context) {
 		return
 	}
 
-	// 验证密码格式：6-20位，必须包含字母和数字
-	if !isValidPassword(req.Password) {
-		errorResponse(c, http.StatusBadRequest, "密码必须为6-20位，且包含字母和数字")
-		return
-	}
-
-	// 检查用户名是否已存在
-	exists, err := h.userRepo.CheckUsernameExists(req.Username)
+	// 调用 Domain Service
+	userDomain, err := h.userDomain.RegisterWithPasswordValidation(user.RegisterWithPasswordValidationDTO{
+		Username: req.Username,
+		Password: req.Password, // 传递明文密码，由 Domain 层处理
+	})
 	if err != nil {
-		h.logger.Errorf("检查用户名失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "检查用户名失败")
-		return
-	}
-	if exists {
-		errorResponse(c, http.StatusConflict, "用户名已存在")
-		return
-	}
-
-	// 对密码进行哈希
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		h.logger.Errorf("密码加密失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "注册失败")
+		if errors.Is(err, user.ErrUsernameAlreadyExists) {
+			errorResponse(c, http.StatusConflict, "用户名已存在")
+		} else if errors.Is(err, user.ErrInvalidPassword) {
+			errorResponse(c, http.StatusBadRequest, "密码必须为6-20位，且包含字母和数字")
+		} else {
+			h.logger.Errorf("注册失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "注册失败")
+		}
 		return
 	}
 
-	// 创建用户对象
-	user := models.User{
-		ID:       utils.GenerateSnowflakeID(),
-		Name:     req.Username,
-		Password: string(hashedPassword),   // 存储哈希后的密码
-		Type:     models.UserTypeDelivery,  // 默认邮寄配送
-		Role:     models.UserRolePublic,    // 默认公开用户
-	}
+	// 转换为 Model 以获取正确格式的 ID
+	userModel := userDomain.ToModel()
 
-	if err := h.userRepo.Create(&user); err != nil {
-		h.logger.Errorf("创建用户失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "注册失败")
-		return
-	}
-
-	// 返回注册成功信息，移除敏感字段
+	// 返回注册成功信息
 	responseData := gin.H{
 		"message": "注册成功",
 		"user": gin.H{
-			"id":   user.ID,
-			"name": user.Name,
-			"type": user.Type,
+			"id":   userModel.ID,
+			"name": userDomain.Name(),
+			"type": userDomain.UserType(),
 		},
 	}
 	successResponse(c, responseData)
@@ -511,25 +492,4 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 		"expiredAt": expiredAt.Unix(),
 	}
 	successResponse(c, responseData)
-}
-
-// 验证密码格式：6-20位，必须包含字母和数字，可以有特殊字符
-func isValidPassword(password string) bool {
-	if len(password) < 6 || len(password) > 20 {
-		return false
-	}
-
-	hasLetter := false
-	hasDigit := false
-
-	for _, c := range password {
-		switch {
-		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
-			hasLetter = true
-		case c >= '0' && c <= '9':
-			hasDigit = true
-		}
-	}
-
-	return hasLetter && hasDigit
 }
