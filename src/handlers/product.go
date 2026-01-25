@@ -106,25 +106,25 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	// 获取当前商品信息
-	product, err := h.productRepo.GetProductByID(productId, validShopID)
+	productModel, err := h.productRepo.GetProductByID(productId, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
 
-	if product.Status == "" {
-		product.Status = models.ProductStatusPending
+	if productModel.Status == "" {
+		productModel.Status = models.ProductStatusPending
 	}
 
-	log2.Debugf("更新商品前状态: %s", product.Status)
-	// 验证状态流转
-	if !isValidProductStatusTransition(product.Status, req.Status) {
+	log2.Debugf("更新商品前状态: %s", productModel.Status)
+	// 使用领域服务验证状态流转
+	if !h.productService.CanTransitionTo(productModel.Status, req.Status) {
 		errorResponse(c, http.StatusBadRequest, "无效的状态变更")
 		return
 	}
 
 	// 更新商品状态
-	if err := h.DB.Model(&product).Update("status", req.Status).Error; err != nil {
+	if err := h.DB.Model(&productModel).Update("status", req.Status).Error; err != nil {
 		log2.Errorf("更新商品状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
 		return
@@ -134,36 +134,11 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	successResponse(c, gin.H{
 		"message": "商品状态更新成功",
 		"product": gin.H{
-			"id":         product.ID,
+			"id":         productModel.ID,
 			"status":     req.Status,
-			"updated_at": product.UpdatedAt,
+			"updated_at": productModel.UpdatedAt,
 		},
 	})
-}
-
-// isValidProductStatusTransition 验证商品状态流转是否合法
-func isValidProductStatusTransition(currentStatus, newStatus string) bool {
-	// 定义状态流转规则
-	transitions := map[string][]string{
-		models.ProductStatusPending: {models.ProductStatusOnline},
-		models.ProductStatusOnline:  {models.ProductStatusOffline},
-		models.ProductStatusOffline: {models.ProductStatusOnline}, // 允许下架后重新上架
-	}
-
-	// 检查是否是允许的状态转换
-	allowedStatus, exists := transitions[currentStatus]
-	if !exists {
-		return false
-	}
-
-	// 检查新状态是否在允许的转换列表中
-	for _, status := range allowedStatus {
-		if status == newStatus {
-			return true
-		}
-	}
-
-	return false
 }
 
 // 获取商品列表
@@ -370,20 +345,10 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
-	// 检查是否存在关联订单
-	var orderCount int64
-	if err := h.DB.Model(&models.OrderItem{}).
-		Where("product_id = ?", id).
-		Count(&orderCount).Error; err != nil {
-		log2.Errorf("检查商品订单关联失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "系统错误")
-		return
-	}
 
-	// 如果存在关联订单，不允许删除
-	if orderCount > 0 {
-		errorResponse(c, http.StatusBadRequest,
-			fmt.Sprintf("该商品有 %d 个关联订单，不能删除。建议将商品下架而不是删除", orderCount))
+	// 使用领域服务验证是否可以删除（检查关联订单）
+	if err := h.productService.ValidateForDeletion(id); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

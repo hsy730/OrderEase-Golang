@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"orderease/domain/order"
+	"orderease/domain/product"
 	"orderease/domain/user"
 	"orderease/models"
 	"orderease/services"
@@ -32,6 +33,7 @@ type Handler struct {
 	tempTokenService *services.TempTokenService
 	userDomain       *user.Service
 	orderService     *order.Service
+	productService   *product.Service
 }
 
 // 创建处理器实例
@@ -82,6 +84,7 @@ func NewHandler(db *gorm.DB) *Handler {
 
 	userDomain := user.NewService(userRepoAdapter)
 	orderService := order.NewService(db)
+	productService := product.NewService(db)
 
 	return &Handler{
 		DB:               db,
@@ -95,6 +98,7 @@ func NewHandler(db *gorm.DB) *Handler {
 		tempTokenService: services.NewTempTokenService(),
 		userDomain:       userDomain,
 		orderService:     orderService,
+		productService:   productService,
 	}
 }
 
