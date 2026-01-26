@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"orderease/domain/shop"
+	"orderease/domain/shared/value_objects"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -117,8 +118,8 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 		return
 	}
 
-	// 验证新密码强度
-	if err := utils.ValidatePassword(passwordData.NewPassword); err != nil {
+	// 验证新密码强度（使用 Domain 值对象）
+	if _, err := value_objects.NewStrictPassword(passwordData.NewPassword); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -184,8 +185,8 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 		return
 	}
 
-	// 验证新密码强度（复用相同规则）
-	if err := utils.ValidatePassword(passwordData.NewPassword); err != nil {
+	// 验证新密码强度（使用 Domain 值对象）
+	if _, err := value_objects.NewStrictPassword(passwordData.NewPassword); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
