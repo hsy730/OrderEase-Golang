@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅ (41 Steps)
+### 已完成 ✅ (42 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -54,11 +54,12 @@
 - **Step 39**: Shop 状态判断方法封装 ✅
 - **Step 40**: Order 响应 DTO 转换封装 ✅
 - **Step 43**: Auth Handler 密码验证统一 ✅
+- **Step 46**: Order Handler 用户验证优化 ✅
 
 ### DDD成熟度：98-99% (成熟阶段)
 
 **重构成果总结**:
-- 完成 41 个重构步骤
+- 完成 42 个重构步骤
 - 核心业务逻辑已完全封装到 Domain 层
 - 72 个测试用例全部通过
 - 代码重复率大幅降低
@@ -769,6 +770,27 @@
 **收益**: 密码验证逻辑直接使用 Domain 值对象
 **验证**: 运行测试 ✅
 **提交**: `refactor(auth): Step 43 统一密码验证到 Domain 值对象` ✅
+
+---
+
+### Step 46: Order Handler 用户验证优化 ✅
+
+**目标**: 使用 Domain Service 替代直接的 DB 查询
+
+**改动**:
+- `handlers/order.go`:
+  - 添加 `fmt` 和 `domain/user` 包导入
+  - `IsValidUserID` (行 622-626): 使用 `h.userDomain.GetByID()` 替代 `h.DB.First()`
+  - 类型转换：`snowflake.ID` → `string` → `user.UserID`
+
+**代码改进**:
+- 消除 Handler 层的数据库直接访问
+- 通过 Domain Service 统一用户查询逻辑
+- 符合 DDD 分层架构原则
+
+**收益**: Handler 层不再直接访问数据库
+**验证**: 运行测试 ✅
+**提交**: `refactor(order): Step 46 用户验证使用 Domain Service` ✅
 
 ---
 
