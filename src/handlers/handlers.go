@@ -6,6 +6,7 @@ import (
 	"orderease/domain/order"
 	"orderease/domain/product"
 	"orderease/domain/shop"
+	"orderease/domain/tag"
 	"orderease/domain/user"
 	"orderease/models"
 	"orderease/services"
@@ -39,6 +40,7 @@ type Handler struct {
 	productService   *product.Service
 	mediaService     *media.ImageUploadService
 	shopService      *shop.Service
+	tagService       *tag.Service
 }
 
 // 创建处理器实例
@@ -92,6 +94,7 @@ func NewHandler(db *gorm.DB) *Handler {
 	productService := product.NewService(db)
 	mediaService := media.NewImageUploadService(log2.GetLogger())
 	shopService := shop.NewService(db)
+	tagService := tag.NewService(db)
 
 	return &Handler{
 		DB:               db,
@@ -109,6 +112,7 @@ func NewHandler(db *gorm.DB) *Handler {
 		productService:   productService,
 		mediaService:     mediaService,
 		shopService:      shopService,
+		tagService:       tagService,
 	}
 }
 

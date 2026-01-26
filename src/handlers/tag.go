@@ -3,13 +3,13 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"orderease/domain/tag"
 	"orderease/models"
 	"orderease/utils/log2"
 	"strconv"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -669,8 +669,13 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		return
 	}
 
-	// 替换原有计算和更新逻辑
-	added, deleted, err := h.updateProductTags(currentTags, req.TagIDs, req.ProductID, req.ShopID)
+	// 使用 Tag Domain Service 更新标签关联
+	result, err := h.tagService.UpdateProductTags(tag.UpdateProductTagsDTO{
+		CurrentTags: currentTags,
+		NewTagIDs:   req.TagIDs,
+		ProductID:   req.ProductID,
+		ShopID:      req.ShopID,
+	})
 	if err != nil {
 		h.logger.Errorf("批量更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "批量更新标签失败")
@@ -679,62 +684,9 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 
 	successResponse(c, gin.H{
 		"message":       "批量更新标签成功",
-		"added_count":   added,
-		"deleted_count": deleted,
+		"added_count":   result.AddedCount,
+		"deleted_count": result.DeletedCount,
 	})
 }
 
-// 新增方法：更新商品标签关联
-func (h *Handler) updateProductTags(currentTags []models.Tag, newTagIDs []int, productID snowflake.ID, shopID uint64) (int, int, error) {
-	// 计算差异
-	currentTagMap := make(map[int]bool)
-	for _, tag := range currentTags {
-		currentTagMap[tag.ID] = true
-	}
-
-	newTagMap := make(map[int]bool)
-	for _, tagID := range newTagIDs {
-		newTagMap[tagID] = true
-	}
-
-	// 准备操作数据
-	var tagsToAdd []models.ProductTag
-	var tagsToDelete []int
-
-	// 计算需要添加的标签
-	for _, tagID := range newTagIDs {
-		if !currentTagMap[tagID] {
-			tagsToAdd = append(tagsToAdd, models.ProductTag{
-				ProductID: productID,
-				TagID:     tagID,
-				ShopID:    shopID,
-			})
-		}
-	}
-
-	// 计算需要删除的标签
-	for _, tag := range currentTags {
-		if !newTagMap[tag.ID] {
-			tagsToDelete = append(tagsToDelete, tag.ID)
-		}
-	}
-
-	// 执行事务操作
-	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		if len(tagsToAdd) > 0 {
-			if err := tx.Create(&tagsToAdd).Error; err != nil {
-				return err
-			}
-		}
-
-		if len(tagsToDelete) > 0 {
-			if err := tx.Where("product_id = ? AND tag_id IN (?)", productID, tagsToDelete).
-				Delete(&models.ProductTag{}).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	return len(tagsToAdd), len(tagsToDelete), err
-}
+// 注意：updateProductTags 方法已迁移到 domain/tag/service.go (Step 45)
