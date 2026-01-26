@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅ (46 Steps)
+### 已完成 ✅ (47 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -59,11 +59,13 @@
 - **Step 47**: 清理 Utils 重复函数 ✅
 - **Step 49**: 删除未使用的 SanitizeOrder 函数 ✅
 - **Step 50**: 增强 Phone 值对象 ✅
+- **Step 51**: 迁移 Shop 查询到 Repository ✅
+- **Step 52**: 迁移 Product 查询到 Repository ✅
 
 ### DDD成熟度：98-99% (成熟阶段)
 
 **重构成果总结**:
-- 完成 46 个重构步骤
+- 完成 47 个重构步骤
 - 核心业务逻辑已完全封装到 Domain 层
 - 72 个测试用例全部通过
 - 代码重复率大幅降低
@@ -892,6 +894,42 @@
 **收益**: Tag 业务逻辑统一到 Domain 层
 **验证**: 运行测试 ✅
 **提交**: `refactor(tag): Step 45 Tag Handler 业务逻辑迁移到 Domain Service` ✅
+
+---
+
+### Step 51: 迁移 Shop 查询到 Repository ✅
+
+**目标**: 消除 Handler 层的 Shop 数据库直接访问
+
+**改动**:
+- `handlers/order.go`:
+  - `GetOrderStatusFlow` (行 476-482): `h.DB.First(&shop, validShopID)` → `h.shopRepo.GetShopByID(validShopID)`
+
+**代码改进**:
+- Shop 查询使用 Repository 接口
+- 消除 Handler 层的数据库直接访问
+
+**收益**: Handler 层不再直接访问数据库
+**验证**: 运行测试 ✅
+**提交**: `refactor(order): Step 51 迁移 Shop 查询到 Repository` ✅
+
+---
+
+### Step 52: 迁移 Product 查询到 Repository ✅
+
+**目标**: 消除 Handler 层的 Product 数据库直接访问
+
+**改动**:
+- `handlers/product.go`:
+  - `CreateProduct` (行 84): `h.DB.First(&createdProduct, ...)` → `h.productRepo.GetProductByID(...)`
+
+**代码改进**:
+- Product 查询使用 Repository 接口
+- Repository 方法已预加载 OptionCategories.Options，性能更优
+
+**收益**: Handler 层不再直接访问数据库
+**验证**: 运行测试 ✅
+**提交**: `refactor(product): Step 52 迁移 Product 查询到 Repository` ✅
 
 ---
 
