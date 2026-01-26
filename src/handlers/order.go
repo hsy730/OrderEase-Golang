@@ -473,9 +473,9 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// 获取店铺信息，包括OrderStatusFlow
-	var shop models.Shop
-	if err := h.DB.First(&shop, validShopID).Error; err != nil {
+	// 获取店铺信息，包括OrderStatusFlow（使用 Repository）
+	shop, err := h.shopRepo.GetShopByID(validShopID)
+	if err != nil {
 		log2.Errorf("获取店铺信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
 		return
