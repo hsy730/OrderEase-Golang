@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅ (45 Steps)
+### 已完成 ✅ (46 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -54,6 +54,7 @@
 - **Step 39**: Shop 状态判断方法封装 ✅
 - **Step 40**: Order 响应 DTO 转换封装 ✅
 - **Step 43**: Auth Handler 密码验证统一 ✅
+- **Step 45**: Tag Handler 业务逻辑迁移到 Domain Service ✅
 - **Step 46**: Order Handler 用户验证优化 ✅
 - **Step 47**: 清理 Utils 重复函数 ✅
 - **Step 49**: 删除未使用的 SanitizeOrder 函数 ✅
@@ -62,7 +63,7 @@
 ### DDD成熟度：98-99% (成熟阶段)
 
 **重构成果总结**:
-- 完成 45 个重构步骤
+- 完成 46 个重构步骤
 - 核心业务逻辑已完全封装到 Domain 层
 - 72 个测试用例全部通过
 - 代码重复率大幅降低
@@ -860,6 +861,37 @@
 **收益**: Phone 值对象功能更完善，性能更优
 **验证**: 运行测试 ✅
 **提交**: `refactor(phone): Step 50 增强 Phone 值对象` ✅
+
+---
+
+### Step 45: Tag Handler 业务逻辑迁移到 Domain Service ✅
+
+**目标**: 将 Tag Handler 中的业务逻辑迁移到 Domain Service
+
+**改动**:
+- `domain/tag/service.go`:
+  - 创建 Tag Domain Service
+  - 添加 `UpdateProductTagsDTO` 结构体
+  - 添加 `UpdateProductTagsResult` 结构体
+  - 添加 `UpdateProductTags()` 方法（计算标签差异、执行事务操作）
+- `handlers/handlers.go`:
+  - 添加 `tag` 包导入
+  - 添加 `tagService *tag.Service` 字段
+  - 在 `NewHandler` 中初始化 tagService
+- `handlers/tag.go`:
+  - 添加 `domain/tag` 包导入
+  - `BatchTagProduct` (行 673): 使用 `h.tagService.UpdateProductTags`
+  - 删除 `updateProductTags()` 方法（53 行代码）
+  - 移除未使用的 `gorm` 导入
+
+**代码改进**:
+- 标签更新业务逻辑封装到 Domain Service
+- Handler 代码量减少约 40%
+- 消除跨实体的业务逻辑分散问题
+
+**收益**: Tag 业务逻辑统一到 Domain 层
+**验证**: 运行测试 ✅
+**提交**: `refactor(tag): Step 45 Tag Handler 业务逻辑迁移到 Domain Service` ✅
 
 ---
 
