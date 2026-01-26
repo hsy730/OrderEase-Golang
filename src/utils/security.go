@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"html"
-	"orderease/models"
 	"regexp"
 )
 
@@ -39,7 +38,5 @@ func ValidateImageURL(imageURL string, folder string) error {
 	return nil
 }
 
-// 清理订单数据
-func SanitizeOrder(order *models.Order) {
-	order.Remark = SanitizeString(order.Remark)
-}
+// 注意：SanitizeOrder 已被删除（未被使用）
+// 订单备注清理应该在 Domain 层处理（如需要，可在 Order 实体中添加 Sanitize 方法）
