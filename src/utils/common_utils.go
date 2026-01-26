@@ -10,16 +10,8 @@ import (
 	"path/filepath"
 )
 
-// 验证图片类型
-func IsValidImageType(contentType string) bool {
-	validTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/gif":  true,
-		"image/webp": true,
-	}
-	return validTypes[contentType]
-}
+// 注意：IsValidImageType 已被 Domain 层替代
+// 图片类型验证现在在 domain/media/service 中处理
 
 // 压缩图片
 // filePath: 图片文件路径
