@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	orderdomain "orderease/domain/order"
+	"orderease/domain/user"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"
@@ -618,10 +620,9 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 	})
 }
 
-// 验证用户ID的合法性
+// 验证用户ID的合法性（使用 Domain Service）
 func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
-	var user models.User
-	err := h.DB.First(&user, userID).Error
+	_, err := h.userDomain.GetByID(user.UserID(fmt.Sprintf("%d", userID)))
 	return err == nil
 }
 
