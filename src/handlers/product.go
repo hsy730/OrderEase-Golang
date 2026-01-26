@@ -80,9 +80,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	}
 
 	tx.Commit()
-	// 查询创建后的商品，包含参数信息
-	var createdProduct models.Product
-	if err := h.DB.First(&createdProduct, productModel.ID).Error; err != nil {
+	// 查询创建后的商品，包含参数信息（使用 Repository）
+	createdProduct, err := h.productRepo.GetProductByID(uint64(productModel.ID), validShopID)
+	if err != nil {
 		h.logger.Errorf("获取创建后的商品失败: %v", err)
 		successResponse(c, productModel)
 		return
