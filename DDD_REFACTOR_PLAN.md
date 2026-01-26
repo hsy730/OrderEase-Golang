@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅ (40 Steps)
+### 已完成 ✅ (41 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -53,11 +53,12 @@
 - **Step 38**: User 密码验证迁移到领域实体 ✅
 - **Step 39**: Shop 状态判断方法封装 ✅
 - **Step 40**: Order 响应 DTO 转换封装 ✅
+- **Step 43**: Auth Handler 密码验证统一 ✅
 
 ### DDD成熟度：98-99% (成熟阶段)
 
 **重构成果总结**:
-- 完成 40 个重构步骤
+- 完成 41 个重构步骤
 - 核心业务逻辑已完全封装到 Domain 层
 - 72 个测试用例全部通过
 - 代码重复率大幅降低
@@ -746,6 +747,28 @@
 **收益**: 减少重复代码，DTO 转换逻辑在 Domain 层
 **验证**: 运行测试 ✅ (72 passed)
 **提交**: `refactor(order): Step 40 Order 响应 DTO 转换封装` ✅
+
+---
+
+### Step 43: Auth Handler 密码验证统一 ✅
+
+**目标**: 统一密码验证到 Domain 值对象
+
+**改动**:
+- `handlers/auth.go`:
+  - 添加 `value_objects` 包导入
+  - `ChangeAdminPassword` (行 121): 直接使用 `value_objects.NewStrictPassword`
+  - `ChangeShopPassword` (行 188): 直接使用 `value_objects.NewStrictPassword`
+- `utils/password.go`: `ValidatePassword` 函数保持不变（可能仍有其他地方使用）
+
+**代码改进**:
+- 去掉不必要的中间层包装
+- 直接使用 Domain 值对象验证
+- 代码更直观
+
+**收益**: 密码验证逻辑直接使用 Domain 值对象
+**验证**: 运行测试 ✅
+**提交**: `refactor(auth): Step 43 统一密码验证到 Domain 值对象` ✅
 
 ---
 
