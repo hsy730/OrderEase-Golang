@@ -8,7 +8,7 @@
 
 ## 一、当前状态评估
 
-### 已完成 ✅ (42 Steps)
+### 已完成 ✅ (43 Steps)
 - `domain/user/` 聚合（实体、值对象、仓储接口、领域服务）
 - `domain/order/` 聚合根（实体 + 业务方法 + 领域服务）
 - `domain/shop/` 聚合根（实体 + 业务方法 + 业务方法迁移到 Handler）
@@ -55,11 +55,12 @@
 - **Step 40**: Order 响应 DTO 转换封装 ✅
 - **Step 43**: Auth Handler 密码验证统一 ✅
 - **Step 46**: Order Handler 用户验证优化 ✅
+- **Step 47**: 清理 Utils 重复函数 ✅
 
 ### DDD成熟度：98-99% (成熟阶段)
 
 **重构成果总结**:
-- 完成 42 个重构步骤
+- 完成 43 个重构步骤
 - 核心业务逻辑已完全封装到 Domain 层
 - 72 个测试用例全部通过
 - 代码重复率大幅降低
@@ -791,6 +792,30 @@
 **收益**: Handler 层不再直接访问数据库
 **验证**: 运行测试 ✅
 **提交**: `refactor(order): Step 46 用户验证使用 Domain Service` ✅
+
+---
+
+### Step 47: 清理 Utils 重复函数 ✅
+
+**目标**: 删除已被 Domain 层替代的 Utils 函数
+
+**改动**:
+- `utils/password.go`:
+  - 删除 `ValidatePassword()` （已被 `value_objects.NewStrictPassword` 替代，Step 43）
+  - 删除 `ValidatePhoneWithRegex()` （已被 `value_objects.NewPhone` 替代，Step 26）
+  - 添加注释说明迁移记录
+- `utils/common_utils.go`:
+  - 删除 `IsValidImageType()` （已被 `domain/media.Service` 替代，Step 30）
+  - 保留 `CompressImage()` （仍在 `handlers/shop.go` 和 `handlers/product.go` 中使用）
+
+**代码改进**:
+- 减少 30 行冗余代码
+- Utils 包更纯粹，只保留通用工具函数
+- 明确迁移路径，便于后续维护
+
+**收益**: Utils 层更清晰，减少重复代码
+**验证**: 运行测试 ✅
+**提交**: `refactor(utils): Step 47 清理已被 Domain 替代的函数` ✅
 
 ---
 
