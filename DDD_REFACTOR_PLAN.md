@@ -933,6 +933,175 @@
 
 ---
 
+## 三、小步重构详细步骤（剩余部分）
+
+### 当前状态评估
+
+**已完成**: 47 Steps
+
+**剩余 h.DB 直接访问点**: 23 处
+
+**剩余问题分类**:
+- 🔴 **事务处理** (9处): 需要迁移到 Domain Service
+- 🟡 **简单查询** (5处): 可直接迁移到 Repository
+- 🟢 **复杂查询** (9处): 需要添加 Repository 方法
+
+---
+
+### 剩余重构路线图（按优先级）
+
+#### 阶段一：简单查询迁移（低风险，优先处理）
+
+| Step | 目标 | 文件 | 改动量 | 风险 |
+|------|------|------|--------|------|
+| **Step 53** | Order GetByID 查询 | order.go:272 | 小 | 低 |
+| **Step 54** | Product 状态更新 | product.go:138 | 小 | 低 |
+| **Step 55** | Product 图片更新 | product.go:513 | 小 | 低 |
+
+#### 阶段二：复杂查询封装（中风险，逐步处理）
+
+| Step | 目标 | 文件 | 改动量 | 风险 |
+|------|------|------|--------|------|
+| **Step 56** | Order Preload 查询 | order.go:360, 394 | 中 | 中 |
+| **Step 57** | Order 列表查询 | order.go:573 | 中 | 中 |
+| **Step 58** | Tag 关联查询 | tag.go:62, 293 | 中 | 中 |
+| **Step 59** | Tag 批量操作 | tag.go:196, 509, 628 | 中 | 中 |
+
+#### 阶段三：事务处理重构（高风险，最后处理）
+
+| Step | 目标 | 文件 | 改动量 | 风险 |
+|------|------|------|--------|------|
+| **Step 60+** | 事务迁移到 Domain Service | 多文件 | 大 | 高 |
+
+---
+
+### 阶段一：简单查询迁移详细步骤
+
+#### Step 53: Order GetByID 查询迁移
+**目标**: 消除 UpdateOrder 中的直接 DB 查询
+
+**当前代码**:
+```go
+// order.go:272
+var order models.Order
+if err := h.DB.First(&order, id).Error; err != nil {
+```
+
+**改动方案**:
+- 检查 `orderRepo` 是否有 `GetByID` 方法
+- 如无，添加 `GetByID(id uint64) (*models.Order, error)`
+- Handler 调用 `orderRepo.GetByID(orderID)`
+
+**验证**: 运行订单更新测试
+**提交**: `refactor(order): Step 53 Order GetByID 查询使用 Repository`
+
+---
+
+#### Step 54: Product 状态更新迁移
+**目标**: 消除 ToggleProductStatus 中的直接 DB 更新
+
+**当前代码**:
+```go
+// product.go:138
+if err := h.DB.Model(&productModel).Update("status", req.Status).Error; err != nil {
+```
+
+**改动方案**:
+- 在 `productRepo` 添加 `UpdateStatus(id uint64, shopID uint64, status string)` 方法
+- Handler 调用 Repository 方法
+
+**验证**: 运行商品状态切换测试
+**提交**: `refactor(product): Step 54 Product 状态更新使用 Repository`
+
+---
+
+#### Step 55: Product 图片更新迁移
+**目标**: 消除 UploadProductImage 中的直接 DB 更新
+
+**当前代码**:
+```go
+// product.go:513
+if err := h.DB.Model(&product).Update("image_url", filename).Error; err != nil {
+```
+
+**改动方案**:
+- 在 `productRepo` 添加 `UpdateImageURL(id uint64, shopID uint64, imageURL string)` 方法
+- Handler 调用 Repository 方法
+
+**验证**: 运行商品图片上传测试
+**提交**: `refactor(product): Step 55 Product 图片更新使用 Repository`
+
+---
+
+### 阶段二：复杂查询封装详细步骤
+
+#### Step 56: Order Preload 查询迁移
+**目标**: 将预加载查询迁移到 Repository
+
+**涉及代码**:
+- order.go:360 - `Preload("Items").Preload("Items.Options")`
+- order.go:394 - `Preload("Items").Where("shop_id = ?", ...)`
+
+**改动方案**:
+- 在 `orderRepo` 添加专门的方法
+- `GetByIDWithItems(id uint64) (*models.Order, error)`
+- `GetByIDAndShopIDWithItems(id uint64, shopID uint64) (*models.Order, error)`
+
+**验证**: 运行订单详情查询测试
+**提交**: `refactor(order): Step 56 Order Preload 查询使用 Repository`
+
+---
+
+#### Step 57: Order 列表查询优化
+**目标**: 将 AdvanceSearchOrder 的查询逻辑迁移到 Repository
+
+**当前代码**:
+```go
+// order.go:573
+query := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID)
+// ... 复杂的条件拼接
+```
+
+**改动方案**:
+- 创建 `AdvanceSearchOrderDTO` 结构
+- 在 `orderRepo` 添加 `AdvanceSearch(dto AdvanceSearchOrderDTO)` 方法
+- Handler 只负责调用和结果转换
+
+**验证**: 运行订单高级搜索测试
+**提交**: `refactor(order): Step 57 Order 列表查询使用 Repository`
+
+---
+
+#### Step 58-59: Tag 关联查询和批量操作
+**目标**: 将复杂的 Tag 查询迁移到 Repository
+
+**涉及代码**:
+- tag.go:62 - `JOIN product_tags`
+- tag.go:293 - 统计查询
+- tag.go:509, 522, 546 - 批量查询和操作
+- tag.go:628 - 批量删除
+
+**改动方案**:
+- 检查 `tagRepo` 和 `productRepo` 是否已有对应方法
+- 如无，逐步添加 Repository 方法
+- 每个查询类型作为一个独立 Step
+
+---
+
+### 阶段三：事务处理重构（暂缓，需大范围重构）
+
+**问题**: 当前事务处理散落在 Handler 中
+**影响**: order.go (4处), product.go (3处), import.go (1处)
+
+**建议方案**:
+1. 创建 Domain Service 方法封装事务逻辑
+2. Handler 只负责调用 Service 方法
+3. 逐步迁移，每次一个方法
+
+**注意**: 此阶段风险较高，建议先完成阶段一和阶段二
+
+---
+
 ## 四、每步操作模板
 
 ```bash
