@@ -6,6 +6,7 @@ import (
 	orderdomain "orderease/domain/order"
 	"orderease/domain/user"
 	"orderease/models"
+	"orderease/repositories"
 	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
@@ -570,51 +571,27 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 		return
 	}
 
-	// 构建查询
-	query := h.DB.Model(&models.Order{}).Where("shop_id = ?", validShopID)
-
-	// 添加用户ID筛选
-	if req.UserID != "" {
-		query = query.Where("user_id = ?", req.UserID)
-	}
-
-	// 添加状态筛选（支持多个状态，直接使用数组）
-	if len(req.Status) > 0 {
-		query = query.Where("status IN (?)", req.Status)
-	}
-
-	// 添加时间范围筛选
-	if req.StartTime != "" {
-		query = query.Where("created_at >= ?", req.StartTime)
-	}
-	if req.EndTime != "" {
-		query = query.Where("created_at <= ?", req.EndTime)
-	}
-
-	// 获取总数
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		h.logger.Errorf("获取订单总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
-		return
-	}
-
-	// 分页查询
-	offset := (req.Page - 1) * req.PageSize
-	var orders []models.Order
-	if err := query.Offset(offset).Limit(req.PageSize).
-		Order("created_at DESC").
-		Find(&orders).Error; err != nil {
+	// 使用 Repository 执行高级搜索
+	result, err := h.orderRepo.AdvanceSearch(repositories.AdvanceSearchOrderRequest{
+		Page:      req.Page,
+		PageSize:  req.PageSize,
+		UserID:    req.UserID,
+		Status:    req.Status,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+		ShopID:    validShopID,
+	})
+	if err != nil {
 		h.logger.Errorf("查询订单列表失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取订单列表失败")
 		return
 	}
 
 	// 使用 Domain 辅助函数转换订单列表
-	simpleOrders := orderdomain.ToOrderElements(orders)
+	simpleOrders := orderdomain.ToOrderElements(result.Orders)
 
 	successResponse(c, gin.H{
-		"total":    total,
+		"total":    result.Total,
 		"page":     req.Page,
 		"pageSize": req.PageSize,
 		"data":     simpleOrders,

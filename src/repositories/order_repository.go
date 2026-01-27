@@ -169,3 +169,66 @@ func (r *OrderRepository) GetByIDStrWithItems(orderID string) (*models.Order, er
 	}
 	return &order, nil
 }
+
+// AdvanceSearchOrderRequest 高级搜索请求参数
+type AdvanceSearchOrderRequest struct {
+	Page      int
+	PageSize  int
+	UserID    string
+	Status    []int
+	StartTime string
+	EndTime   string
+	ShopID    uint64
+}
+
+// AdvanceSearchResult 高级搜索结果
+type AdvanceSearchResult struct {
+	Orders []models.Order
+	Total  int64
+}
+
+// AdvanceSearch 订单高级搜索（支持多条件筛选和分页）
+func (r *OrderRepository) AdvanceSearch(req AdvanceSearchOrderRequest) (*AdvanceSearchResult, error) {
+	// 构建查询
+	query := r.DB.Model(&models.Order{}).Where("shop_id = ?", req.ShopID)
+
+	// 添加用户ID筛选
+	if req.UserID != "" {
+		query = query.Where("user_id = ?", req.UserID)
+	}
+
+	// 添加状态筛选（支持多个状态）
+	if len(req.Status) > 0 {
+		query = query.Where("status IN (?)", req.Status)
+	}
+
+	// 添加时间范围筛选
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		log2.Errorf("AdvanceSearch count failed: %v", err)
+		return nil, errors.New("获取订单总数失败")
+	}
+
+	// 分页查询
+	offset := (req.Page - 1) * req.PageSize
+	var orders []models.Order
+	if err := query.Offset(offset).Limit(req.PageSize).
+		Order("created_at DESC").
+		Find(&orders).Error; err != nil {
+		log2.Errorf("AdvanceSearch query failed: %v", err)
+		return nil, errors.New("查询订单列表失败")
+	}
+
+	return &AdvanceSearchResult{
+		Orders: orders,
+		Total:  total,
+	}, nil
+}
