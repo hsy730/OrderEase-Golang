@@ -391,8 +391,8 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		return
 	}
 
-	var order models.Order
-	if err := h.DB.Preload("Items").Where("shop_id = ?", validShopID).First(&order, id).Error; err != nil {
+	order, err := h.orderRepo.GetOrderByIDAndShopIDStr(id, validShopID)
+	if err != nil {
 		h.logger.Errorf("删除订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单不存在")
 		return
@@ -402,12 +402,12 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	tx := h.DB.Begin()
 
 	// 使用领域实体验证是否可删除
-	orderDomain := orderdomain.OrderFromModel(&order)
+	orderDomain := orderdomain.OrderFromModel(order)
 	if !orderDomain.CanBeDeleted() {
 		// 订单已取消或已完成，无需恢复库存
 	} else {
 		// 恢复商品库存（仅在订单未取消且未完成时）
-		if err := h.orderService.RestoreStock(tx, order); err != nil {
+		if err := h.orderService.RestoreStock(tx, *order); err != nil {
 			tx.Rollback()
 			h.logger.Errorf("恢复商品库存失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "删除订单失败")
@@ -432,7 +432,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	}
 
 	// 删除订单
-	if err := tx.Delete(&order).Error; err != nil {
+	if err := tx.Delete(order).Error; err != nil {
 		tx.Rollback()
 		h.logger.Errorf("删除订单记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
