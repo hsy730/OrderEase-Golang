@@ -79,3 +79,18 @@ func (r *ProductRepository) UpdateStatus(productID uint64, shopID uint64, status
 	}
 	return nil
 }
+
+// UpdateImageURL 更新商品图片URL
+func (r *ProductRepository) UpdateImageURL(productID uint64, shopID uint64, imageURL string) error {
+	result := r.DB.Model(&models.Product{}).
+		Where("id = ? AND shop_id = ?", productID, shopID).
+		Update("image_url", imageURL)
+	if result.Error != nil {
+		log2.Errorf("UpdateImageURL failed: %v", result.Error)
+		return errors.New("更新商品图片失败")
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("商品不存在")
+	}
+	return nil
+}

@@ -510,7 +510,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Model(&product).Update("image_url", filename).Error; err != nil {
+	if err := h.productRepo.UpdateImageURL(id, validShopID, filename); err != nil {
 		log2.Errorf("更新商品图片失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品图片失败")
 		return
