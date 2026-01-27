@@ -64,3 +64,18 @@ func (r *ProductRepository) GetShopProducts(shopID uint64, productIDs []snowflak
     }
     return products, nil
 }
+
+// UpdateStatus 更新商品状态
+func (r *ProductRepository) UpdateStatus(productID uint64, shopID uint64, status string) error {
+	result := r.DB.Model(&models.Product{}).
+		Where("id = ? AND shop_id = ?", productID, shopID).
+		Update("status", status)
+	if result.Error != nil {
+		log2.Errorf("UpdateStatus failed: %v", result.Error)
+		return errors.New("更新商品状态失败")
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("商品不存在")
+	}
+	return nil
+}

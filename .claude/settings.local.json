@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(git commit:*)",
       "Bash(go build:*)",
@@ -11,7 +12,8 @@
       "Bash(pytest:*)",
       "Bash(dir:*)",
       "Bash(curl:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

@@ -135,7 +135,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	// 更新商品状态
-	if err := h.DB.Model(&productModel).Update("status", req.Status).Error; err != nil {
+	if err := h.productRepo.UpdateStatus(productId, validShopID, req.Status); err != nil {
 		log2.Errorf("更新商品状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
 		return
