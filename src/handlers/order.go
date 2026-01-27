@@ -268,8 +268,8 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	var order models.Order
-	if err := h.DB.First(&order, id).Error; err != nil {
+	order, err := h.orderRepo.GetByIDStr(id)
+	if err != nil {
 		h.logger.Errorf("更新订单失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
@@ -357,14 +357,15 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	tx.Commit()
 
 	// 重新获取更新后的订单信息
-	if err := h.DB.Preload("Items").Preload("Items.Options").First(&order, id).Error; err != nil {
+	order, err = h.orderRepo.GetByIDStrWithItems(id)
+	if err != nil {
 		h.logger.Errorf("获取更新后的订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
 		return
 	}
 
 	// 转换为领域实体并使用 ToCreateOrderRequest 方法
-	orderEntity := orderdomain.OrderFromModel(&order)
+	orderEntity := orderdomain.OrderFromModel(order)
 	response := orderEntity.ToCreateOrderRequest()
 
 	successResponse(c, response)

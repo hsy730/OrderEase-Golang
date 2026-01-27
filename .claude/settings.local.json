@@ -9,7 +9,9 @@
       "Bash(git add:*)",
       "Bash(tree:*)",
       "Bash(pytest:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ]
   }
 }

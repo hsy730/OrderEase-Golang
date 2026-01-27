@@ -139,3 +139,33 @@ func (r *OrderRepository) GetUnfinishedOrders(shopID uint64, unfinishedStatuses 
 
 	return orders, total, nil
 }
+
+// GetByIDStr 根据订单ID（字符串）获取订单
+func (r *OrderRepository) GetByIDStr(orderID string) (*models.Order, error) {
+	var order models.Order
+	err := r.DB.First(&order, orderID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("订单不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetByIDStr failed: %v", err)
+		return nil, errors.New("查询订单失败")
+	}
+	return &order, nil
+}
+
+// GetByIDStrWithItems 根据订单ID（字符串）获取订单（预加载Items和Options）
+func (r *OrderRepository) GetByIDStrWithItems(orderID string) (*models.Order, error) {
+	var order models.Order
+	err := r.DB.Preload("Items").
+		Preload("Items.Options").
+		First(&order, orderID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("订单不存在")
+	}
+	if err != nil {
+		log2.Errorf("GetByIDStrWithItems failed: %v", err)
+		return nil, errors.New("查询订单失败")
+	}
+	return &order, nil
+}
