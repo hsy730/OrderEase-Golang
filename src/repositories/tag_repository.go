@@ -313,3 +313,33 @@ func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64,
 		Total:    total,
 	}, nil
 }
+
+// GetUnboundProductsWithPagination 获取未绑定任何标签的商品（分页）
+func (r *TagRepository) GetUnboundProductsWithPagination(shopID uint64, page, pageSize int) (*BoundProductsResult, error) {
+	offset := (page - 1) * pageSize
+	var products []models.Product
+	var total int64
+
+	query := r.DB.Model(&models.Product{}).
+		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)", shopID)
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		log2.Errorf("GetUnboundProductsWithPagination count failed: %v", err)
+		return nil, errors.New("获取未绑定商品总数失败")
+	}
+
+	// 查询商品数据并预加载选项
+	if err := query.Offset(offset).
+		Limit(pageSize).Order("created_at DESC").
+		Preload("OptionCategories.Options").
+		Find(&products).Error; err != nil {
+		log2.Errorf("GetUnboundProductsWithPagination find failed: %v", err)
+		return nil, errors.New("查询未绑定商品失败")
+	}
+
+	return &BoundProductsResult{
+		Products: products,
+		Total:    total,
+	}, nil
+}

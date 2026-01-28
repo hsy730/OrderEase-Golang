@@ -444,17 +444,18 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 
 	// 处理未绑定商品查询
 	if tagID == "-1" {
-		products, total, err := h.getUnboundProducts(validShopID, page, pageSize)
+		// 使用 Repository 获取未绑定商品
+		result, err := h.tagRepo.GetUnboundProductsWithPagination(validShopID, page, pageSize)
 		if err != nil {
 			h.logger.Errorf("查询未绑定商品失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "查询失败")
 			return
 		}
 		successResponse(c, gin.H{
-			"total":    total,
+			"total":    result.Total,
 			"page":     page,
 			"pageSize": pageSize,
-			"data":     products,
+			"data":     result.Products,
 		})
 		return
 	}
@@ -477,30 +478,13 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	})
 }
 
-// 新增独立方法处理未绑定商品查询
+// 新增独立方法处理未绑定商品查询（已移至 Repository，此方法保留以防其他地方调用）
 func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]models.Product, int64, error) {
-	offset := (page - 1) * pageSize
-	var products []models.Product
-	var total int64
-
-	query := h.DB.Model(&models.Product{}).
-		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)", shopID)
-
-	// 获取总数
-	if err := query.
-		Model(&models.Product{}).
-		Count(&total).Error; err != nil {
+	result, err := h.tagRepo.GetUnboundProductsWithPagination(shopID, page, pageSize)
+	if err != nil {
 		return nil, 0, err
 	}
-
-	if err := query.Offset(offset).
-		Limit(pageSize).Order("created_at DESC").
-		Preload("OptionCategories.Options").
-		Find(&products).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return products, total, nil
+	return result.Products, result.Total, nil
 }
 
 // GetTag 获取标签详情
