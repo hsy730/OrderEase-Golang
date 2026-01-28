@@ -7,6 +7,7 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
@@ -421,6 +422,10 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 
 // GetTagBoundProducts 获取标签已绑定的商品列表（分页）
 func (h *Handler) GetTagBoundProducts(c *gin.Context) {
+	// 判断是否为管理端请求：客户端只查询已上架商品，管理端查询所有状态商品
+	onlyOnline := !strings.HasPrefix(c.Request.URL.Path, "/api/order-ease/v1/shopOwner/") &&
+		!strings.HasPrefix(c.Request.URL.Path, "/api/order-ease/v1/admin/")
+
 	tagID := c.Query("tag_id")
 	if tagID == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少标签ID")
@@ -445,7 +450,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	// 处理未绑定商品查询
 	if tagID == "-1" {
 		// 使用 Repository 获取未绑定商品
-		result, err := h.tagRepo.GetUnboundProductsWithPagination(validShopID, page, pageSize)
+		result, err := h.tagRepo.GetUnboundProductsWithPagination(validShopID, page, pageSize, onlyOnline)
 		if err != nil {
 			h.logger.Errorf("查询未绑定商品失败: %v", err)
 			errorResponse(c, http.StatusInternalServerError, "查询失败")
@@ -463,7 +468,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 	tagIDInt, _ := strconv.Atoi(tagID)
 
 	// 使用 Repository 获取标签绑定的商品（分页）
-	result, err := h.tagRepo.GetBoundProductsWithPagination(tagIDInt, validShopID, page, pageSize)
+	result, err := h.tagRepo.GetBoundProductsWithPagination(tagIDInt, validShopID, page, pageSize, onlyOnline)
 	if err != nil {
 		h.logger.Errorf("查询绑定商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())
@@ -479,8 +484,8 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 }
 
 // 新增独立方法处理未绑定商品查询（已移至 Repository，此方法保留以防其他地方调用）
-func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int) ([]models.Product, int64, error) {
-	result, err := h.tagRepo.GetUnboundProductsWithPagination(shopID, page, pageSize)
+func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int, onlyOnline bool) ([]models.Product, int64, error) {
+	result, err := h.tagRepo.GetUnboundProductsWithPagination(shopID, page, pageSize, onlyOnline)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -162,8 +162,12 @@ func (h *Handler) GetProducts(c *gin.Context) {
 	// 获取搜索关键词
 	search := c.Query("search")
 
+	// 判断是否为管理端请求：客户端只查询已上架商品，管理端查询所有状态商品
+	onlyOnline := !strings.HasPrefix(c.Request.URL.Path, "/api/order-ease/v1/shopOwner/") &&
+		!strings.HasPrefix(c.Request.URL.Path, "/api/order-ease/v1/admin/")
+
 	// 使用 Repository 获取商品列表
-	result, err := h.productRepo.GetProductsByShop(validShopID, page, pageSize, search)
+	result, err := h.productRepo.GetProductsByShop(validShopID, page, pageSize, search, onlyOnline)
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return

@@ -211,14 +211,20 @@ func (r *ProductRepository) DeleteWithDependencies(productID uint64, shopID uint
 }
 
 // GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
-func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string) (*ProductListResult, error) {
+// onlyOnline: true 表示只查询已上架商品（用户查询），false 表示查询所有商品（管理员查询）
+func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string, onlyOnline bool) (*ProductListResult, error) {
 	var products []models.Product
 	var total int64
 
 	offset := (page - 1) * pageSize
 
-	// 只查询未下架的商品（待上架和已上架）
-	query := r.DB.Where("status != ? and shop_id = ?", models.ProductStatusOffline, shopID)
+	// 构建查询条件
+	query := r.DB.Where("shop_id = ?", shopID)
+
+	// 如果是用户查询，只查询已上架商品
+	if onlyOnline {
+		query = query.Where("status = ?", models.ProductStatusOnline)
+	}
 
 	// 如果有搜索关键词，添加模糊搜索条件
 	if search != "" {

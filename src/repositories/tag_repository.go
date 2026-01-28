@@ -278,7 +278,8 @@ type BoundProductsResult struct {
 }
 
 // GetBoundProductsWithPagination 获取标签绑定的商品（分页）
-func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64, page, pageSize int) (*BoundProductsResult, error) {
+// onlyOnline: true 表示只查询已上架商品（客户端），false 表示查询所有商品（管理端）
+func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
 	// 获取已绑定商品的ID列表
 	productIDs, err := r.GetTagBoundProductIDs(tagID, shopID)
 	if err != nil {
@@ -290,17 +291,20 @@ func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64,
 
 	offset := (page - 1) * pageSize
 
+	// 构建查询条件
+	query := r.DB.Model(&models.Product{}).Where("id IN (?)", productIDs)
+	if onlyOnline {
+		query = query.Where("status = ?", models.ProductStatusOnline)
+	}
+
 	// 获取总数
-	if err := r.DB.Model(&models.Product{}).
-		Where("id IN (?)", productIDs).
-		Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		log2.Errorf("GetBoundProductsWithPagination count failed: %v", err)
 		return nil, errors.New("获取商品总数失败")
 	}
 
 	// 查询完整商品数据并预加载选项
-	if err := r.DB.Where("id IN (?)", productIDs).
-		Preload("OptionCategories.Options").
+	if err := query.Preload("OptionCategories.Options").
 		Order("created_at DESC").
 		Limit(pageSize).Offset(offset).
 		Find(&products).Error; err != nil {
@@ -315,13 +319,19 @@ func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64,
 }
 
 // GetUnboundProductsWithPagination 获取未绑定任何标签的商品（分页）
-func (r *TagRepository) GetUnboundProductsWithPagination(shopID uint64, page, pageSize int) (*BoundProductsResult, error) {
+// onlyOnline: true 表示只查询已上架商品（客户端），false 表示查询所有商品（管理端）
+func (r *TagRepository) GetUnboundProductsWithPagination(shopID uint64, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
 	offset := (page - 1) * pageSize
 	var products []models.Product
 	var total int64
 
 	query := r.DB.Model(&models.Product{}).
 		Where("shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)", shopID)
+
+	// 如果是客户端请求，只查询已上架商品
+	if onlyOnline {
+		query = query.Where("status = ?", models.ProductStatusOnline)
+	}
 
 	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
