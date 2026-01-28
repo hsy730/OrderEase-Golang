@@ -270,3 +270,46 @@ func (r *TagRepository) BatchTagProducts(productIDs []snowflake.ID, tagID int, s
 		Successful: successCount,
 	}, nil
 }
+
+// BoundProductsResult 绑定商品查询结果
+type BoundProductsResult struct {
+	Products []models.Product
+	Total    int64
+}
+
+// GetBoundProductsWithPagination 获取标签绑定的商品（分页）
+func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64, page, pageSize int) (*BoundProductsResult, error) {
+	// 获取已绑定商品的ID列表
+	productIDs, err := r.GetTagBoundProductIDs(tagID, shopID)
+	if err != nil {
+		return nil, err
+	}
+
+	var total int64
+	var products []models.Product
+
+	offset := (page - 1) * pageSize
+
+	// 获取总数
+	if err := r.DB.Model(&models.Product{}).
+		Where("id IN (?)", productIDs).
+		Count(&total).Error; err != nil {
+		log2.Errorf("GetBoundProductsWithPagination count failed: %v", err)
+		return nil, errors.New("获取商品总数失败")
+	}
+
+	// 查询完整商品数据并预加载选项
+	if err := r.DB.Where("id IN (?)", productIDs).
+		Preload("OptionCategories.Options").
+		Order("created_at DESC").
+		Limit(pageSize).Offset(offset).
+		Find(&products).Error; err != nil {
+		log2.Errorf("GetBoundProductsWithPagination find failed: %v", err)
+		return nil, errors.New("查询商品详情失败")
+	}
+
+	return &BoundProductsResult{
+		Products: products,
+		Total:    total,
+	}, nil
+}

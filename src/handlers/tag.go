@@ -441,7 +441,6 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	offset := (page - 1) * pageSize
 
 	// 处理未绑定商品查询
 	if tagID == "-1" {
@@ -459,51 +458,22 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		})
 		return
 	}
-	// 原有绑定标签商品的查询逻辑保持不变...
-	var total int64
 
 	tagIDInt, _ := strconv.Atoi(tagID)
 
-	// 使用 Repository 方法获取已绑定商品的ID列表
-	productIDs, err := h.tagRepo.GetTagBoundProductIDs(tagIDInt, validShopID)
+	// 使用 Repository 获取标签绑定的商品（分页）
+	result, err := h.tagRepo.GetBoundProductsWithPagination(tagIDInt, validShopID, page, pageSize)
 	if err != nil {
-		h.logger.Errorf("获取商品ID列表失败: %v", err)
+		h.logger.Errorf("查询绑定商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log2.Debugf("获取商品ID列表: %v", productIDs)
-
-	// 查询完整商品数据并预加载选项
-	var products []models.Product
-	err = h.DB.Where("id IN (?)", productIDs).
-		Preload("OptionCategories.Options").
-		Order("created_at DESC").
-		Limit(pageSize).Offset(offset).
-		Find(&products).Error
-
-	if err != nil {
-		h.logger.Errorf("查询商品详情失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
-		return
-	}
-
-	// 获取总数
-	err = h.DB.Model(&models.Product{}).
-		Where("id IN (?)", productIDs).
-		Count(&total).Error
-
-	if err != nil {
-		h.logger.Errorf("获取商品总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
-		return
-	}
-
 	successResponse(c, gin.H{
-		"total":    total,
+		"total":    result.Total,
 		"page":     page,
 		"pageSize": pageSize,
-		"data":     products,
+		"data":     result.Products,
 	})
 }
 
