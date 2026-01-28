@@ -343,3 +343,25 @@ func (r *TagRepository) GetUnboundProductsWithPagination(shopID uint64, page, pa
 		Total:    total,
 	}, nil
 }
+
+// BatchUntagProductsResult 批量解绑结果
+type BatchUntagProductsResult struct {
+	Total      int
+	Successful int64
+}
+
+// BatchUntagProducts 批量解绑商品标签
+func (r *TagRepository) BatchUntagProducts(productIDs []snowflake.ID, tagID uint, shopID uint64) (*BatchUntagProductsResult, error) {
+	result := r.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", shopID, tagID, productIDs).
+		Delete(&models.ProductTag{})
+
+	if result.Error != nil {
+		log2.Errorf("BatchUntagProducts delete failed: %v", result.Error)
+		return nil, errors.New("批量解绑标签失败")
+	}
+
+	return &BatchUntagProductsResult{
+		Total:      len(productIDs),
+		Successful: result.RowsAffected,
+	}, nil
+}

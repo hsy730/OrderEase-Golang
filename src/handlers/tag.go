@@ -546,22 +546,19 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		errorResponse(c, http.StatusNotFound, "标签不存在")
 		return
 	}
-	_ = tag // 使用tag避免unused变量警告
 
-	// 批量删除关联
-	result := h.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", req.ShopID, req.TagID, req.ProductIDs).
-		Delete(&models.ProductTag{})
-
-	if result.Error != nil {
-		h.logger.Errorf("批量解绑标签失败: %v", result.Error)
-		errorResponse(c, http.StatusInternalServerError, "批量解绑标签失败")
+	// 使用 Repository 批量解绑标签
+	result, err := h.tagRepo.BatchUntagProducts(req.ProductIDs, req.TagID, tag.ShopID)
+	if err != nil {
+		h.logger.Errorf("批量解绑标签失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	successResponse(c, gin.H{
 		"message":    "批量解绑标签成功",
-		"total":      len(req.ProductIDs),
-		"successful": result.RowsAffected,
+		"total":      result.Total,
+		"successful": result.Successful,
 	})
 }
 
