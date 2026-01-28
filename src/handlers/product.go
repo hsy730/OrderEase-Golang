@@ -320,10 +320,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	// 开启事务
-	tx := h.DB.Begin()
-
-	// 删除商品图片
+	// 删除商品图片（文件系统操作保留在 handler）
 	if product.ImageURL != "" {
 		imagePath := strings.TrimPrefix(product.ImageURL, "/")
 		if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
@@ -331,33 +328,12 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		}
 	}
 
-	// 删除商品参数选项 (先删除选项，再删除类别)
-	if err := tx.Where(`category_id IN (
-		SELECT id FROM product_option_categories WHERE product_id = ?
-	)`, product.ID).Delete(&models.ProductOption{}).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("删除商品参数选项失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
+	// 使用 Repository 删除商品及其关联数据
+	if err := h.productRepo.DeleteWithDependencies(id, validShopID); err != nil {
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// 删除商品参数类别
-	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("删除商品参数类别失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
-		return
-	}
-
-	// 删除商品记录
-	if err := tx.Delete(&product).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("删除商品记录失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除商品失败")
-		return
-	}
-
-	tx.Commit()
 	successResponse(c, gin.H{"message": "商品删除成功"})
 }
 

@@ -170,6 +170,46 @@ func (r *ProductRepository) UpdateWithCategories(product *models.Product, catego
 	return nil
 }
 
+// DeleteWithDependencies 删除商品及其关联数据（事务）
+func (r *ProductRepository) DeleteWithDependencies(productID uint64, shopID uint64) error {
+	tx := r.DB.Begin()
+
+	// 删除商品参数选项（先删除选项）
+	if err := tx.Where(`category_id IN (
+		SELECT id FROM product_option_categories WHERE product_id = ?
+	)`, productID).Delete(&models.ProductOption{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteWithDependencies delete options failed: %v", err)
+		return errors.New("删除商品参数选项失败")
+	}
+
+	// 删除商品参数类别
+	if err := tx.Where("product_id = ?", productID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteWithDependencies delete categories failed: %v", err)
+		return errors.New("删除商品参数类别失败")
+	}
+
+	// 删除商品记录
+	result := tx.Where("id = ? AND shop_id = ?", productID, shopID).Delete(&models.Product{})
+	if result.Error != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteWithDependencies delete product failed: %v", result.Error)
+		return errors.New("删除商品记录失败")
+	}
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return errors.New("商品不存在")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("DeleteWithDependencies commit failed: %v", err)
+		return errors.New("删除商品失败")
+	}
+
+	return nil
+}
+
 // GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
 func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string) (*ProductListResult, error) {
 	var products []models.Product
