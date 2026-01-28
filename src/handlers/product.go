@@ -267,43 +267,18 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	// 转换回持久化模型
 	productModel = productDomain.ToModel()
 
-	// 开启事务
-	tx := h.DB.Begin()
-
-	// 保存更新后的商品信息（已在 domain 中处理）
-	if err := tx.Save(&productModel).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("更新商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新商品失败")
-		return
-	}
-
-	// 如果有提供参数类别，则先删除旧的参数类别和选项，再创建新的
-	// if len(request.OptionCategories) > 0 {
-	// 删除旧的参数类别
-	if err := tx.Where("product_id = ?", productModel.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("删除旧商品参数类别失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新商品参数失败")
-		return
-	}
-
-	// 创建新的参数类别和选项
+	// 为参数类别生成 ID
 	for i := range request.OptionCategories {
-		category := request.OptionCategories[i]
-		category.ProductID = productModel.ID
-		category.ID = utils.GenerateSnowflakeID()
-
-		if err := tx.Create(&category).Error; err != nil {
-			tx.Rollback()
-			log2.Errorf("创建商品参数类别失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "更新商品参数失败")
-			return
-		}
+		request.OptionCategories[i].ID = utils.GenerateSnowflakeID()
 	}
-	// }
 
-	tx.Commit()
+	// 使用 Repository 更新商品（包含参数类别）
+	if err := h.productRepo.UpdateWithCategories(productModel, request.OptionCategories); err != nil {
+		log2.Errorf("更新商品失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	// 重新获取更新后的商品信息
 	updatedProduct, err := h.productRepo.GetProductByID(id, validShopID)
 	if err != nil {

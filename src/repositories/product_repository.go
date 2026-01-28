@@ -132,6 +132,44 @@ func (r *ProductRepository) CreateWithCategories(product *models.Product, catego
 	return nil
 }
 
+// UpdateWithCategories 更新商品及其参数类别（事务）
+func (r *ProductRepository) UpdateWithCategories(product *models.Product, categories []models.ProductOptionCategory) error {
+	tx := r.DB.Begin()
+
+	// 保存更新后的商品信息
+	if err := tx.Save(product).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("UpdateWithCategories save product failed: %v", err)
+		return errors.New("更新商品失败")
+	}
+
+	// 删除旧的参数类别
+	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("UpdateWithCategories delete old categories failed: %v", err)
+		return errors.New("更新商品参数失败")
+	}
+
+	// 创建新的参数类别
+	for i := range categories {
+		category := categories[i]
+		category.ProductID = product.ID
+
+		if err := tx.Create(&category).Error; err != nil {
+			tx.Rollback()
+			log2.Errorf("UpdateWithCategories create category failed: %v", err)
+			return errors.New("更新商品参数失败")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("UpdateWithCategories commit failed: %v", err)
+		return errors.New("更新商品失败")
+	}
+
+	return nil
+}
+
 // GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
 func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string) (*ProductListResult, error) {
 	var products []models.Product
