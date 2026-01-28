@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // TagRepository 标签数据访问层
@@ -210,4 +211,62 @@ func (r *TagRepository) GetOnlineProductsByTag(tagID int, shopID uint64) ([]mode
 	}
 
 	return products, nil
+}
+
+// BatchTagProductsResult 批量打标结果
+type BatchTagProductsResult struct {
+	Total      int
+	Successful int
+}
+
+// BatchTagProducts 批量打标签（事务）
+func (r *TagRepository) BatchTagProducts(productIDs []snowflake.ID, tagID int, shopID uint64) (*BatchTagProductsResult, error) {
+	tx := r.DB.Begin()
+
+	// 批量查询商品的店铺信息
+	var validProducts []models.Product
+	if err := tx.Select("id").Where("id IN (?) AND shop_id = ?", productIDs, shopID).Find(&validProducts).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("BatchTagProducts query products failed: %v", err)
+		return nil, errors.New("批量查询商品失败")
+	}
+
+	// 构建有效商品ID集合
+	validProductMap := make(map[snowflake.ID]bool)
+	for _, p := range validProducts {
+		validProductMap[p.ID] = true
+	}
+
+	// 过滤无效商品并生成关联记录
+	var productTags []models.ProductTag
+	successCount := 0
+	for _, productID := range productIDs {
+		if validProductMap[productID] {
+			productTags = append(productTags, models.ProductTag{
+				ProductID: productID,
+				TagID:     tagID,
+				ShopID:    shopID,
+			})
+			successCount++
+		}
+	}
+
+	// 使用 INSERT IGNORE 避免重复插入错误
+	if len(productTags) > 0 {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&productTags).Error; err != nil {
+			tx.Rollback()
+			log2.Errorf("BatchTagProducts create failed: %v", err)
+			return nil, errors.New("批量打标签失败")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("BatchTagProducts commit failed: %v", err)
+		return nil, errors.New("批量打标签失败")
+	}
+
+	return &BatchTagProductsResult{
+		Total:      len(productIDs),
+		Successful: successCount,
+	}, nil
 }

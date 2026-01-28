@@ -10,7 +10,6 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm/clause"
 )
 
 // CreateTag 创建标签
@@ -190,49 +189,18 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		return
 	}
 
-	// 批量创建关联
-	var productTags []models.ProductTag
-
-	// 批量查询商品的店铺信息
-	var validProducts []models.Product
-	if err := h.DB.Select("id").Where("id IN (?) AND shop_id = ?", req.ProductIDs, tag.ShopID).Find(&validProducts).Error; err != nil {
-		h.logger.Errorf("批量查询商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "批量操作失败")
-		return
-	}
-
-	// 构建有效商品ID集合
-	validProductMap := make(map[snowflake.ID]bool)
-	for _, p := range validProducts {
-		validProductMap[p.ID] = true
-	}
-
-	// 过滤无效商品并生成关联记录
-	var successCount int
-	for _, productID := range req.ProductIDs {
-		if validProductMap[productID] {
-			productTags = append(productTags, models.ProductTag{
-				ProductID: productID,
-				TagID:     req.TagID,
-				ShopID:    validShopID,
-			})
-			successCount++
-		}
-	}
-
-	// 使用 INSERT IGNORE 避免重复插入错误
-	if err := h.DB.Clauses(clause.OnConflict{
-		DoNothing: true,
-	}).Create(&productTags).Error; err != nil {
+	// 使用 Repository 批量打标签
+	result, err := h.tagRepo.BatchTagProducts(req.ProductIDs, req.TagID, tag.ShopID)
+	if err != nil {
 		h.logger.Errorf("批量打标签失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "批量打标签失败:"+err.Error())
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	successResponse(c, gin.H{
 		"message":    "批量打标签成功",
-		"total":      len(req.ProductIDs),
-		"successful": len(productTags),
+		"total":      result.Total,
+		"successful": result.Successful,
 	})
 }
 
