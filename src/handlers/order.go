@@ -50,9 +50,6 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	// 开启事务
-	tx := h.DB.Begin()
-
 	// 构建领域服务 DTO
 	var itemsDTO []orderdomain.CreateOrderItemDTO
 	for _, itemReq := range req.Items {
@@ -78,7 +75,6 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		Remark: req.Remark,
 	})
 	if err != nil {
-		tx.Rollback()
 		h.logger.Errorf("创建订单失败: %v", err)
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -87,27 +83,6 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	orderModel.TotalPrice = models.Price(totalPrice)
 	// 雪花ID生成逻辑
 	orderModel.ID = utils.GenerateSnowflakeID()
-
-	// 数据库写入
-	if err := tx.Create(&orderModel).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("创建订单失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
-		return
-	}
-
-	// 更新订单项选项的OrderItemID
-	for i := range orderModel.Items {
-		for j := range orderModel.Items[i].Options {
-			orderModel.Items[i].Options[j].OrderItemID = orderModel.Items[i].ID
-			if err := tx.Save(&orderModel.Items[i].Options[j]).Error; err != nil {
-				tx.Rollback()
-				log2.Errorf("更新订单项选项失败: %v", err)
-				errorResponse(c, http.StatusInternalServerError, "创建订单失败")
-				return
-			}
-		}
-	}
 
 	// 添加日志，打印创建的订单信息
 	log2.Infof("创建的订单信息: %+v", orderModel)
@@ -118,6 +93,13 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	// 使用 Repository 创建订单（包含订单项和选项）
+	if err := h.orderRepo.CreateOrder(orderModel); err != nil {
+		log2.Errorf("创建订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	// 创建订单状态日志
 	statusLog := models.OrderStatusLog{
 		OrderID:     orderModel.ID,
@@ -125,14 +107,10 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		NewStatus:   orderModel.Status,
 		ChangedTime: time.Now(),
 	}
-	if err := tx.Create(&statusLog).Error; err != nil {
-		tx.Rollback()
+	if err := h.orderRepo.CreateOrderStatusLog(&statusLog); err != nil {
 		log2.Errorf("创建订单状态日志失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建订单失败")
-		return
+		// 订单已创建，但状态日志失败，仅记录错误
 	}
-
-	tx.Commit()
 
 	// 触发SSE通知
 	go h.NotifyNewOrder(*orderModel)

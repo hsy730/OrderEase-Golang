@@ -232,3 +232,43 @@ func (r *OrderRepository) AdvanceSearch(req AdvanceSearchOrderRequest) (*Advance
 		Total:  total,
 	}, nil
 }
+
+// CreateOrder 创建订单及其关联数据（事务）
+func (r *OrderRepository) CreateOrder(order *models.Order) error {
+	tx := r.DB.Begin()
+
+	// 创建订单
+	if err := tx.Create(order).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("CreateOrder create order failed: %v", err)
+		return errors.New("创建订单失败")
+	}
+
+	// 更新订单项选项的 OrderItemID
+	for i := range order.Items {
+		for j := range order.Items[i].Options {
+			order.Items[i].Options[j].OrderItemID = order.Items[i].ID
+			if err := tx.Save(&order.Items[i].Options[j]).Error; err != nil {
+				tx.Rollback()
+				log2.Errorf("CreateOrder update option failed: %v", err)
+				return errors.New("创建订单失败")
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("CreateOrder commit failed: %v", err)
+		return errors.New("创建订单失败")
+	}
+
+	return nil
+}
+
+// CreateOrderStatusLog 创建订单状态日志
+func (r *OrderRepository) CreateOrderStatusLog(statusLog *models.OrderStatusLog) error {
+	if err := r.DB.Create(statusLog).Error; err != nil {
+		log2.Errorf("CreateOrderStatusLog failed: %v", err)
+		return errors.New("创建订单状态日志失败")
+	}
+	return nil
+}
