@@ -443,34 +443,22 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	// 开启事务
 	tx := h.DB.Begin()
 
-	// 更新订单状态
-	if err := tx.Model(&order).Update("status", req.NextStatus).Error; err != nil {
+	// 使用 Repository 更新订单状态并记录状态变更
+	if err := h.orderRepo.UpdateOrderStatusInTx(tx, order, req.NextStatus); err != nil {
 		tx.Rollback()
 		log2.Errorf("更新订单状态失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新订单状态失败")
-		return
-	}
-
-	// 记录状态变更
-	if err := tx.Create(&models.OrderStatusLog{
-		OrderID:     order.ID,
-		OldStatus:   order.Status,
-		NewStatus:   req.NextStatus,
-		ChangedTime: time.Now(),
-	}).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("记录状态变更失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "记录状态变更失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	tx.Commit()
 
 	// 返回更新后的订单信息
+	oldStatus := order.Status
 	order.Status = req.NextStatus
 	successResponse(c, gin.H{
 		"message":    "订单状态更新成功",
-		"old_status": order.Status,
+		"old_status": oldStatus,
 		"new_status": req.NextStatus,
 		"order":      order,
 	})

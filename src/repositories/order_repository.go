@@ -373,3 +373,26 @@ func (r *OrderRepository) DeleteOrderInTx(tx *gorm.DB, orderID string, shopID ui
 
 	return nil
 }
+
+// UpdateOrderStatusInTx 在给定事务中更新订单状态并创建状态日志
+func (r *OrderRepository) UpdateOrderStatusInTx(tx *gorm.DB, order *models.Order, newStatus int) error {
+	// 更新订单状态
+	if err := tx.Model(order).Update("status", newStatus).Error; err != nil {
+		log2.Errorf("UpdateOrderStatusInTx update status failed: %v", err)
+		return errors.New("更新订单状态失败")
+	}
+
+	// 记录状态变更
+	statusLog := models.OrderStatusLog{
+		OrderID:     order.ID,
+		OldStatus:   order.Status,
+		NewStatus:   newStatus,
+		ChangedTime: tx.NowFunc(),
+	}
+	if err := tx.Create(&statusLog).Error; err != nil {
+		log2.Errorf("UpdateOrderStatusInTx create status log failed: %v", err)
+		return errors.New("记录状态变更失败")
+	}
+
+	return nil
+}
