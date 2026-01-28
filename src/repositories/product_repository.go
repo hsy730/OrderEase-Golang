@@ -101,6 +101,37 @@ type ProductListResult struct {
 	Total    int64
 }
 
+// CreateWithCategories 创建商品及其参数类别（事务）
+func (r *ProductRepository) CreateWithCategories(product *models.Product, categories []models.ProductOptionCategory) error {
+	tx := r.DB.Begin()
+
+	// 创建商品
+	if err := tx.Create(product).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("CreateWithCategories create product failed: %v", err)
+		return errors.New("创建商品失败")
+	}
+
+	// 创建商品参数类别
+	for i := range categories {
+		category := categories[i]
+		category.ProductID = product.ID
+
+		if err := tx.Create(&category).Error; err != nil {
+			tx.Rollback()
+			log2.Errorf("CreateWithCategories create category failed: %v", err)
+			return errors.New("创建商品参数失败")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("CreateWithCategories commit failed: %v", err)
+		return errors.New("创建商品失败")
+	}
+
+	return nil
+}
+
 // GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
 func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string) (*ProductListResult, error) {
 	var products []models.Product

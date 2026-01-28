@@ -54,32 +54,18 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	productModel := productDomain.ToModel()
 	productModel.ID = utils.GenerateSnowflakeID()
 
-	// 开启事务
-	tx := h.DB.Begin()
+	// 为参数类别生成 ID
+	for i := range request.OptionCategories {
+		request.OptionCategories[i].ID = utils.GenerateSnowflakeID()
+	}
 
-	// 创建商品
-	if err := tx.Create(&productModel).Error; err != nil {
-		tx.Rollback()
+	// 使用 Repository 创建商品（包含参数类别）
+	if err := h.productRepo.CreateWithCategories(productModel, request.OptionCategories); err != nil {
 		h.logger.Errorf("创建商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "创建商品失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// 创建商品参数类别和选项
-	for i := range request.OptionCategories {
-		category := request.OptionCategories[i]
-		category.ProductID = productModel.ID
-		category.ID = utils.GenerateSnowflakeID()
-
-		if err := tx.Create(&category).Error; err != nil {
-			tx.Rollback()
-			h.logger.Errorf("创建商品参数类别失败: %v", err)
-			errorResponse(c, http.StatusInternalServerError, "创建商品参数失败")
-			return
-		}
-	}
-
-	tx.Commit()
 	// 查询创建后的商品，包含参数信息（使用 Repository）
 	createdProduct, err := h.productRepo.GetProductByID(uint64(productModel.ID), validShopID)
 	if err != nil {
