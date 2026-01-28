@@ -46,6 +46,12 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		return
 	}
 
+	tagIDInt, err := strconv.Atoi(tagID)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的标签ID")
+		return
+	}
+
 	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
@@ -58,15 +64,11 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		return
 	}
 
-	var products []models.Product
-	err = h.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
-		Where("product_tags.tag_id = ? AND products.status = ? AND products.shop_id = ?",
-			tagID, models.ProductStatusOnline, validShopID).
-		Find(&products).Error
-
+	// 使用 Repository 获取标签关联的在线商品
+	products, err := h.tagRepo.GetOnlineProductsByTag(tagIDInt, validShopID)
 	if err != nil {
 		h.logger.Errorf("查询标签关联商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "查询失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 

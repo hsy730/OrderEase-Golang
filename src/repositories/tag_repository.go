@@ -195,3 +195,19 @@ func (r *TagRepository) GetTagBoundProductIDs(tagID int, shopID uint64) ([]uint,
 
 	return productIDs, nil
 }
+
+// GetOnlineProductsByTag 获取标签关联的在线商品列表
+func (r *TagRepository) GetOnlineProductsByTag(tagID int, shopID uint64) ([]models.Product, error) {
+	var products []models.Product
+	err := r.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
+		Where("product_tags.tag_id = ? AND products.status = ? AND products.shop_id = ?",
+			tagID, models.ProductStatusOnline, shopID).
+		Find(&products).Error
+
+	if err != nil {
+		log2.Errorf("GetOnlineProductsByTag failed: %v", err)
+		return nil, errors.New("查询标签关联商品失败")
+	}
+
+	return products, nil
+}
