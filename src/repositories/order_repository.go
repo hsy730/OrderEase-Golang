@@ -308,3 +308,68 @@ func (r *OrderRepository) UpdateOrder(order *models.Order, newItems []models.Ord
 
 	return nil
 }
+
+// DeleteOrder 删除订单及其关联数据（事务）
+func (r *OrderRepository) DeleteOrder(orderID string, shopID uint64) error {
+	tx := r.DB.Begin()
+
+	// 删除订单项
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteOrder delete items failed: %v", err)
+		return errors.New("删除订单项失败")
+	}
+
+	// 删除订单状态日志
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteOrder delete status logs failed: %v", err)
+		return errors.New("删除订单状态日志失败")
+	}
+
+	// 删除订单记录
+	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	if result.Error != nil {
+		tx.Rollback()
+		log2.Errorf("DeleteOrder delete order failed: %v", result.Error)
+		return errors.New("删除订单记录失败")
+	}
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return errors.New("订单不存在")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("DeleteOrder commit failed: %v", err)
+		return errors.New("删除订单失败")
+	}
+
+	return nil
+}
+
+// DeleteOrderInTx 在给定事务中删除订单及其关联数据（不提交事务）
+func (r *OrderRepository) DeleteOrderInTx(tx *gorm.DB, orderID string, shopID uint64) error {
+	// 删除订单项
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+		log2.Errorf("DeleteOrderInTx delete items failed: %v", err)
+		return errors.New("删除订单项失败")
+	}
+
+	// 删除订单状态日志
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+		log2.Errorf("DeleteOrderInTx delete status logs failed: %v", err)
+		return errors.New("删除订单状态日志失败")
+	}
+
+	// 删除订单记录
+	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	if result.Error != nil {
+		log2.Errorf("DeleteOrderInTx delete order failed: %v", result.Error)
+		return errors.New("删除订单记录失败")
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("订单不存在")
+	}
+
+	return nil
+}

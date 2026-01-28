@@ -369,27 +369,11 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		}
 	}
 
-	// 删除订单项
-	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
+	// 使用 Repository 删除订单及其关联数据
+	if err := h.orderRepo.DeleteOrderInTx(tx, id, validShopID); err != nil {
 		tx.Rollback()
-		h.logger.Errorf("删除订单项失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
-		return
-	}
-
-	// 删除订单状态日志
-	if err := tx.Where("order_id = ?", id).Delete(&models.OrderStatusLog{}).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("删除订单状态日志失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
-		return
-	}
-
-	// 删除订单
-	if err := tx.Delete(order).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("删除订单记录失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除订单失败")
+		h.logger.Errorf("删除订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
