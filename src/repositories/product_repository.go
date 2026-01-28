@@ -94,3 +94,46 @@ func (r *ProductRepository) UpdateImageURL(productID uint64, shopID uint64, imag
 	}
 	return nil
 }
+
+// ProductListResult 商品列表查询结果
+type ProductListResult struct {
+	Products []models.Product
+	Total    int64
+}
+
+// GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
+func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string) (*ProductListResult, error) {
+	var products []models.Product
+	var total int64
+
+	offset := (page - 1) * pageSize
+
+	// 只查询未下架的商品（待上架和已上架）
+	query := r.DB.Where("status != ? and shop_id = ?", models.ProductStatusOffline, shopID)
+
+	// 如果有搜索关键词，添加模糊搜索条件
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+
+	// 获取总数
+	if err := query.Model(&models.Product{}).Count(&total).Error; err != nil {
+		log2.Errorf("GetProductsByShop count failed: %v", err)
+		return nil, errors.New("获取商品总数失败")
+	}
+
+	// 获取分页数据，并预加载参数类别和选项信息
+	if err := query.Offset(offset).Limit(pageSize).
+		Order("created_at DESC").
+		Preload("OptionCategories").
+		Preload("OptionCategories.Options").
+		Find(&products).Error; err != nil {
+		log2.Errorf("GetProductsByShop find failed: %v", err)
+		return nil, errors.New("获取商品列表失败")
+	}
+
+	return &ProductListResult{
+		Products: products,
+		Total:    total,
+	}, nil
+}

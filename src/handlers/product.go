@@ -154,8 +154,6 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 
 // 获取商品列表
 func (h *Handler) GetProducts(c *gin.Context) {
-	var products []models.Product
-
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
@@ -175,43 +173,21 @@ func (h *Handler) GetProducts(c *gin.Context) {
 		return
 	}
 
-	offset := (page - 1) * pageSize
-
 	// 获取搜索关键词
 	search := c.Query("search")
 
-	// 只查询未下架的商品（待上架和已上架）
-	query := h.DB.Where("status != ? and shop_id = ?", models.ProductStatusOffline, validShopID)
-
-	// 如果有搜索关键词，添加模糊搜索条件
-	if search != "" {
-		query = query.Where("name LIKE ?", "%"+search+"%")
-	}
-
-	// 获取总数
-	var total int64
-	if err := query.Model(&models.Product{}).Count(&total).Error; err != nil {
-		log2.Errorf("获取商品总数失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
-		return
-	}
-
-	// 获取分页数据，并预加载参数类别和选项信息
-	if err := query.Offset(offset).Limit(pageSize).
-		Order("created_at DESC").
-		Preload("OptionCategories").
-		Preload("OptionCategories.Options").
-		Find(&products).Error; err != nil {
-		log2.Errorf("查询商品列表失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取商品列表失败")
+	// 使用 Repository 获取商品列表
+	result, err := h.productRepo.GetProductsByShop(validShopID, page, pageSize, search)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	successResponse(c, gin.H{
-		"total":    total,
+		"total":    result.Total,
 		"page":     page,
 		"pageSize": pageSize,
-		"data":     products,
+		"data":     result.Products,
 	})
 }
 
