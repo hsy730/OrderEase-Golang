@@ -272,3 +272,39 @@ func (r *OrderRepository) CreateOrderStatusLog(statusLog *models.OrderStatusLog)
 	}
 	return nil
 }
+
+// UpdateOrder 更新订单及其订单项（事务）
+func (r *OrderRepository) UpdateOrder(order *models.Order, newItems []models.OrderItem) error {
+	tx := r.DB.Begin()
+
+	// 删除原有的订单项
+	if err := tx.Where("order_id = ?", order.ID).Delete(&models.OrderItem{}).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("UpdateOrder delete old items failed: %v", err)
+		return errors.New("删除原有订单项失败")
+	}
+
+	// 保存新的订单项
+	for i := range newItems {
+		newItems[i].OrderID = order.ID
+	}
+	if err := tx.Create(&newItems).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("UpdateOrder create new items failed: %v", err)
+		return errors.New("创建新订单项失败")
+	}
+
+	// 更新订单信息
+	if err := tx.Save(order).Error; err != nil {
+		tx.Rollback()
+		log2.Errorf("UpdateOrder save order failed: %v", err)
+		return errors.New("更新订单信息失败")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log2.Errorf("UpdateOrder commit failed: %v", err)
+		return errors.New("更新订单失败")
+	}
+
+	return nil
+}

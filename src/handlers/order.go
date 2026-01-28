@@ -297,43 +297,18 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	// 开启事务
-	tx := h.DB.Begin()
-
-	// 删除原有的订单项和选项
-	if err := tx.Where("order_id = ?", id).Delete(&models.OrderItem{}).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("删除原有订单项失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
-		return
-	}
-
 	// 更新订单基本信息
 	order.ShopID = updatedOrder.ShopID
 	order.Remark = updatedOrder.Remark
 	order.Status = updatedOrder.Status
 	order.TotalPrice = updatedOrder.TotalPrice
 
-	// 保存新的订单项（已由领域服务处理）
-	for i := range updatedOrder.Items {
-		updatedOrder.Items[i].OrderID = order.ID
-	}
-	if err := tx.Create(&updatedOrder.Items).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("创建新订单项失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
+	// 使用 Repository 更新订单（包含删除旧订单项、创建新订单项）
+	if err := h.orderRepo.UpdateOrder(order, updatedOrder.Items); err != nil {
+		h.logger.Errorf("更新订单失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// 更新订单信息
-	if err := tx.Save(&order).Error; err != nil {
-		tx.Rollback()
-		h.logger.Errorf("更新订单信息失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新订单失败")
-		return
-	}
-
-	tx.Commit()
 
 	// 重新获取更新后的订单信息
 	order, err = h.orderRepo.GetByIDStrWithItems(id)
