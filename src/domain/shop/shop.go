@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"golang.org/x/crypto/bcrypt"
 	"orderease/models"
 )
 
 // Shop 店铺聚合根
 type Shop struct {
-	id              uint64
+	id              snowflake.ID
 	name            string
 	ownerUsername   string
 	ownerPassword   string // 已哈希的密码
@@ -39,7 +40,7 @@ func NewShop(name string, ownerUsername string, validUntil time.Time) *Shop {
 }
 
 // Getters
-func (s *Shop) ID() uint64 {
+func (s *Shop) ID() snowflake.ID {
 	return s.id
 }
 
@@ -96,7 +97,7 @@ func (s *Shop) UpdatedAt() time.Time {
 }
 
 // Setters
-func (s *Shop) SetID(id uint64) {
+func (s *Shop) SetID(id snowflake.ID) {
 	s.id = id
 }
 

@@ -44,7 +44,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(req.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -133,7 +133,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -171,7 +171,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -201,7 +201,7 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -333,7 +333,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -397,14 +397,6 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// 将字符串ID转换为uint64
-	orderID, err := strconv.ParseUint(req.ID, 10, 64)
-	if err != nil {
-		log2.Errorf("无效的订单ID格式: %v", err)
-		errorResponse(c, http.StatusBadRequest, "无效的订单ID格式")
-		return
-	}
-
 	// 验证店铺ID
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
 	if err != nil {
@@ -421,7 +413,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 获取订单信息
-	order, err := h.orderRepo.GetOrderByIDAndShopID(orderID, validShopID)
+	order, err := h.orderRepo.GetOrderByIDAndShopID(uint64(req.ID), validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -490,7 +482,7 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 	}
 
 	// 验证并获取有效的店铺ID
-	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(req.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -532,7 +524,7 @@ func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 // 获取订单状态流转配置
 func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
 	// 获取并验证shop_id参数
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -574,7 +566,7 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return

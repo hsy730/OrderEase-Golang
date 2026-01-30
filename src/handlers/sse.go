@@ -4,8 +4,8 @@ import (
 	"io"
 	"net/http"
 	"orderease/models"
+	"orderease/utils"
 	"orderease/utils/log2"
-	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -67,7 +67,7 @@ func (h *Handler) SSEConnection(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 
 	// 获取店铺ID验证权限
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的店铺ID"})
 		return

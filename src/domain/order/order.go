@@ -14,7 +14,7 @@ import (
 type Order struct {
 	id         snowflake.ID
 	userID     snowflake.ID
-	shopID     uint64
+	shopID     snowflake.ID
 	totalPrice models.Price
 	status     value_objects.OrderStatus
 	remark     string
@@ -24,7 +24,7 @@ type Order struct {
 }
 
 // NewOrder 创建新订单
-func NewOrder(userID snowflake.ID, shopID uint64) *Order {
+func NewOrder(userID snowflake.ID, shopID snowflake.ID) *Order {
 	return &Order{
 		id:        snowflake.ID(0), // 将在持久化时生成
 		userID:    userID,
@@ -44,7 +44,7 @@ func (o *Order) UserID() snowflake.ID {
 	return o.userID
 }
 
-func (o *Order) ShopID() uint64 {
+func (o *Order) ShopID() snowflake.ID {
 	return o.shopID
 }
 

@@ -29,7 +29,7 @@ type CreateOrderResult struct {
 // CreateOrderDTO 创建订单 DTO
 type CreateOrderDTO struct {
 	UserID snowflake.ID
-	ShopID uint64
+	ShopID snowflake.ID
 	Items  []CreateOrderItemDTO
 	Remark string
 }
@@ -225,7 +225,7 @@ func (s *Service) RestoreStock(tx *gorm.DB, order models.Order) error {
 // UpdateOrderDTO 更新订单 DTO
 type UpdateOrderDTO struct {
 	OrderID snowflake.ID
-	ShopID  uint64
+	ShopID  snowflake.ID
 	Items   []CreateOrderItemDTO
 	Remark  string
 	Status  int

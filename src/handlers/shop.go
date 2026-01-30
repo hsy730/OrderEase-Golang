@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 
@@ -19,7 +20,7 @@ import (
 
 // GetShopTags 获取店铺标签列表
 func (h *Handler) GetShopTags(c *gin.Context) {
-	shopID, err := strconv.ParseUint(c.Param("shopId"), 10, 64)
+	shopID, err := utils.StringToSnowflakeID(c.Param("shopId"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -50,7 +51,7 @@ func (h *Handler) GetShopInfo(c *gin.Context) {
 	}
 
 	// 使用 Repository 获取店铺及其标签
-	shop, err := h.shopRepo.GetWithTags(uint64(shopIDInt))
+	shop, err := h.shopRepo.GetWithTags(snowflake.ID(shopIDInt))
 	if err != nil {
 		if err.Error() == "店铺不存在" {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
@@ -210,7 +211,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID              uint64                  `json:"id" binding:"required"`
+		ID              snowflake.ID            `json:"id" binding:"required"`
 		OwnerUsername   string                  `json:"owner_username" binding:"required"`
 		OwnerPassword   *string                 `json:"owner_password"` // 使用指针类型以区分null和空字符串
 		Name            string                  `json:"name"`
@@ -345,7 +346,7 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 
 // 删除店铺及关联数据
 func (h *Handler) DeleteShop(c *gin.Context) {
-	shopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	shopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -398,7 +399,7 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 	const maxZipSize = 512 * 1024
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
 
-	id, err := strconv.ParseUint(c.Query("id"), 10, 64)
+	id, err := utils.StringToSnowflakeID(c.Query("id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "缺少店铺ID")
 		return
@@ -450,7 +451,7 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 	}
 
 	// 使用 Media Service 生成文件名
-	filename := h.mediaService.GenerateUniqueFileName("shop", id, file.Filename)
+	filename := h.mediaService.GenerateUniqueFileName("shop", uint64(id), file.Filename)
 
 	// 使用 Media Service 构建文件路径
 	filePath := h.mediaService.BuildFilePath(uploadDir, filename)
@@ -521,7 +522,7 @@ func (h *Handler) GetShopImage(c *gin.Context) {
 func (h *Handler) GetShopTempToken(c *gin.Context) {
 	// 从URL参数中获取shopID
 	shopIDStr := c.Query("shop_id")
-	shopID, err := strconv.ParseUint(shopIDStr, 10, 64)
+	shopID, err := utils.StringToSnowflakeID(shopIDStr)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -555,7 +556,7 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 // UpdateOrderStatusFlow 更新店铺订单流转状态配置
 func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
-		ShopID          uint64                 `json:"shop_id" binding:"required"`
+		ShopID          snowflake.ID           `json:"shop_id" binding:"required"`
 		OrderStatusFlow models.OrderStatusFlow `json:"order_status_flow" binding:"required"`
 	}
 

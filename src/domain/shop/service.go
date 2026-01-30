@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 	"orderease/models"
 )
@@ -28,7 +29,7 @@ func NewService(db *gorm.DB) *Service {
 // 2. 开启事务
 // 3. 删除关联数据（如果有）
 // 4. 删除店铺
-func (s *Service) DeleteShop(shopID uint64) error {
+func (s *Service) DeleteShop(shopID snowflake.ID) error {
 	// 查询店铺
 	var shopModel models.Shop
 	if err := s.db.First(&shopModel, shopID).Error; err != nil {

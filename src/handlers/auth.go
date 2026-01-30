@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
@@ -75,7 +76,7 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 		return
 	}
 
-	token, expiredAt, err := utils.GenerateToken(shopModel.ID, "shop_"+shopModel.OwnerUsername)
+	token, expiredAt, err := utils.GenerateToken(uint64(shopModel.ID), "shop_"+shopModel.OwnerUsername)
 	if err != nil {
 		log2.Errorf("生成token失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "登录失败")
@@ -161,7 +162,7 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 	}
 
 	// 获取当前店主账户
-	shopModel, err := h.shopRepo.GetShopByID(shopID)
+	shopModel, err := h.shopRepo.GetShopByID(snowflake.ID(shopID))
 	if err != nil {
 		log2.Errorf("查找店主失败: %v", err)
 		if err.Error() == "店铺不存在" {
@@ -319,8 +320,8 @@ type UserInfo struct {
 // TempTokenLogin 使用临时令牌登录
 func (h *Handler) TempTokenLogin(c *gin.Context) {
 	var loginData struct {
-		ShopID uint64 `json:"shop_id" binding:"required"`
-		Token  string `json:"token" binding:"required,len=6"`
+		ShopID snowflake.ID `json:"shop_id" binding:"required"`
+		Token  string       `json:"token" binding:"required,len=6"`
 	}
 
 	if err := c.ShouldBindJSON(&loginData); err != nil {

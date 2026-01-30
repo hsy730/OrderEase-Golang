@@ -19,7 +19,7 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 }
 
 // 根据ID和店铺ID查询商品
-func (r *ProductRepository) GetProductByID(id uint64, shopID uint64) (*models.Product, error) {
+func (r *ProductRepository) GetProductByID(id uint64, shopID snowflake.ID) (*models.Product, error) {
 	var product models.Product
 	// 使用嵌套Preload预加载商品的选项类别及其选项
 	err := r.DB.Where("shop_id = ?", shopID).
@@ -36,7 +36,7 @@ func (r *ProductRepository) GetProductByID(id uint64, shopID uint64) (*models.Pr
 }
 
 // 通用商品查询方法
-func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) ([]models.Product, error) {
+func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID snowflake.ID) ([]models.Product, error) {
 	var products []models.Product
 	if err := r.DB.Select("id").Where("id IN (?) AND shop_id = ?", ids, shopID).Find(&products).Error; err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (r *ProductRepository) GetProductsByIDs(ids []snowflake.ID, shopID uint64) 
 }
 
 // CheckShopExists 校验店铺ID合法性
-func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
+func (r *ProductRepository) CheckShopExists(shopID snowflake.ID) (bool, error) {
     var count int64
     if err := r.DB.Model(&models.Shop{}).Where("id = ?", shopID).Count(&count).Error; err != nil {
         log2.Errorf("CheckShopExists failed: %v", err)
@@ -55,7 +55,7 @@ func (r *ProductRepository) CheckShopExists(shopID uint64) (bool, error) {
 }
 
 // GetShopProducts 获取指定店铺的商品（用于批量操作前的店铺校验）
-func (r *ProductRepository) GetShopProducts(shopID uint64, productIDs []snowflake.ID) ([]models.Product, error) {
+func (r *ProductRepository) GetShopProducts(shopID snowflake.ID, productIDs []snowflake.ID) ([]models.Product, error) {
     var products []models.Product
     if err := r.DB.Select("id").
         Where("shop_id = ? AND id IN (?)", shopID, productIDs).
@@ -66,7 +66,7 @@ func (r *ProductRepository) GetShopProducts(shopID uint64, productIDs []snowflak
 }
 
 // UpdateStatus 更新商品状态
-func (r *ProductRepository) UpdateStatus(productID uint64, shopID uint64, status string) error {
+func (r *ProductRepository) UpdateStatus(productID uint64, shopID snowflake.ID, status string) error {
 	result := r.DB.Model(&models.Product{}).
 		Where("id = ? AND shop_id = ?", productID, shopID).
 		Update("status", status)
@@ -81,7 +81,7 @@ func (r *ProductRepository) UpdateStatus(productID uint64, shopID uint64, status
 }
 
 // UpdateImageURL 更新商品图片URL
-func (r *ProductRepository) UpdateImageURL(productID uint64, shopID uint64, imageURL string) error {
+func (r *ProductRepository) UpdateImageURL(productID uint64, shopID snowflake.ID, imageURL string) error {
 	result := r.DB.Model(&models.Product{}).
 		Where("id = ? AND shop_id = ?", productID, shopID).
 		Update("image_url", imageURL)
@@ -171,7 +171,7 @@ func (r *ProductRepository) UpdateWithCategories(product *models.Product, catego
 }
 
 // DeleteWithDependencies 删除商品及其关联数据（事务）
-func (r *ProductRepository) DeleteWithDependencies(productID uint64, shopID uint64) error {
+func (r *ProductRepository) DeleteWithDependencies(productID uint64, shopID snowflake.ID) error {
 	tx := r.DB.Begin()
 
 	// 删除商品参数选项（先删除选项）
@@ -212,7 +212,7 @@ func (r *ProductRepository) DeleteWithDependencies(productID uint64, shopID uint
 
 // GetProductsByShop 获取店铺商品列表（分页，预加载选项类别）
 // onlyOnline: true 表示只查询已上架商品（用户查询），false 表示查询所有商品（管理员查询）
-func (r *ProductRepository) GetProductsByShop(shopID uint64, page int, pageSize int, search string, onlyOnline bool) (*ProductListResult, error) {
+func (r *ProductRepository) GetProductsByShop(shopID snowflake.ID, page int, pageSize int, search string, onlyOnline bool) (*ProductListResult, error) {
 	var products []models.Product
 	var total int64
 

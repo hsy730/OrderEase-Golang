@@ -5,6 +5,7 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +20,7 @@ func NewShopRepository(db *gorm.DB) *ShopRepository {
 }
 
 // GetShopByID 根据ID获取店铺
-func (r *ShopRepository) GetShopByID(shopID uint64) (*models.Shop, error) {
+func (r *ShopRepository) GetShopByID(shopID snowflake.ID) (*models.Shop, error) {
 	var shop models.Shop
 	err := r.DB.First(&shop, shopID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -73,7 +74,7 @@ func (r *ShopRepository) CheckShopNameExists(name string) (bool, error) {
 }
 
 // GetOrderStatusFlow 获取店铺的订单状态流转配置
-func (r *ShopRepository) GetOrderStatusFlow(shopID uint64) (models.OrderStatusFlow, error) {
+func (r *ShopRepository) GetOrderStatusFlow(shopID snowflake.ID) (models.OrderStatusFlow, error) {
 	var shop models.Shop
 	err := r.DB.Select("order_status_flow").First(&shop, shopID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -118,7 +119,7 @@ func (r *ShopRepository) Update(shop *models.Shop) error {
 }
 
 // UpdatePassword 更新店铺密码
-func (r *ShopRepository) UpdatePassword(shopID uint64, hashedPassword string) error {
+func (r *ShopRepository) UpdatePassword(shopID snowflake.ID, hashedPassword string) error {
 	err := r.DB.Model(&models.Shop{}).
 		Where("id = ?", shopID).
 		Update("owner_password", hashedPassword).Error
@@ -144,7 +145,7 @@ func (r *ShopRepository) GetByUsername(username string) (*models.Shop, error) {
 }
 
 // GetWithTags 获取店铺及其标签
-func (r *ShopRepository) GetWithTags(shopID uint64) (*models.Shop, error) {
+func (r *ShopRepository) GetWithTags(shopID snowflake.ID) (*models.Shop, error) {
 	var shop models.Shop
 	err := r.DB.Preload("Tags").First(&shop, shopID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -158,7 +159,7 @@ func (r *ShopRepository) GetWithTags(shopID uint64) (*models.Shop, error) {
 }
 
 // UpdateImageURL 更新店铺图片URL
-func (r *ShopRepository) UpdateImageURL(shopID uint64, imageURL string) error {
+func (r *ShopRepository) UpdateImageURL(shopID snowflake.ID, imageURL string) error {
 	err := r.DB.Model(&models.Shop{}).
 		Where("id = ?", shopID).
 		Update("image_url", imageURL).Error

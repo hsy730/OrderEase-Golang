@@ -9,7 +9,7 @@ import (
 type Order struct {
 	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
 	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`
@@ -136,7 +136,7 @@ type OrderStatusLog struct {
 type OrderElement struct {
 	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
 	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
 	Status     int          `gorm:"column:status" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`

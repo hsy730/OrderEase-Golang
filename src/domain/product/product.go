@@ -20,7 +20,7 @@ const (
 // Product 商品聚合根
 type Product struct {
 	id               snowflake.ID
-	shopID           uint64
+	shopID           snowflake.ID
 	name             string
 	description      string
 	price            float64
@@ -33,7 +33,7 @@ type Product struct {
 }
 
 // NewProduct 创建新商品
-func NewProduct(shopID uint64, name string, price float64, stock int) *Product {
+func NewProduct(shopID snowflake.ID, name string, price float64, stock int) *Product {
 	return &Product{
 		shopID:    shopID,
 		name:      name,
@@ -47,7 +47,7 @@ func NewProduct(shopID uint64, name string, price float64, stock int) *Product {
 
 // NewProductWithDefaults 创建带完整默认值的商品
 // 封装商品创建逻辑，避免在 Handler 中多次调用 Setter
-func NewProductWithDefaults(shopID uint64, name string, price float64, stock int,
+func NewProductWithDefaults(shopID snowflake.ID, name string, price float64, stock int,
 	description string, imageURL string, optionCategories []models.ProductOptionCategory) *Product {
 
 	return &Product{
@@ -69,7 +69,7 @@ func (p *Product) ID() snowflake.ID {
 	return p.id
 }
 
-func (p *Product) ShopID() uint64 {
+func (p *Product) ShopID() snowflake.ID {
 	return p.shopID
 }
 

@@ -48,7 +48,7 @@ func (r *TagRepository) Delete(tag *models.Tag) error {
 }
 
 // GetByIDAndShopID 根据ID和店铺ID获取标签
-func (r *TagRepository) GetByIDAndShopID(id int, shopID uint64) (*models.Tag, error) {
+func (r *TagRepository) GetByIDAndShopID(id int, shopID snowflake.ID) (*models.Tag, error) {
 	var tag models.Tag
 	err := r.DB.Where("shop_id = ?", shopID).First(&tag, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,7 +62,7 @@ func (r *TagRepository) GetByIDAndShopID(id int, shopID uint64) (*models.Tag, er
 }
 
 // GetListByShopID 获取店铺的标签列表
-func (r *TagRepository) GetListByShopID(shopID uint64) ([]models.Tag, error) {
+func (r *TagRepository) GetListByShopID(shopID snowflake.ID) ([]models.Tag, error) {
 	var tags []models.Tag
 	err := r.DB.Where("shop_id = ?", shopID).Order("created_at DESC").Find(&tags).Error
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *TagRepository) GetListByShopID(shopID uint64) ([]models.Tag, error) {
 }
 
 // 在 ProductRepository 结构体新增方法
-func (r *ProductRepository) GetCurrentProductTags(productID snowflake.ID, shopID uint64) ([]models.Tag, error) {
+func (r *ProductRepository) GetCurrentProductTags(productID snowflake.ID, shopID snowflake.ID) ([]models.Tag, error) {
 	var tags []models.Tag
 	err := r.DB.Joins("JOIN product_tags ON product_tags.tag_id = tags.id").
 		Where("product_tags.product_id = ? AND product_tags.shop_id = ?", productID, shopID).
@@ -85,7 +85,7 @@ func (r *ProductRepository) GetCurrentProductTags(productID snowflake.ID, shopID
 	return tags, err
 }
 
-func (r *ProductRepository) CheckProductsBelongToShop(productIDs []uint, shopID uint64) ([]uint, error) {
+func (r *ProductRepository) CheckProductsBelongToShop(productIDs []uint, shopID snowflake.ID) ([]uint, error) {
 	var validIDs []uint
 	err := r.DB.Model(&models.Product{}).
 		Where("id IN (?) AND shop_id = ?", productIDs, shopID).
@@ -93,7 +93,7 @@ func (r *ProductRepository) CheckProductsBelongToShop(productIDs []uint, shopID 
 	return validIDs, err
 }
 
-func (r *ProductRepository) GetShopTagsByID(shopID uint64) ([]models.Tag, error) {
+func (r *ProductRepository) GetShopTagsByID(shopID snowflake.ID) ([]models.Tag, error) {
 	tags := make([]models.Tag, 0)
 	err := r.DB.Where("shop_id = ?", shopID).Find(&tags).Error
 	if err != nil {
@@ -103,7 +103,7 @@ func (r *ProductRepository) GetShopTagsByID(shopID uint64) ([]models.Tag, error)
 }
 
 // GetUnboundTags 获取商品未绑定的标签（该店铺下未被该商品绑定的标签）
-func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID uint64) ([]models.Tag, error) {
+func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID snowflake.ID) ([]models.Tag, error) {
 	var tags []models.Tag
 	err := r.DB.Where("shop_id = ? AND id NOT IN (SELECT tag_id FROM product_tags WHERE product_id = ?)", shopID, productID).
 		Find(&tags).Error
@@ -117,7 +117,7 @@ func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID uint64
 // ==================== Tag 复杂查询方法 ====================
 
 // GetUnboundProductsCount 获取店铺中未绑定任何标签的商品数量
-func (r *TagRepository) GetUnboundProductsCount(shopID uint64) (int64, error) {
+func (r *TagRepository) GetUnboundProductsCount(shopID snowflake.ID) (int64, error) {
 	var count int64
 	err := r.DB.Raw(`SELECT COUNT(*) FROM products
 		WHERE shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)`, shopID).Scan(&count).Error
@@ -129,7 +129,7 @@ func (r *TagRepository) GetUnboundProductsCount(shopID uint64) (int64, error) {
 }
 
 // GetUnboundProductsForTag 获取可绑定到指定标签的商品列表（未绑定该标签的商品）
-func (r *TagRepository) GetUnboundProductsForTag(tagID int, shopID uint64, page, pageSize int) ([]models.Product, int64, error) {
+func (r *TagRepository) GetUnboundProductsForTag(tagID int, shopID snowflake.ID, page, pageSize int) ([]models.Product, int64, error) {
 	offset := (page - 1) * pageSize
 
 	var products []models.Product
@@ -157,7 +157,7 @@ func (r *TagRepository) GetUnboundProductsForTag(tagID int, shopID uint64, page,
 }
 
 // GetUnboundTagsList 获取店铺中未绑定任何商品的标签列表（分页）
-func (r *TagRepository) GetUnboundTagsList(shopID uint64, page, pageSize int) ([]models.Tag, int64, error) {
+func (r *TagRepository) GetUnboundTagsList(shopID snowflake.ID, page, pageSize int) ([]models.Tag, int64, error) {
 	offset := (page - 1) * pageSize
 
 	var tags []models.Tag
@@ -183,7 +183,7 @@ func (r *TagRepository) GetUnboundTagsList(shopID uint64, page, pageSize int) ([
 }
 
 // GetTagBoundProductIDs 获取已绑定到指定标签的商品ID列表
-func (r *TagRepository) GetTagBoundProductIDs(tagID int, shopID uint64) ([]uint, error) {
+func (r *TagRepository) GetTagBoundProductIDs(tagID int, shopID snowflake.ID) ([]uint, error) {
 	var productIDs []uint
 	err := r.DB.Raw(`
 		SELECT product_id FROM product_tags
@@ -198,7 +198,7 @@ func (r *TagRepository) GetTagBoundProductIDs(tagID int, shopID uint64) ([]uint,
 }
 
 // GetOnlineProductsByTag 获取标签关联的在线商品列表
-func (r *TagRepository) GetOnlineProductsByTag(tagID int, shopID uint64) ([]models.Product, error) {
+func (r *TagRepository) GetOnlineProductsByTag(tagID int, shopID snowflake.ID) ([]models.Product, error) {
 	var products []models.Product
 	err := r.DB.Joins("JOIN product_tags ON product_tags.product_id = products.id").
 		Where("product_tags.tag_id = ? AND products.status = ? AND products.shop_id = ?",
@@ -220,7 +220,7 @@ type BatchTagProductsResult struct {
 }
 
 // BatchTagProducts 批量打标签（事务）
-func (r *TagRepository) BatchTagProducts(productIDs []snowflake.ID, tagID int, shopID uint64) (*BatchTagProductsResult, error) {
+func (r *TagRepository) BatchTagProducts(productIDs []snowflake.ID, tagID int, shopID snowflake.ID) (*BatchTagProductsResult, error) {
 	tx := r.DB.Begin()
 
 	// 批量查询商品的店铺信息
@@ -279,7 +279,7 @@ type BoundProductsResult struct {
 
 // GetBoundProductsWithPagination 获取标签绑定的商品（分页）
 // onlyOnline: true 表示只查询已上架商品（客户端），false 表示查询所有商品（管理端）
-func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
+func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID snowflake.ID, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
 	// 获取已绑定商品的ID列表
 	productIDs, err := r.GetTagBoundProductIDs(tagID, shopID)
 	if err != nil {
@@ -320,7 +320,7 @@ func (r *TagRepository) GetBoundProductsWithPagination(tagID int, shopID uint64,
 
 // GetUnboundProductsWithPagination 获取未绑定任何标签的商品（分页）
 // onlyOnline: true 表示只查询已上架商品（客户端），false 表示查询所有商品（管理端）
-func (r *TagRepository) GetUnboundProductsWithPagination(shopID uint64, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
+func (r *TagRepository) GetUnboundProductsWithPagination(shopID snowflake.ID, page, pageSize int, onlyOnline bool) (*BoundProductsResult, error) {
 	offset := (page - 1) * pageSize
 	var products []models.Product
 	var total int64
@@ -361,7 +361,7 @@ type BatchUntagProductsResult struct {
 }
 
 // BatchUntagProducts 批量解绑商品标签
-func (r *TagRepository) BatchUntagProducts(productIDs []snowflake.ID, tagID uint, shopID uint64) (*BatchUntagProductsResult, error) {
+func (r *TagRepository) BatchUntagProducts(productIDs []snowflake.ID, tagID uint, shopID snowflake.ID) (*BatchUntagProductsResult, error) {
 	result := r.DB.Where("shop_id = ? AND tag_id = ? AND product_id IN (?)", shopID, tagID, productIDs).
 		Delete(&models.ProductTag{})
 

@@ -15,7 +15,7 @@ const (
 
 type Product struct {
 	ID          snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id"`
-	ShopID      uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"` // 新增店铺ID
+	ShopID      snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"` // 店铺ID
 	Name        string       `gorm:"column:name" json:"name"`
 	Description string       `gorm:"column:description" json:"description"`
 	Price       float64      `gorm:"column:price;type:double" json:"price"`
@@ -33,7 +33,7 @@ type Product struct {
 type ProductTag struct {
 	ProductID snowflake.ID `gorm:"column:product_id;primaryKey" json:"product_id"`
 	TagID     int          `gorm:"column:tag_id;primaryKey" json:"tag_id"`
-	ShopID    uint64       `gorm:"column:shop_id;index;not null" json:"shop_id"` // 恢复 ShopID 字段
+	ShopID    snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"` // 店铺ID
 	CreatedAt time.Time    `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time    `gorm:"column:updated_at" json:"updated_at"`
 }

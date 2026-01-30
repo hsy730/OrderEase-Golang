@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
@@ -80,9 +81,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	// 解析请求参数
 	var req struct {
-		ID     string `json:"id" binding:"required"`
-		Status string `json:"status" binding:"required,oneof=pending online offline"`
-		ShopID int64  `json:"shop_id" binding:"required"`
+		ID     snowflake.ID `json:"id" binding:"required"`
+		Status string       `json:"status" binding:"required,oneof=pending online offline"`
+		ShopID snowflake.ID `json:"shop_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("解析请求参数失败: %v", err)
@@ -90,20 +91,14 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, uint64(req.ShopID))
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	productId, err := strconv.ParseUint(req.ID, 10, 64)
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 获取当前商品信息
-	productModel, err := h.productRepo.GetProductByID(productId, validShopID)
+	productModel, err := h.productRepo.GetProductByID(uint64(req.ID), validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -121,7 +116,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	// 更新商品状态
-	if err := h.productRepo.UpdateStatus(productId, validShopID, req.Status); err != nil {
+	if err := h.productRepo.UpdateStatus(uint64(req.ID), validShopID, req.Status); err != nil {
 		log2.Errorf("更新商品状态失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
 		return
@@ -142,7 +137,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 func (h *Handler) GetProducts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -189,7 +184,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -217,7 +212,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -300,7 +295,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -352,7 +347,7 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return

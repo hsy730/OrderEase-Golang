@@ -5,6 +5,7 @@ import (
 	"orderease/models"
 	"orderease/utils/log2"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +20,7 @@ func NewOrderRepository(db *gorm.DB) *OrderRepository {
 }
 
 // GetOrderByIDAndShopID 根据订单ID和店铺ID获取订单（预加载Items和Options）
-func (r *OrderRepository) GetOrderByIDAndShopID(orderID uint64, shopID uint64) (*models.Order, error) {
+func (r *OrderRepository) GetOrderByIDAndShopID(orderID uint64, shopID snowflake.ID) (*models.Order, error) {
 	var order models.Order
 	// 预加载Items和Items.Options
 	err := r.DB.Preload("Items").
@@ -38,7 +39,7 @@ func (r *OrderRepository) GetOrderByIDAndShopID(orderID uint64, shopID uint64) (
 }
 
 // GetOrderByIDAndShopIDStr 根据订单ID（字符串）和店铺ID获取订单（预加载Items和Options）
-func (r *OrderRepository) GetOrderByIDAndShopIDStr(orderID string, shopID uint64) (*models.Order, error) {
+func (r *OrderRepository) GetOrderByIDAndShopIDStr(orderID string, shopID snowflake.ID) (*models.Order, error) {
 	var order models.Order
 	// 预加载Items和Items.Options
 	err := r.DB.Preload("Items").
@@ -57,7 +58,7 @@ func (r *OrderRepository) GetOrderByIDAndShopIDStr(orderID string, shopID uint64
 }
 
 // GetOrdersByShop 获取店铺的订单列表（分页）
-func (r *OrderRepository) GetOrdersByShop(shopID uint64, page, pageSize int) ([]models.Order, int64, error) {
+func (r *OrderRepository) GetOrdersByShop(shopID snowflake.ID, page, pageSize int) ([]models.Order, int64, error) {
 	var orders []models.Order
 	var total int64
 
@@ -85,7 +86,7 @@ func (r *OrderRepository) GetOrdersByShop(shopID uint64, page, pageSize int) ([]
 }
 
 // GetOrdersByUser 获取用户的订单列表（分页）
-func (r *OrderRepository) GetOrdersByUser(userID string, shopID uint64, page, pageSize int) ([]models.Order, int64, error) {
+func (r *OrderRepository) GetOrdersByUser(userID string, shopID snowflake.ID, page, pageSize int) ([]models.Order, int64, error) {
 	var orders []models.Order
 	var total int64
 
@@ -113,7 +114,7 @@ func (r *OrderRepository) GetOrdersByUser(userID string, shopID uint64, page, pa
 }
 
 // GetUnfinishedOrders 获取未完成的订单列表
-func (r *OrderRepository) GetUnfinishedOrders(shopID uint64, unfinishedStatuses []int, page, pageSize int) ([]models.Order, int64, error) {
+func (r *OrderRepository) GetUnfinishedOrders(shopID snowflake.ID, unfinishedStatuses []int, page, pageSize int) ([]models.Order, int64, error) {
 	var orders []models.Order
 	var total int64
 
@@ -178,7 +179,7 @@ type AdvanceSearchOrderRequest struct {
 	Status    []int
 	StartTime string
 	EndTime   string
-	ShopID    uint64
+	ShopID    snowflake.ID
 }
 
 // AdvanceSearchResult 高级搜索结果
@@ -310,7 +311,7 @@ func (r *OrderRepository) UpdateOrder(order *models.Order, newItems []models.Ord
 }
 
 // DeleteOrder 删除订单及其关联数据（事务）
-func (r *OrderRepository) DeleteOrder(orderID string, shopID uint64) error {
+func (r *OrderRepository) DeleteOrder(orderID string, shopID snowflake.ID) error {
 	tx := r.DB.Begin()
 
 	// 删除订单项
@@ -348,7 +349,7 @@ func (r *OrderRepository) DeleteOrder(orderID string, shopID uint64) error {
 }
 
 // DeleteOrderInTx 在给定事务中删除订单及其关联数据（不提交事务）
-func (r *OrderRepository) DeleteOrderInTx(tx *gorm.DB, orderID string, shopID uint64) error {
+func (r *OrderRepository) DeleteOrderInTx(tx *gorm.DB, orderID string, shopID snowflake.ID) error {
 	// 删除订单项
 	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
 		log2.Errorf("DeleteOrderInTx delete items failed: %v", err)

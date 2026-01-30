@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"orderease/domain/tag"
 	"orderease/models"
+	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
 	"strings"
@@ -52,7 +53,7 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -86,7 +87,7 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -127,7 +128,7 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -165,7 +166,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
 		TagID      int            `json:"tag_id" binding:"required"`
-		ShopID     uint64         `json:"shop_id" binding:"required"`
+		ShopID     snowflake.ID   `json:"shop_id" binding:"required"`
 	}
 
 	var req request
@@ -180,10 +181,8 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		return
 	}
 
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
-
 	// 检查标签是否存在
-	tag, err := h.tagRepo.GetByIDAndShopID(req.TagID, req.ShopID)
+	tag, err := h.tagRepo.GetByIDAndShopID(req.TagID, validShopID)
 	if err != nil {
 		h.logger.Errorf("标签不存在, ID: %d", req.TagID)
 		errorResponse(c, http.StatusNotFound, "标签不存在")
@@ -238,7 +237,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -298,7 +297,7 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -354,7 +353,7 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -392,7 +391,7 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -432,7 +431,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -485,7 +484,7 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 
 // 新增独立方法处理未绑定商品查询（已移至 Repository，此方法保留以防其他地方调用）
 func (h *Handler) getUnboundProducts(shopID uint64, page int, pageSize int, onlyOnline bool) ([]models.Product, int64, error) {
-	result, err := h.tagRepo.GetUnboundProductsWithPagination(shopID, page, pageSize, onlyOnline)
+	result, err := h.tagRepo.GetUnboundProductsWithPagination(snowflake.ID(shopID), page, pageSize, onlyOnline)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -500,7 +499,7 @@ func (h *Handler) GetTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
+	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
@@ -527,7 +526,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []snowflake.ID `json:"product_ids" binding:"required"`
 		TagID      uint           `json:"tag_id" binding:"required"`
-		ShopID     uint64         `json:"shop_id" binding:"required"`
+		ShopID     snowflake.ID   `json:"shop_id" binding:"required"`
 	}
 
 	var req request
@@ -542,7 +541,6 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 检查标签是否存在
 	tag, err := h.tagRepo.GetByIDAndShopID(int(req.TagID), validShopID)
@@ -570,9 +568,9 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 // BatchTagProduct 批量设置商品标签
 func (h *Handler) BatchTagProduct(c *gin.Context) {
 	type request struct {
-		ProductID snowflake.ID `json:"product_id" binding:"required"`
-		TagIDs    []int        `json:"tag_ids" binding:"required"`
-		ShopID    uint64       `json:"shop_id" binding:"required"`
+		ProductID snowflake.ID   `json:"product_id" binding:"required"`
+		TagIDs    []int          `json:"tag_ids" binding:"required"`
+		ShopID    snowflake.ID   `json:"shop_id" binding:"required"`
 	}
 
 	var req request
@@ -586,10 +584,9 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	req.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
 	// 替换原有查询代码
-	currentTags, err := h.productRepo.GetCurrentProductTags(req.ProductID, req.ShopID)
+	currentTags, err := h.productRepo.GetCurrentProductTags(req.ProductID, validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取当前标签失败")
 		return
@@ -600,7 +597,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		CurrentTags: currentTags,
 		NewTagIDs:   req.TagIDs,
 		ProductID:   req.ProductID,
-		ShopID:      req.ShopID,
+		ShopID:      snowflake.ID(req.ShopID),
 	})
 	if err != nil {
 		h.logger.Errorf("批量更新标签失败: %v", err)

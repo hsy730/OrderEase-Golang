@@ -23,7 +23,7 @@ type UpdateProductTagsDTO struct {
 	CurrentTags []models.Tag
 	NewTagIDs   []int
 	ProductID   snowflake.ID
-	ShopID      uint64
+	ShopID      snowflake.ID
 }
 
 // UpdateProductTagsResult 更新结果

@@ -4,17 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"orderease/config"
-	"orderease/handlers"
+	"orderease/providers"
 	"orderease/routes"
-	"orderease/services"
 	"orderease/utils/log2"
 	"os"
 	"strings"
 	"time"
-
-	"orderease/database"
-	"orderease/tasks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -58,15 +53,12 @@ func init() {
 }
 
 func main() {
-	// 初始化日志
-	log2.InitLogger()
-	log2.Info("服务启动...")
-
-	// 加载配置文件
-	if err := config.LoadConfig("config/config.yaml"); err != nil {
-		log2.Fatal("加载配置文件失败:", err)
+	// 使用依赖注入容器初始化应用
+	container, err := providers.InitializeApp("config/config.yaml")
+	if err != nil {
+		log.Fatal("初始化应用失败:", err)
 	}
-	log2.Info("配置加载成功")
+	log2.Info("应用初始化成功")
 
 	// 设置 Gin 模式
 	gin.SetMode(gin.ReleaseMode)
@@ -92,18 +84,8 @@ func main() {
 		c.Next()
 	})
 
-	// 连接数据库
-	db, err := database.Init()
-	if err != nil {
-		log.Fatalf("数据库初始化失败: %v", err)
-	}
-	log2.Info("数据库连接成功")
-
-	// 创建处理器
-	h := handlers.NewHandler(db)
-
 	// 设置路由
-	routes.SetupRoutes(r, h)
+	routes.SetupRoutes(r, container.Handler)
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
@@ -137,17 +119,13 @@ func main() {
 	}
 	log2.Info("上传目录创建成功")
 
-	// 初始化清理任务
-	cleanupTask := tasks.NewCleanupTask(db)
-	cleanupTask.StartCleanupTask()
-
-	// 初始化临时令牌服务并启动定时刷新任务
-	tempTokenService := services.NewTempTokenService()
-	tempTokenService.SetupCronJob()
-	log2.Info("临时令牌定时刷新任务已启动")
+	// 启动后台任务
+	container.CleanupTask.StartCleanupTask()
+	container.TempTokenService.SetupCronJob()
+	log2.Info("后台任务已启动")
 
 	// 启动服务器
-	serverAddr := fmt.Sprintf("%s:%d", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
+	serverAddr := fmt.Sprintf("%s:%d", container.Config.Server.Host, container.Config.Server.Port)
 	log2.Info("服务器启动在 %s", serverAddr)
 	log2.Fatal(r.Run(serverAddr))
 }

@@ -16,6 +16,7 @@ import (
 
 	"strings"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -106,7 +107,7 @@ func NewHandler(db *gorm.DB) *Handler {
 		tagRepo:          repositories.NewTagRepository(db),
 		tokenRepo:        repositories.NewTokenRepository(db),
 		logger:           log2.GetLogger(),
-		tempTokenService: services.NewTempTokenService(),
+		tempTokenService: services.NewTempTokenService(db),
 		userDomain:       userDomain,
 		orderService:     orderService,
 		productService:   productService,
@@ -130,7 +131,7 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 	return &userInfo, nil
 }
 
-func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, error) {
+func (h *Handler) validAndReturnShopID(c *gin.Context, shopID snowflake.ID) (snowflake.ID, error) {
 	// 如果是管理端接口，普通用户（店主）需要使用绑定的shopId
 	if strings.Contains(c.Request.URL.Path, "/shopOwner/") {
 		requestUser, err := h.getRequestUserInfo(c)
@@ -138,7 +139,7 @@ func (h *Handler) validAndReturnShopID(c *gin.Context, shopID uint64) (uint64, e
 			return 0, errors.New("获取用户信息失败")
 		}
 		if !requestUser.IsAdmin {
-			shopID = requestUser.UserID // 非管理员，设置shopID为用户ID
+			shopID = snowflake.ID(requestUser.UserID) // 非管理员，设置shopID为用户ID
 		}
 	} else {
 		log2.Debugf("非管理端接口，shopID: %d", shopID)

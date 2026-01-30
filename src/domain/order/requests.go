@@ -10,7 +10,7 @@ import (
 type CreateOrderRequest struct {
 	ID     snowflake.ID             `json:"id"`
 	UserID snowflake.ID             `json:"user_id"`
-	ShopID uint64                   `json:"shop_id"`
+	ShopID snowflake.ID             `json:"shop_id"`
 	Items  []CreateOrderItemRequest `json:"items"`
 	Remark string                   `json:"remark"`
 	Status int                      `json:"status"`
@@ -60,13 +60,13 @@ type CreateOrderItemOption struct {
 
 // AdvanceSearchOrderRequest 高级查询订单请求 DTO
 type AdvanceSearchOrderRequest struct {
-	Page      int    `json:"page"`
-	PageSize  int    `json:"pageSize"`
-	UserID    string `json:"user_id"`
-	Status    []int  `json:"status"`
-	StartTime string `json:"start_time"`
-	EndTime   string `json:"end_time"`
-	ShopID    uint64 `json:"shop_id"`
+	Page      int          `json:"page"`
+	PageSize  int          `json:"pageSize"`
+	UserID    string       `json:"user_id"`
+	Status    []int        `json:"status"`
+	StartTime string       `json:"start_time"`
+	EndTime   string       `json:"end_time"`
+	ShopID    snowflake.ID `json:"shop_id"`
 }
 
 // Validate 验证高级查询请求
@@ -85,14 +85,14 @@ func (r *AdvanceSearchOrderRequest) Validate() error {
 
 // ToggleOrderStatusRequest 切换订单状态请求 DTO
 type ToggleOrderStatusRequest struct {
-	ID         string `json:"id" binding:"required"`
-	ShopID     uint64 `json:"shop_id" binding:"required"`
-	NextStatus int    `json:"next_status" binding:"required"`
+	ID         snowflake.ID `json:"id" binding:"required"`
+	ShopID     snowflake.ID `json:"shop_id" binding:"required"`
+	NextStatus int          `json:"next_status" binding:"required"`
 }
 
 // Validate 验证切换订单状态请求
 func (r *ToggleOrderStatusRequest) Validate() error {
-	if r.ID == "" {
+	if r.ID == 0 {
 		return fmt.Errorf("订单ID不能为空")
 	}
 	if r.ShopID == 0 {

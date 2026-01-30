@@ -2,11 +2,11 @@ package services
 
 import (
 	"fmt"
-	"orderease/database"
 	"orderease/models"
 	"orderease/utils"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
@@ -17,14 +17,14 @@ type TempTokenService struct {
 }
 
 // NewTempTokenService 创建临时令牌服务实例
-func NewTempTokenService() *TempTokenService {
+func NewTempTokenService(db *gorm.DB) *TempTokenService {
 	return &TempTokenService{
-		db: database.GetDB(),
+		db: db,
 	}
 }
 
 // CreateShopSystemUser 为店铺创建系统用户
-func (s *TempTokenService) CreateShopSystemUser(shopID uint64) (models.User, error) {
+func (s *TempTokenService) CreateShopSystemUser(shopID snowflake.ID) (models.User, error) {
 	// 检查是否已存在系统用户
 	var existingUser models.User
 	if err := s.db.Where("type = ? AND name = ?", "system", fmt.Sprintf("shop_%d_system", shopID)).First(&existingUser).Error; err == nil {
@@ -49,7 +49,7 @@ func (s *TempTokenService) CreateShopSystemUser(shopID uint64) (models.User, err
 }
 
 // GenerateTempToken 为店铺生成临时令牌
-func (s *TempTokenService) GenerateTempToken(shopID uint64) (models.TempToken, error) {
+func (s *TempTokenService) GenerateTempToken(shopID snowflake.ID) (models.TempToken, error) {
 	// 为店铺创建系统用户
 	user, err := s.CreateShopSystemUser(shopID)
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *TempTokenService) GenerateTempToken(shopID uint64) (models.TempToken, e
 }
 
 // GetValidTempToken 获取店铺的有效临时令牌，若过期则自动刷新
-func (s *TempTokenService) GetValidTempToken(shopID uint64) (models.TempToken, error) {
+func (s *TempTokenService) GetValidTempToken(shopID snowflake.ID) (models.TempToken, error) {
 	var token models.TempToken
 	if err := s.db.Where("shop_id = ?", shopID).First(&token).Error; err != nil {
 		// 令牌不存在，生成新令牌
@@ -108,7 +108,7 @@ func (s *TempTokenService) GetValidTempToken(shopID uint64) (models.TempToken, e
 }
 
 // ValidateTempToken 验证临时令牌是否有效
-func (s *TempTokenService) ValidateTempToken(shopID uint64, token string) (bool, models.User, error) {
+func (s *TempTokenService) ValidateTempToken(shopID snowflake.ID, token string) (bool, models.User, error) {
 	var tempToken models.TempToken
 	if err := s.db.Where("shop_id = ? AND token = ?", shopID, token).First(&tempToken).Error; err != nil {
 		return false, models.User{}, err

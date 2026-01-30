@@ -1,12 +1,14 @@
 package shop
 
+import "github.com/bwmarrin/snowflake"
+
 // Repository 店铺仓储接口
 type Repository interface {
 	// Create 创建店铺
 	Create(shop *Shop) error
 
 	// GetByID 根据ID获取店铺
-	GetByID(id uint64) (*Shop, error)
+	GetByID(id snowflake.ID) (*Shop, error)
 
 	// GetByOwnerUsername 根据店主用户名获取店铺
 	GetByOwnerUsername(username string) (*Shop, error)
@@ -24,7 +26,7 @@ type Repository interface {
 	Delete(shop *Shop) error
 
 	// Exists 检查店铺是否存在
-	Exists(id uint64) (bool, error)
+	Exists(id snowflake.ID) (bool, error)
 
 	// NameExists 检查店铺名称是否存在
 	NameExists(name string) (bool, error)
