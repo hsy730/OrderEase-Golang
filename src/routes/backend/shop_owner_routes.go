@@ -25,6 +25,12 @@ func SetupShopRoutes(r *gin.Engine, h *handlers.Handler) {
 		// 商户基础接口
 		shopOwner.POST("/change-password", h.ChangeShopPassword)
 
+		// 数据看板接口
+		dashboard := shopOwner.Group("/dashboard")
+		{
+			dashboard.GET("/stats", h.GetDashboardStats)
+		}
+
 		// 商品管理接口
 		product := shopOwner.Group("/product")
 		{

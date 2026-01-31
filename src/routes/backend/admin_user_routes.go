@@ -22,6 +22,12 @@ func SetupAdminRoutes(r *gin.Engine, h *handlers.Handler) {
 		// 管理员基础接口
 		admin.POST("/change-password", h.ChangeAdminPassword)
 
+		// 数据看板接口
+		dashboard := admin.Group("/dashboard")
+		{
+			dashboard.GET("/stats", h.GetDashboardStats)
+		}
+
 		shop := admin.Group("/shop")
 		{
 			shop.POST("/create", h.CreateShop)
