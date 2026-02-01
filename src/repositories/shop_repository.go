@@ -169,3 +169,14 @@ func (r *ShopRepository) UpdateImageURL(shopID snowflake.ID, imageURL string) er
 	}
 	return nil
 }
+
+// ExistsById 检查店铺是否存在
+func (r *ShopRepository) ExistsById(shopID snowflake.ID) (bool, error) {
+	var count int64
+	err := r.DB.Model(&models.Shop{}).Where("id = ?", shopID).Count(&count).Error
+	if err != nil {
+		log2.Errorf("ExistsById failed: %v", err)
+		return false, errors.New("检查店铺是否存在失败")
+	}
+	return count > 0, nil
+}

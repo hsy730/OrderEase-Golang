@@ -23,7 +23,12 @@ const maxProductImageZipSize = 512 * 1024
 // 修改商品结构体以支持参数类别
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var request struct {
-		models.Product
+		ShopID          snowflake.ID                       `json:"shop_id" binding:"required"`
+		Name            string                             `json:"name" binding:"required,min=1,max=200"`
+		Description     string                             `json:"description" binding:"max=5000"`
+		Price           float64                            `json:"price" binding:"required,gt=0"`
+		Stock           int                                `json:"stock" binding:"required,min=0"`
+		ImageURL        string                             `json:"image_url"`
 		OptionCategories []models.ProductOptionCategory `json:"option_categories"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -31,20 +36,31 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, request.Product.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, request.ShopID)
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 验证店铺是否存在
+	shopExists, err := h.shopRepo.ExistsById(validShopID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "验证店铺失败")
+		return
+	}
+	if !shopExists {
+		errorResponse(c, http.StatusNotFound, "店铺不存在")
 		return
 	}
 
 	// 使用领域实体创建商品（封装完整创建逻辑）
 	productDomain := productdomain.NewProductWithDefaults(
 		validShopID,
-		request.Product.Name,
-		request.Product.Price,
-		request.Product.Stock,
-		request.Product.Description,
-		request.Product.ImageURL,
+		request.Name,
+		request.Price,
+		request.Stock,
+		request.Description,
+		request.ImageURL,
 		request.OptionCategories,
 	)
 
@@ -234,7 +250,11 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	productDomain := productdomain.ProductFromModel(productModel)
 
 	var request struct {
-		models.Product
+		Name            string                             `json:"name" binding:"omitempty,min=1,max=200"`
+		Description     string                             `json:"description" binding:"omitempty,max=5000"`
+		Price           float64                            `json:"price" binding:"omitempty,gt=0"`
+		Stock           int                                `json:"stock" binding:"omitempty,min=0"`
+		ImageURL        string                             `json:"image_url"`
 		OptionCategories []models.ProductOptionCategory `json:"option_categories"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -242,22 +262,28 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
+	// 验证shop_id是否匹配
+	if validShopID != productDomain.ShopID() {
+		errorResponse(c, http.StatusForbidden, "无权操作此商品")
+		return
+	}
+
 	// 更新领域实体字段
-	if request.Product.Name != "" {
-		productDomain.SetName(request.Product.Name)
+	if request.Name != "" {
+		productDomain.SetName(request.Name)
 	}
-	if request.Product.Description != "" {
-		productDomain.SetDescription(request.Product.Description)
+	if request.Description != "" {
+		productDomain.SetDescription(request.Description)
 	}
-	if request.Product.Price > 0 {
-		productDomain.SetPrice(request.Product.Price)
+	if request.Price > 0 {
+		productDomain.SetPrice(request.Price)
 	}
-	if request.Product.ImageURL != "" {
-		productDomain.SetImageURL(request.Product.ImageURL)
+	if request.ImageURL != "" {
+		productDomain.SetImageURL(request.ImageURL)
 	}
 	// 库存验证（使用领域实体验证）
-	if request.Product.Stock > 0 && request.Product.Stock != productDomain.Stock() {
-		productDomain.SetStock(request.Product.Stock)
+	if request.Stock >= 0 && request.Stock != productDomain.Stock() {
+		productDomain.SetStock(request.Stock)
 	}
 
 	// 清理商品数据（防止XSS攻击）
