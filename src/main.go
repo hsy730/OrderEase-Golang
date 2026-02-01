@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
@@ -69,6 +70,8 @@ func main() {
 	// 使用中间件
 	r.Use(gin.Recovery())
 	r.Use(LoggerMiddleware())
+	// Gzip 压缩中间件 - 减少传输体积
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	// CORS 中间件
 	r.Use(func(c *gin.Context) {

@@ -253,7 +253,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		Name            string                             `json:"name" binding:"omitempty,min=1,max=200"`
 		Description     string                             `json:"description" binding:"omitempty,max=5000"`
 		Price           float64                            `json:"price" binding:"omitempty,gt=0"`
-		Stock           int                                `json:"stock" binding:"omitempty,min=0"`
+		Stock           *int                               `json:"stock" binding:"omitempty,min=0"`
 		ImageURL        string                             `json:"image_url"`
 		OptionCategories []models.ProductOptionCategory `json:"option_categories"`
 	}
@@ -262,10 +262,10 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	// 验证至少有一个字段要更新（注意：stock=0是有效值，需通过检查其他字段判断）
+	// 验证至少有一个字段要更新
 	allEmpty := request.Name == "" && request.Description == "" &&
 		request.ImageURL == "" && len(request.OptionCategories) == 0
-	noNumericUpdate := request.Price == 0 && (request.Stock == 0 || request.Stock == productDomain.Stock())
+	noNumericUpdate := request.Price == 0 && (request.Stock == nil || *request.Stock == productDomain.Stock())
 	if allEmpty && noNumericUpdate {
 		errorResponse(c, http.StatusBadRequest, "至少需要提供一个要更新的字段")
 		return
@@ -290,9 +290,9 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	if request.ImageURL != "" {
 		productDomain.SetImageURL(request.ImageURL)
 	}
-	// 库存验证（使用领域实体验证）
-	if request.Stock >= 0 && request.Stock != productDomain.Stock() {
-		productDomain.SetStock(request.Stock)
+	// 库存验证（使用指针类型区分"未传值"和"传了0值"）
+	if request.Stock != nil && *request.Stock != productDomain.Stock() {
+		productDomain.SetStock(*request.Stock)
 	}
 
 	// 清理商品数据（防止XSS攻击）

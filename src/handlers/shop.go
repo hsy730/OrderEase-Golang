@@ -456,8 +456,8 @@ func (h *Handler) UploadShopImage(c *gin.Context) {
 	// 使用 Media Service 构建文件路径
 	filePath := h.mediaService.BuildFilePath(uploadDir, filename)
 
-	// 使用 Media Service 保存文件
-	if err := h.mediaService.SaveUploadedFile(c, file, filePath); err != nil {
+	// 直接保存文件（Gin 1.11+ 的 SaveUploadedFile 方法签名已改变）
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
 		h.logger.Errorf("保存文件失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
 		return

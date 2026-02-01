@@ -241,15 +241,25 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 
 // 更新订单
 func (h *Handler) UpdateOrder(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	idStr := c.Query("id")
+	if idStr == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
 		return
 	}
 
-	order, err := h.orderRepo.GetByIDStr(id)
+	// 将字符串类型的 ID 转换为整数（与其他 Handler 保持一致）
+	// 先验证 ID 格式是否正确
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		h.logger.Errorf("更新订单失败, ID: %s, 错误: %v", id, err)
+		h.logger.Errorf("无效的订单ID格式: %s, 错误: %v", idStr, err)
+		errorResponse(c, http.StatusBadRequest, "无效的订单ID")
+		return
+	}
+
+	// 使用转换后的整数 ID 进行查询（转换为字符串）
+	order, err := h.orderRepo.GetByIDStr(fmt.Sprint(id))
+	if err != nil {
+		h.logger.Errorf("更新订单失败, ID: %d, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
 	}
@@ -265,6 +275,14 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	// 验证 shop_id（与 CreateOrder 保持一致）
+	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(updateData.ShopID))
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	updateData.ShopID = validShopID
 
 	// 构建领域服务 DTO
 	var itemsDTO []orderdomain.CreateOrderItemDTO
@@ -311,7 +329,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	}
 
 	// 重新获取更新后的订单信息
-	order, err = h.orderRepo.GetByIDStrWithItems(id)
+	order, err = h.orderRepo.GetByIDStrWithItems(fmt.Sprint(id))
 	if err != nil {
 		h.logger.Errorf("获取更新后的订单信息失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "获取更新后的订单信息失败")
