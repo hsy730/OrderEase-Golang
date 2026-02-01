@@ -262,6 +262,15 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
+	// 验证至少有一个字段要更新（注意：stock=0是有效值，需通过检查其他字段判断）
+	allEmpty := request.Name == "" && request.Description == "" &&
+		request.ImageURL == "" && len(request.OptionCategories) == 0
+	noNumericUpdate := request.Price == 0 && (request.Stock == 0 || request.Stock == productDomain.Stock())
+	if allEmpty && noNumericUpdate {
+		errorResponse(c, http.StatusBadRequest, "至少需要提供一个要更新的字段")
+		return
+	}
+
 	// 验证shop_id是否匹配
 	if validShopID != productDomain.ShopID() {
 		errorResponse(c, http.StatusForbidden, "无权操作此商品")
