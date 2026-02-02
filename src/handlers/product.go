@@ -420,6 +420,17 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
+	// 验证目录是否可写
+	testFile := uploadDir + "/.write_test"
+	if f, err := os.Create(testFile); err != nil {
+		log2.Errorf("上传目录不可写: %v, 路径: %s", err, uploadDir)
+		errorResponse(c, http.StatusInternalServerError, "上传目录不可写")
+		return
+	} else {
+		f.Close()
+		os.Remove(testFile)
+	}
+
 	// 使用 Media Service 删除旧图片
 	if err := h.mediaService.RemoveOldImage(product.ImageURL); err != nil {
 		log2.Errorf("删除旧图片失败: %v", err)
@@ -431,9 +442,28 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	// 使用 Media Service 构建文件路径
 	filePath := h.mediaService.BuildFilePath(uploadDir, filename)
 
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		log2.Errorf("保存文件失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "保存文件失败")
+	// 打开源文件
+	src, err := file.Open()
+	if err != nil {
+		log2.Errorf("打开上传文件失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "打开上传文件失败")
+		return
+	}
+	defer src.Close()
+
+	// 创建目标文件
+	dst, err := os.Create(filePath)
+	if err != nil {
+		log2.Errorf("创建目标文件失败: %v, 路径: %s", err, filePath)
+		errorResponse(c, http.StatusInternalServerError, "创建目标文件失败")
+		return
+	}
+	defer dst.Close()
+
+	// 复制文件内容
+	if _, err := dst.ReadFrom(src); err != nil {
+		log2.Errorf("写入文件失败: %v, 路径: %s", err, filePath)
+		errorResponse(c, http.StatusInternalServerError, "写入文件失败")
 		return
 	}
 
