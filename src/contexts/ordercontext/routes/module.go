@@ -2,8 +2,8 @@ package routes
 
 import (
 	ordercontextHandlers "orderease/contexts/ordercontext/application/handlers"
-	"orderease/routes/backend"
-	"orderease/routes/frontend"
+	"orderease/contexts/ordercontext/routes/backend"
+	"orderease/contexts/ordercontext/routes/frontend"
 
 	"github.com/gin-gonic/gin"
 )
