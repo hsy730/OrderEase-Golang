@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/snowflake"
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 	"orderease/models"
 )
 

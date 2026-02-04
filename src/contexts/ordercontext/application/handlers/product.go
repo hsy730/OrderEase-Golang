@@ -3,7 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	productdomain "orderease/domain/product"
+	productdomain "orderease/contexts/ordercontext/domain/product"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"

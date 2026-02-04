@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 	"orderease/models"
 )
 

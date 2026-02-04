@@ -2,13 +2,13 @@ package frontend
 
 import (
 	"orderease/config"
-	"orderease/handlers"
+	ordercontextHandlers "orderease/contexts/ordercontext/application/handlers"
 	"orderease/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupFrontNoAuthRoutes(r *gin.Engine, h *handlers.Handler) {
+func SetupFrontNoAuthRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 	// 获取基础路径
 	basePath := config.AppConfig.Server.BasePath
 

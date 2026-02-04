@@ -3,7 +3,7 @@ package user
 import (
 	"errors"
 
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 )
 
 // Service 用户领域服务

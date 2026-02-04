@@ -6,7 +6,7 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/stretchr/testify/assert"
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 	"orderease/models"
 )
 

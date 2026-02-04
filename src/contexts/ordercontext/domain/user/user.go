@@ -6,7 +6,7 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"golang.org/x/crypto/bcrypt"
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 	"orderease/models"
 	"orderease/utils"
 )

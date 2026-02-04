@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 
-	shopdomain "orderease/domain/shop"
+	shopdomain "orderease/contexts/ordercontext/domain/shop"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"

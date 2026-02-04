@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
-	"orderease/domain/shop"
-	"orderease/domain/shared/value_objects"
+	"orderease/contexts/ordercontext/domain/shop"
+	"orderease/contexts/ordercontext/domain/shared/value_objects"
 	"orderease/models"
 	"orderease/utils"
 	"orderease/utils/log2"

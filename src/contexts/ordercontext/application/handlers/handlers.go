@@ -2,17 +2,18 @@ package handlers
 
 import (
 	"errors"
-	"orderease/domain/media"
-	"orderease/domain/order"
-	"orderease/domain/product"
-	"orderease/domain/shop"
-	"orderease/domain/tag"
-	"orderease/domain/user"
+	"orderease/contexts/ordercontext/domain/media"
+	"orderease/contexts/ordercontext/domain/order"
+	"orderease/contexts/ordercontext/domain/product"
+	"orderease/contexts/ordercontext/domain/shop"
+	"orderease/contexts/ordercontext/domain/tag"
+	"orderease/contexts/ordercontext/domain/user"
 	"orderease/models"
 	"orderease/services"
 	"orderease/utils/log2"
 
-	"orderease/repositories"
+	externalRepositories "orderease/repositories"
+	orderContextRepositories "orderease/contexts/ordercontext/infrastructure/repositories"
 
 	"strings"
 
@@ -28,14 +29,14 @@ const (
 type Handler struct {
 	DB               *gorm.DB
 	logger           *log2.Logger
-	productRepo      *repositories.ProductRepository
-	userRepo         *repositories.UserRepository
-	adminRepo        *repositories.AdminRepository
-	orderRepo        *repositories.OrderRepository
-	shopRepo         *repositories.ShopRepository
-	tagRepo          *repositories.TagRepository
-	tokenRepo        *repositories.TokenRepository
-	dashboardRepo    *repositories.DashboardRepository
+	productRepo      *orderContextRepositories.ProductRepository
+	userRepo         *orderContextRepositories.UserRepository
+	adminRepo        *externalRepositories.AdminRepository
+	orderRepo        *orderContextRepositories.OrderRepository
+	shopRepo         *orderContextRepositories.ShopRepository
+	tagRepo          *orderContextRepositories.TagRepository
+	tokenRepo        *externalRepositories.TokenRepository
+	dashboardRepo    *externalRepositories.DashboardRepository
 	tempTokenService *services.TempTokenService
 	userDomain       *user.Service
 	orderService     *order.Service
@@ -47,7 +48,7 @@ type Handler struct {
 
 // 创建处理器实例
 func NewHandler(db *gorm.DB) *Handler {
-	userRepo := repositories.NewUserRepository(db)
+	userRepo := orderContextRepositories.NewUserRepository(db)
 
 	// 创建 Repository 适配器，将 repositories.UserRepository 适配到 domain.Repository
 	userRepoAdapter := user.NewRepositoryAdapter(
@@ -100,14 +101,14 @@ func NewHandler(db *gorm.DB) *Handler {
 
 	return &Handler{
 		DB:               db,
-		productRepo:      repositories.NewProductRepository(db),
+		productRepo:      orderContextRepositories.NewProductRepository(db),
 		userRepo:         userRepo,
-		adminRepo:        repositories.NewAdminRepository(db),
-		orderRepo:        repositories.NewOrderRepository(db),
-		shopRepo:         repositories.NewShopRepository(db),
-		tagRepo:          repositories.NewTagRepository(db),
-		tokenRepo:        repositories.NewTokenRepository(db),
-		dashboardRepo:    repositories.NewDashboardRepository(db),
+		adminRepo:        externalRepositories.NewAdminRepository(db),
+		orderRepo:        orderContextRepositories.NewOrderRepository(db),
+		shopRepo:         orderContextRepositories.NewShopRepository(db),
+		tagRepo:          orderContextRepositories.NewTagRepository(db),
+		tokenRepo:        externalRepositories.NewTokenRepository(db),
+		dashboardRepo:    externalRepositories.NewDashboardRepository(db),
 		logger:           log2.GetLogger(),
 		tempTokenService: services.NewTempTokenService(db),
 		userDomain:       userDomain,

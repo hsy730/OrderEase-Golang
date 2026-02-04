@@ -2,13 +2,13 @@ package backend
 
 import (
 	"orderease/config"
-	"orderease/handlers"
+	ordercontextHandlers "orderease/contexts/ordercontext/application/handlers"
 	"orderease/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupNoAuthRoutes(r *gin.Engine, h *handlers.Handler) {
+func SetupNoAuthRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 	basePath := config.AppConfig.Server.BasePath
 
 	// 公开路由组 - 不需要认证

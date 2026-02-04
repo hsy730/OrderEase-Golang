@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"orderease/config"
 	"orderease/database"
-	"orderease/handlers"
+	ordercontextHandlers "orderease/contexts/ordercontext/application/handlers"
 	"orderease/services"
 	"orderease/tasks"
 	"orderease/utils/log2"
@@ -17,7 +17,7 @@ type Container struct {
 	Config           *config.Config
 	DB               *gorm.DB
 	Logger           *log2.Logger
-	Handler          *handlers.Handler
+	Handler          *ordercontextHandlers.Handler
 	TempTokenService *services.TempTokenService
 	CleanupTask      *tasks.CleanupTask
 }
@@ -44,7 +44,7 @@ func InitializeApp(configPath string) (*Container, error) {
 	container.DB = db
 
 	// 4. 创建 Handler（Handler 的 NewHandler 会创建所有依赖）
-	container.Handler = handlers.NewHandler(db)
+	container.Handler = ordercontextHandlers.NewHandler(db)
 
 	// 5. 创建 Application Services（需要从 Handler 获取或单独创建）
 	tempTokenService := services.NewTempTokenService(db)

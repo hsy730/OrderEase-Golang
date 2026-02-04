@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"orderease/models"
-	userdomain "orderease/domain/user"
+	userdomain "orderease/contexts/ordercontext/domain/user"
 	"orderease/utils"
 	"strconv"
 	"time"
