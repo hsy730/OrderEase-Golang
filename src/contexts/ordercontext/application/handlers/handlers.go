@@ -8,12 +8,10 @@ import (
 	"orderease/contexts/ordercontext/domain/shop"
 	"orderease/contexts/ordercontext/domain/tag"
 	"orderease/contexts/ordercontext/domain/user"
+	"orderease/contexts/ordercontext/infrastructure/repositories"
 	"orderease/models"
 	"orderease/services"
 	"orderease/utils/log2"
-
-	externalRepositories "orderease/repositories"
-	orderContextRepositories "orderease/contexts/ordercontext/infrastructure/repositories"
 
 	"strings"
 
@@ -29,14 +27,14 @@ const (
 type Handler struct {
 	DB               *gorm.DB
 	logger           *log2.Logger
-	productRepo      *orderContextRepositories.ProductRepository
-	userRepo         *orderContextRepositories.UserRepository
-	adminRepo        *externalRepositories.AdminRepository
-	orderRepo        *orderContextRepositories.OrderRepository
-	shopRepo         *orderContextRepositories.ShopRepository
-	tagRepo          *orderContextRepositories.TagRepository
-	tokenRepo        *externalRepositories.TokenRepository
-	dashboardRepo    *externalRepositories.DashboardRepository
+	productRepo      *repositories.ProductRepository
+	userRepo         *repositories.UserRepository
+	adminRepo        *repositories.AdminRepository
+	orderRepo        *repositories.OrderRepository
+	shopRepo         *repositories.ShopRepository
+	tagRepo          *repositories.TagRepository
+	tokenRepo        *repositories.TokenRepository
+	dashboardRepo    *repositories.DashboardRepository
 	tempTokenService *services.TempTokenService
 	userDomain       *user.Service
 	orderService     *order.Service
@@ -48,7 +46,7 @@ type Handler struct {
 
 // 创建处理器实例
 func NewHandler(db *gorm.DB) *Handler {
-	userRepo := orderContextRepositories.NewUserRepository(db)
+	userRepo := repositories.NewUserRepository(db)
 
 	// 创建 Repository 适配器，将 repositories.UserRepository 适配到 domain.Repository
 	userRepoAdapter := user.NewRepositoryAdapter(
@@ -101,14 +99,14 @@ func NewHandler(db *gorm.DB) *Handler {
 
 	return &Handler{
 		DB:               db,
-		productRepo:      orderContextRepositories.NewProductRepository(db),
+		productRepo:      repositories.NewProductRepository(db),
 		userRepo:         userRepo,
-		adminRepo:        externalRepositories.NewAdminRepository(db),
-		orderRepo:        orderContextRepositories.NewOrderRepository(db),
-		shopRepo:         orderContextRepositories.NewShopRepository(db),
-		tagRepo:          orderContextRepositories.NewTagRepository(db),
-		tokenRepo:        externalRepositories.NewTokenRepository(db),
-		dashboardRepo:    externalRepositories.NewDashboardRepository(db),
+		adminRepo:        repositories.NewAdminRepository(db),
+		orderRepo:        repositories.NewOrderRepository(db),
+		shopRepo:         repositories.NewShopRepository(db),
+		tagRepo:          repositories.NewTagRepository(db),
+		tokenRepo:        repositories.NewTokenRepository(db),
+		dashboardRepo:    repositories.NewDashboardRepository(db),
 		logger:           log2.GetLogger(),
 		tempTokenService: services.NewTempTokenService(db),
 		userDomain:       userDomain,

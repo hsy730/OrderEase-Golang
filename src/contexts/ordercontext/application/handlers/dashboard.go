@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"orderease/repositories"
+	"orderease/contexts/ordercontext/infrastructure/repositories"
 	"orderease/utils/log2"
 	"sync"
 	"time"

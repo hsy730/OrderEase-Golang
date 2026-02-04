@@ -5,8 +5,8 @@ import (
 	"net/http"
 	orderdomain "orderease/contexts/ordercontext/domain/order"
 	"orderease/contexts/ordercontext/domain/user"
+	"orderease/contexts/ordercontext/infrastructure/repositories"
 	"orderease/models"
-	orderContextRepositories "orderease/contexts/ordercontext/infrastructure/repositories"
 	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
@@ -507,7 +507,7 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 	}
 
 	// 使用 Repository 执行高级搜索
-	result, err := h.orderRepo.AdvanceSearch(orderContextRepositories.AdvanceSearchOrderRequest{
+	result, err := h.orderRepo.AdvanceSearch(repositories.AdvanceSearchOrderRequest{
 		Page:      req.Page,
 		PageSize:  req.PageSize,
 		UserID:    req.UserID,
