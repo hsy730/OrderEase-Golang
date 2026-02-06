@@ -1,3 +1,17 @@
+// Package shop (service) 提供店铺领域服务。
+//
+// 职责：
+//   - 处理店铺删除的业务编排
+//   - 有效期处理和默认值设置
+//   - 订单状态流转配置解析
+//
+// 特点：
+//   - 部分方法管理事务（如 DeleteShop）
+//   - 协调领域实体和基础设施层
+//
+// 事务边界：
+//   - DeleteShop: 内部管理事务
+//   - ProcessValidUntil/ParseOrderStatusFlow: 无事务
 package shop
 
 import (
@@ -11,8 +25,15 @@ import (
 	"orderease/models"
 )
 
-// Service Shop 领域服务
-// 处理需要多个实体协作或需要基础设施的业务逻辑
+// Service 店铺领域服务
+//
+// 职责边界：
+//   - 需要跨实体查询的业务逻辑
+//   - 需要事务保证的操作
+//   - 复杂数据转换
+//
+// 依赖：
+//   - *gorm.DB: 数据库连接
 type Service struct {
 	db *gorm.DB
 }
@@ -24,11 +45,28 @@ func NewService(db *gorm.DB) *Service {
 	}
 }
 
-// DeleteShop 删除店铺（业务编排）
-// 1. 检查店铺是否可删除（使用 Shop.CanDelete）
-// 2. 开启事务
-// 3. 删除关联数据（如果有）
-// 4. 删除店铺
+// DeleteShop 删除店铺（带事务）
+//
+// 执行流程：
+//   1. 查询店铺信息
+//   2. 检查关联商品数量
+//   3. 检查关联订单数量
+//   4. 使用领域实体验证可删除性
+//   5. 开启事务
+//   6. 删除店铺（及相关数据）
+//   7. 提交事务
+//
+// 参数：
+//   - shopID: 店铺ID
+//
+// 返回：
+//   - nil:   删除成功
+//   - error: 验证失败或删除失败
+//
+// 注意：
+//   - 此方法内部管理事务
+//   - 有关联数据时无法删除
+//   - 删除后无法恢复
 func (s *Service) DeleteShop(shopID snowflake.ID) error {
 	// 查询店铺
 	var shopModel models.Shop
@@ -85,7 +123,19 @@ func (s *Service) DeleteShop(shopID snowflake.ID) error {
 }
 
 // ProcessValidUntil 处理店铺有效期
-// 解析用户提供的有效期字符串，如果为空则使用默认值（1年）
+//
+// 参数：
+//   - validUntilStr: 有效期字符串（RFC3339 格式），可为空
+//
+// 返回：
+//   - time.Time: 处理后的有效期
+//   - error:     解析错误
+//
+// 默认值：
+//   - 如果 validUntilStr 为空，返回当前时间 + 1年
+//
+// 格式示例：
+//   - "2024-12-31T23:59:59Z"
 func (s *Service) ProcessValidUntil(validUntilStr string) (time.Time, error) {
 	// 默认有效期1年
 	validUntil := time.Now().AddDate(1, 0, 0)

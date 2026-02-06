@@ -1,3 +1,33 @@
+// Package user 提供用户领域模型的核心业务逻辑。
+//
+// 职责：
+//   - 用户生命周期管理（注册、信息更新）
+//   - 用户认证（密码验证）
+//   - 用户信息验证（手机号、密码格式）
+//
+// 业务规则：
+//   - 手机号使用 Phone 值对象验证（11位，1开头）
+//   - 密码使用 Password 值对象验证（6-20位，字母+数字）
+//   - 前端用户使用 SimplePassword（6位）
+//   - 密码使用 bcrypt 哈希存储
+//
+// 用户类型：
+//   - delivery: 邮寄配送
+//   - pickup:   自提
+//
+// 用户角色：
+//   - private_user: 私有用户
+//   - public_user:  公开用户
+//
+// 使用示例：
+//
+//	// 创建普通用户
+//	user, err := user.NewUser("张三", "13800138000", "Pass123", user.UserTypeDelivery, user.UserRolePublic)
+//
+//	// 验证密码
+//	if err := user.VerifyPassword(inputPassword); err != nil {
+//	    return errors.New("密码错误")
+//	}
 package user
 
 import (
@@ -12,6 +42,16 @@ import (
 )
 
 // User 用户实体（充血模型）
+//
+// 充血模型特点：
+//   - 封装业务逻辑（密码验证、格式校验）
+//   - 通过值对象保证数据有效性
+//   - 自包含业务规则
+//
+// 约束：
+//   - phone 使用 Phone 值对象，保证格式正确
+//   - password 使用 Password 值对象，保证强度
+//   - id 由系统自动生成，不可修改
 type User struct {
 	id       UserID
 	name     string
@@ -51,7 +91,26 @@ const (
 	UserRolePublic  UserRole = "public_user"  // 公开用户
 )
 
-// NewUser 创建用户实体（带验证）
+// NewUser 创建用户实体（带完整验证）
+//
+// 参数：
+//   - name:     用户姓名
+//   - phone:    手机号（11位，1开头）
+//   - password: 密码（6-20位，必须包含字母和数字）
+//   - userType: 用户类型（delivery/pickup）
+//   - role:     用户角色（private_user/public_user）
+//
+// 返回：
+//   - *User: 创建成功的用户实体
+//   - error: 验证失败（手机号格式/密码强度）
+//
+// 验证流程：
+//   1. 手机号格式验证（Phone 值对象）
+//   2. 密码强度验证（Password 值对象）
+//   3. 生成唯一用户ID
+//
+// 使用场景：
+//   - 后端用户注册
 func NewUser(name string, phone string, password string, userType UserType, role UserRole) (*User, error) {
 	// 使用值对象进行验证
 	phoneVO, err := value_objects.NewPhone(phone)
@@ -74,7 +133,24 @@ func NewUser(name string, phone string, password string, userType UserType, role
 	}, nil
 }
 
-// NewSimpleUser 创建简单用户（用于前端注册，6位密码）
+// NewSimpleUser 创建简单用户（前端用户注册专用）
+//
+// 参数：
+//   - name:     用户姓名
+//   - password: 简单密码（6位，纯数字）
+//
+// 返回：
+//   - *User: 创建成功的用户实体
+//   - error: 验证失败
+//
+// 特点：
+//   - 无手机号要求（Phone 为空值对象）
+//   - 6位简单密码（SimplePassword 值对象）
+//   - 默认类型：delivery
+//   - 默认角色：public_user
+//
+// 使用场景：
+//   - 前端用户快速注册
 func NewSimpleUser(name string, password string) (*User, error) {
 	// 前端用户无手机号，使用空Phone值对象
 	phoneVO, _ := value_objects.NewPhone("")
@@ -163,7 +239,18 @@ func (u *User) SetAddress(address string) {
 
 // 业务方法
 
-// ValidatePassword 验证密码
+// ValidatePassword 验证密码格式（不比对）
+//
+// 参数：
+//   - plainPassword: 明文密码
+//
+// 返回：
+//   - nil: 密码格式符合要求
+//   - error: 密码格式错误
+//
+// 与 VerifyPassword 的区别：
+//   - ValidatePassword: 仅验证格式，用于注册时
+//   - VerifyPassword:   比对哈希值，用于登录时
 func (u *User) ValidatePassword(plainPassword string) error {
 	_, err := value_objects.NewPassword(plainPassword)
 	return err
@@ -174,8 +261,23 @@ func (u *User) HasPhone() bool {
 	return !u.phone.IsEmpty()
 }
 
-// VerifyPassword 验证用户密码（与存储的哈希密码比对）
-// 这是真实的密码验证，用于登录场景
+// VerifyPassword 验证用户密码（登录用）
+//
+// 参数：
+//   - plainPassword: 明文密码
+//
+// 返回：
+//   - nil: 密码正确
+//   - error: 密码错误或哈希无效
+//
+// 验证逻辑：
+//   1. 获取存储的密码哈希
+//   2. 如果是明文（开发环境），直接比对
+//   3. 如果是哈希，使用 bcrypt 比对
+//
+// 使用场景：
+//   - 用户登录验证
+//   - 敏感操作二次验证
 func (u *User) VerifyPassword(plainPassword string) error {
 	hashedPassword := u.password.String()
 
@@ -191,7 +293,18 @@ func (u *User) VerifyPassword(plainPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
 }
 
-// ToModel 转换为持久化模型（用于保存到数据库）
+// ToModel 转换为持久化模型
+//
+// 转换过程：
+//   1. 解析或生成用户ID（snowflake ID）
+//   2. 密码哈希处理（如果未哈希）
+//   3. 映射所有字段到 models.User
+//
+// 安全处理：
+//   - 如果密码不是 bcrypt 哈希格式，自动进行哈希
+//   - 支持开发环境明文密码（自动转换）
+//
+// 返回：可直接用于 GORM 创建的 models.User
 func (u *User) ToModel() *models.User {
 	id := utils.GenerateSnowflakeID()
 	if u.id != "" {

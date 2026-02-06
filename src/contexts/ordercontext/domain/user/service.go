@@ -1,3 +1,19 @@
+// Package user (service) 提供用户领域服务。
+//
+// 职责：
+//   - 用户注册（管理员创建、前端注册）
+//   - 用户信息更新（手机号、密码）
+//   - 用户查询
+//
+// 注册类型：
+//   - Register:              管理员创建，使用强密码规则
+//   - SimpleRegister:        前端快速注册，6位简单密码
+//   - RegisterWithPasswordValidation: 前端注册，6-20位标准密码
+//
+// 验证规则：
+//   - 用户名唯一性
+//   - 手机号唯一性
+//   - 密码强度（根据注册类型不同）
 package user
 
 import (
@@ -7,6 +23,18 @@ import (
 )
 
 // Service 用户领域服务
+//
+// 职责边界：
+//   - 用户注册完整流程（验证+创建+持久化）
+//   - 用户信息更新（手机号、密码）
+//   - 用户查询
+//
+// 依赖：
+//   - Repository: 用户数据访问
+//
+// 注意：
+//   - 不处理登录认证（认证在 Handler 层）
+//   - 不处理事务（由 Repository 或 Handler 管理）
 type Service struct {
 	repo Repository
 }
