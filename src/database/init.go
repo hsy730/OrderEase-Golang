@@ -53,6 +53,10 @@ func Init() (*gorm.DB, error) {
 		&models.Shop{},
 		&models.TempToken{}, // 添加临时令牌表
 
+		// 第三方平台相关表
+		&models.OAuthState{},              // OAuth State 管理表
+		&models.UserThirdpartyBinding{},   // 第三方平台绑定表
+
 		&models.OrderStatusLog{},   // 不需要迁移数据
 		&models.Admin{},            // 不需要迁移数据
 		&models.BlacklistedToken{}, // 不需要迁移数据

@@ -16,9 +16,18 @@ database:
   dbname: mysql
   charset: utf8mb4
   parseTime: true
-  loc: Local 
+  loc: Local
   logLevel: 4 # 1=Silent, 2=Error, 3=Warn, 4=Info, 5=Debug
 
 jwt:
   secret: "e6jf493kdhbms9ew6mv2v1a4dx2"  # 建议使用随机生成的复杂字符串
   expiration: 7200  # token过期时间，单位为秒（2小时）
+
+# 第三方平台配置
+thirdparty:
+  wechat:
+    enabled: false  # 是否启用微信登录（默认关闭，需要配置后开启）
+    app_id: ""      # 微信公众号 AppID
+    app_secret: ""  # 微信公众号 AppSecret
+    redirect_uri: "https://your-domain.com/api/order-ease/v1/thirdparty/wechat/callback"  # 授权回调地址
+    scope: "snsapi_base"  # 授权作用域：snsapi_base（静默授权）| snsapi_userinfo（获取用户信息）

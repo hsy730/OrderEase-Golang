@@ -5,6 +5,7 @@ import (
 	"orderease/config"
 	"orderease/database"
 	ordercontextHandlers "orderease/contexts/ordercontext/application/handlers"
+	thirdpartyHandlers "orderease/contexts/thirdparty/application/handlers"
 	"orderease/services"
 	"orderease/tasks"
 	"orderease/utils/log2"
@@ -18,6 +19,7 @@ type Container struct {
 	DB               *gorm.DB
 	Logger           *log2.Logger
 	Handler          *ordercontextHandlers.Handler
+	ThirdPartyHandler *thirdpartyHandlers.Handler
 	TempTokenService *services.TempTokenService
 	CleanupTask      *tasks.CleanupTask
 }
@@ -43,10 +45,20 @@ func InitializeApp(configPath string) (*Container, error) {
 	}
 	container.DB = db
 
-	// 4. 创建 Handler（Handler 的 NewHandler 会创建所有依赖）
+	// 4. 创建 ordercontext Handler
 	container.Handler = ordercontextHandlers.NewHandler(db)
 
-	// 5. 创建 Application Services（需要从 Handler 获取或单独创建）
+	// 5. 创建 thirdparty Handler（可选，如果配置启用）
+	thirdpartyHandler, err := thirdpartyHandlers.NewHandler(db)
+	if err != nil {
+		// 第三方平台初始化失败不影响主流程
+		log2.Warnf("第三方平台处理器初始化失败: %v", err)
+		container.ThirdPartyHandler = nil
+	} else {
+		container.ThirdPartyHandler = thirdpartyHandler
+	}
+
+	// 6. 创建 Application Services
 	tempTokenService := services.NewTempTokenService(db)
 	container.TempTokenService = tempTokenService
 

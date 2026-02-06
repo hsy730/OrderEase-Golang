@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"orderease/contexts/ordercontext/routes"
+	thirdpartyRoutes "orderease/contexts/thirdparty/interfaces/http/routes"
 	"orderease/providers"
 	"orderease/utils/log2"
 	"os"
@@ -89,6 +90,12 @@ func main() {
 
 	// 设置路由
 	routes.SetupRoutes(r, container.Handler)
+
+	// 设置第三方平台路由（如果已启用）
+	if container.ThirdPartyHandler != nil {
+		thirdpartyRoutes.SetupRoutes(r, container.ThirdPartyHandler)
+		log2.Info("第三方平台路由已注册")
+	}
 
 	// 静态文件服务
 	r.Static("/uploads", "./uploads")
