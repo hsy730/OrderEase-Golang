@@ -21,6 +21,10 @@ type WeChatError struct {
 	ErrMsg  string
 }
 
+// 导出类型别名用于其他包引用
+type APIError = WeChatError
+type ErrorCode = WeChatErrorCode
+
 // Error 实现 error 接口
 func (e *WeChatError) Error() string {
 	return fmt.Sprintf("WeChat API error: [%d] %s", e.ErrCode, e.ErrMsg)

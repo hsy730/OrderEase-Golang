@@ -26,8 +26,15 @@ jwt:
 # 第三方平台配置
 thirdparty:
   wechat:
+    # 微信公众号配置
     enabled: false  # 是否启用微信登录（默认关闭，需要配置后开启）
     app_id: ""      # 微信公众号 AppID
     app_secret: ""  # 微信公众号 AppSecret
     redirect_uri: "https://your-domain.com/api/order-ease/v1/thirdparty/wechat/callback"  # 授权回调地址
     scope: "snsapi_base"  # 授权作用域：snsapi_base（静默授权）| snsapi_userinfo（获取用户信息）
+
+    # 微信小程序配置
+    miniprogram:
+      enabled: false  # 需要配置后设为 true
+      app_id: ""     # 小程序 AppID
+      app_secret: "" # 小程序 AppSecret

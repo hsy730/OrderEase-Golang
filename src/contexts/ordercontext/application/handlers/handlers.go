@@ -25,23 +25,24 @@ const (
 )
 
 type Handler struct {
-	DB               *gorm.DB
-	logger           *log2.Logger
-	productRepo      *repositories.ProductRepository
-	userRepo         *repositories.UserRepository
-	adminRepo        *repositories.AdminRepository
-	orderRepo        *repositories.OrderRepository
-	shopRepo         *repositories.ShopRepository
-	tagRepo          *repositories.TagRepository
-	tokenRepo        *repositories.TokenRepository
-	dashboardRepo    *repositories.DashboardRepository
-	tempTokenService *services.TempTokenService
-	userDomain       *user.Service
-	orderService     *order.Service
-	productService   *product.Service
-	mediaService     *media.ImageUploadService
-	shopService      *shop.Service
-	tagService       *tag.Service
+	DB                    *gorm.DB
+	logger                *log2.Logger
+	productRepo           *repositories.ProductRepository
+	userRepo              *repositories.UserRepository
+	adminRepo             *repositories.AdminRepository
+	orderRepo             *repositories.OrderRepository
+	shopRepo              *repositories.ShopRepository
+	tagRepo               *repositories.TagRepository
+	tokenRepo             *repositories.TokenRepository
+	dashboardRepo         *repositories.DashboardRepository
+	tempTokenService       *services.TempTokenService
+	userDomain            *user.Service
+	orderService          *order.Service
+	productService        *product.Service
+	mediaService          *media.ImageUploadService
+	shopService           *shop.Service
+	tagService            *tag.Service
+	miniProgramAuthHandler *MiniProgramAuthHandler
 }
 
 // 创建处理器实例
@@ -97,24 +98,32 @@ func NewHandler(db *gorm.DB) *Handler {
 	shopService := shop.NewService(db)
 	tagService := tag.NewService(db)
 
+	// 初始化小程序认证处理器
+	miniProgramHandler, err := NewMiniProgramAuthHandler(db)
+	if err != nil {
+		log2.GetLogger().Warnf("小程序认证处理器初始化失败: %v", err)
+		miniProgramHandler = nil
+	}
+
 	return &Handler{
-		DB:               db,
-		productRepo:      repositories.NewProductRepository(db),
-		userRepo:         userRepo,
-		adminRepo:        repositories.NewAdminRepository(db),
-		orderRepo:        repositories.NewOrderRepository(db),
-		shopRepo:         repositories.NewShopRepository(db),
-		tagRepo:          repositories.NewTagRepository(db),
-		tokenRepo:        repositories.NewTokenRepository(db),
-		dashboardRepo:    repositories.NewDashboardRepository(db),
-		logger:           log2.GetLogger(),
-		tempTokenService: services.NewTempTokenService(db),
-		userDomain:       userDomain,
-		orderService:     orderService,
-		productService:   productService,
-		mediaService:     mediaService,
-		shopService:      shopService,
-		tagService:       tagService,
+		DB:                    db,
+		productRepo:           repositories.NewProductRepository(db),
+		userRepo:              userRepo,
+		adminRepo:             repositories.NewAdminRepository(db),
+		orderRepo:             repositories.NewOrderRepository(db),
+		shopRepo:              repositories.NewShopRepository(db),
+		tagRepo:               repositories.NewTagRepository(db),
+		tokenRepo:             repositories.NewTokenRepository(db),
+		dashboardRepo:         repositories.NewDashboardRepository(db),
+		logger:                log2.GetLogger(),
+		tempTokenService:       services.NewTempTokenService(db),
+		userDomain:            userDomain,
+		orderService:          orderService,
+		productService:        productService,
+		mediaService:          mediaService,
+		shopService:           shopService,
+		tagService:            tagService,
+		miniProgramAuthHandler: miniProgramHandler,
 	}
 }
 
@@ -163,4 +172,9 @@ func (h *Handler) checkShopExpiration(shopModel *models.Shop) error {
 		return errors.New("店铺服务已到期")
 	}
 	return nil
+}
+
+// GetMiniProgramAuthHandler 获取小程序认证处理器
+func (h *Handler) GetMiniProgramAuthHandler() *MiniProgramAuthHandler {
+	return h.miniProgramAuthHandler
 }

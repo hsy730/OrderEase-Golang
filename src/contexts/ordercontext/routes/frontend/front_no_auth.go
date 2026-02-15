@@ -19,4 +19,10 @@ func SetupFrontNoAuthRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 	public.POST("/user/register", h.FrontendUserRegister) // 前端用户注册
 	public.GET("/user/check-username", h.CheckUsernameExists)
 
+	// 新增：微信小程序登录接口
+	miniProgramHandler := h.GetMiniProgramAuthHandler()
+	if miniProgramHandler != nil {
+		public.POST("/user/wechat-login", miniProgramHandler.WeChatMiniProgramLogin)
+	}
+
 }
