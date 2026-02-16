@@ -225,21 +225,28 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 // generateUsername 生成用户名
 func (h *MiniProgramAuthHandler) generateUsername(openID, nickName string) string {
 	if nickName != "" {
-		// 使用昵称，加上后缀避免重复
-		return fmt.Sprintf("wx_%s", nickName)
+		// 使用昵称 + OpenID 后6位 避免重复
+		suffix := ""
+		if len(openID) >= 6 {
+			suffix = openID[len(openID)-6:]
+		}
+		return fmt.Sprintf("wx_%s_%s", nickName, suffix)
 	}
-	// 使用 OpenID 后6位
-	if len(openID) >= 6 {
-		return fmt.Sprintf("wx_user_%s", openID[len(openID)-6:])
+	// 使用 OpenID 后8位
+	if len(openID) >= 8 {
+		return fmt.Sprintf("wx_user_%s", openID[len(openID)-8:])
 	}
 	return fmt.Sprintf("wx_user_%s", openID)
 }
 
 // extractAvatarURL 提取头像 URL
 func (h *MiniProgramAuthHandler) extractAvatarURL(user *models.User, openID string) string {
-	// 优先返回用户表的 avatar_url
-	if user.Nickname != "" {
-		return user.Nickname
+	var binding models.UserThirdpartyBinding
+	if err := h.db.Where("user_id = ? AND provider = ?", uint64(user.ID), oauth.ProviderWeChat.String()).
+		First(&binding).Error; err == nil {
+		if binding.AvatarURL != "" {
+			return binding.AvatarURL
+		}
 	}
 	return ""
 }
@@ -248,7 +255,7 @@ func (h *MiniProgramAuthHandler) extractAvatarURL(user *models.User, openID stri
 func (h *MiniProgramAuthHandler) extractGender(user *models.User) int {
 	// 从绑定表查询
 	var binding models.UserThirdpartyBinding
-	if err := h.db.Where("user_id = ? AND provider = ?", user.ID, oauth.ProviderWeChat.String()).First(&binding).Error; err == nil {
+	if err := h.db.Where("user_id = ? AND provider = ?", uint64(user.ID), oauth.ProviderWeChat.String()).First(&binding).Error; err == nil {
 		return binding.Gender
 	}
 	return 0
