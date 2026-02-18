@@ -215,6 +215,12 @@ func (s *Service) UpdatePhone(id UserID, phone string) error {
 		return err
 	}
 
+	// 如果新手机号与当前手机号相同，直接返回（无需更新）
+	currentPhone := user.Phone()
+	if currentPhone == phone {
+		return nil
+	}
+
 	// 检查新手机号是否已被其他用户使用
 	if phone != "" {
 		exists, err := s.repo.PhoneExists(phone)

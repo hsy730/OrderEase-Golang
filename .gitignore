@@ -42,6 +42,7 @@ go.work
 # 临时文件
 tmp/
 temp/
+tmp*-cwd
 
 # 本地配置文件备份
 *.yaml.bak
