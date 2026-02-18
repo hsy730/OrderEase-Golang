@@ -220,7 +220,7 @@ func (h *WeChatHandler) findOrCreateUser(result *oauth.OAuthResult) (*models.Use
 
 	// 创建绑定
 	binding = &models.UserThirdpartyBinding{
-		UserID:         uint64(user.ID),
+		UserID:         user.ID,
 		Provider:       oauth.ProviderWeChat.String(),
 		ProviderUserID: result.OpenID,
 		UnionID:        result.UnionID,

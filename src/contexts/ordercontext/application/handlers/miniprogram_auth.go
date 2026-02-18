@@ -195,7 +195,7 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 
 	// 创建绑定
 	binding = &models.UserThirdpartyBinding{
-		UserID:         uint64(user.ID),
+		UserID:         user.ID,
 		Provider:       oauth.ProviderWeChat.String(),
 		ProviderUserID: providerUserID,
 		UnionID:        sessionInfo.UnionID,

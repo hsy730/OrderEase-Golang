@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/bwmarrin/snowflake"
 )
 
 // UserThirdpartyBinding 用户第三方平台绑定
 type UserThirdpartyBinding struct {
 	ID             uint      `gorm:"primarykey" json:"id"`
-	UserID         uint64    `gorm:"column:user_id;not null;index:idx_user_id;comment:用户ID" json:"user_id"`
+	UserID         snowflake.ID `gorm:"column:user_id;type:bigint unsigned;not null;index:idx_user_id;comment:用户ID" json:"user_id"`
 	Provider       string    `gorm:"column:provider;type:varchar(20);not null;index:idx_provider;comment:平台类型" json:"provider"`
 	ProviderUserID string    `gorm:"column:provider_user_id;type:varchar(128);not null;comment:第三方平台用户ID" json:"provider_user_id"`
 	UnionID        string    `gorm:"column:union_id;type:varchar(128);index:idx_union_id;comment:开放平台统一ID" json:"union_id,omitempty"`
