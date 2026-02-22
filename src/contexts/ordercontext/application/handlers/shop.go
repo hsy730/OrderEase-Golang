@@ -171,7 +171,8 @@ func (h *Handler) CreateShop(c *gin.Context) {
 
 	// 使用 Domain 实体创建店铺（密码哈希由 ToModel() 处理）
 	shopDomain := shopdomain.NewShop(shopData.Name, shopData.OwnerUsername, validUntil)
-	shopDomain.SetOwnerPassword(shopData.OwnerPassword) // 设置明文密码
+	shopDomain.SetID(utils.GenerateSnowflakeID())
+	shopDomain.SetOwnerPassword(shopData.OwnerPassword)
 	shopDomain.SetContactPhone(shopData.ContactPhone)
 	shopDomain.SetContactEmail(shopData.ContactEmail)
 	shopDomain.SetDescription(shopData.Description)
