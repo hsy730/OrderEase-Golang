@@ -43,21 +43,21 @@ func (h *Handler) GetShopTags(c *gin.Context) {
 func (h *Handler) GetShopInfo(c *gin.Context) {
 	shopID := c.Query("shop_id")
 
-	// 转换店铺ID为数字
-	shopIDInt, err := strconv.Atoi(shopID)
-	if err != nil || shopIDInt <= 0 {
+	// 转换店铺ID为雪花ID
+	shopSnowflakeID, err := utils.StringToSnowflakeID(shopID)
+	if err != nil || shopSnowflakeID <= 0 {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
 
 	// 使用 Repository 获取店铺及其标签
-	shop, err := h.shopRepo.GetWithTags(snowflake.ID(shopIDInt))
+	shop, err := h.shopRepo.GetWithTags(shopSnowflakeID)
 	if err != nil {
 		if err.Error() == "店铺不存在" {
 			errorResponse(c, http.StatusNotFound, "店铺不存在")
 			return
 		}
-		h.logger.Errorf("查询店铺失败，ID: %d，错误: %v", shopIDInt, err)
+		h.logger.Errorf("查询店铺失败，ID: %d，错误: %v", shopSnowflakeID, err)
 		errorResponse(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
