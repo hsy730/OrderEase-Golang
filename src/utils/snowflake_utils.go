@@ -2,24 +2,40 @@ package utils
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/bwmarrin/snowflake"
 )
 
-var node *snowflake.Node
+var (
+	node     *snowflake.Node
+	nodeOnce sync.Once
+)
 
 func init() {
 	// 传入的是节点的编号， 比如当前有三个节点部署了服务，编号1，2，3.
 	// 不同节点的服务编号不能相同，否则会出现生成的ID重复的情况
 	// 为了方便测试，这里直接写死了，实际开发中应该从配置文件中读取
-	n, err := snowflake.NewNode(1)
-	if err != nil {
-		panic(err)
-	}
-	node = n
+	nodeOnce.Do(func() {
+		n, err := snowflake.NewNode(1)
+		if err != nil {
+			panic(err)
+		}
+		node = n
+	})
 }
 
 func GenerateSnowflakeID() snowflake.ID {
+	// Double-check initialization for thread safety
+	if node == nil {
+		nodeOnce.Do(func() {
+			n, err := snowflake.NewNode(1)
+			if err != nil {
+				panic(err)
+			}
+			node = n
+		})
+	}
 	return node.Generate()
 }
 

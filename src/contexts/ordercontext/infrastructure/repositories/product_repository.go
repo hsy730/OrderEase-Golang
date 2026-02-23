@@ -3,7 +3,9 @@ package repositories
 import (
 	"errors"
 	"orderease/models"
+	"orderease/utils"
 	"orderease/utils/log2"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -101,73 +103,117 @@ type ProductListResult struct {
 	Total    int64
 }
 
-// CreateWithCategories 创建商品及其参数类别（事务）
+// CreateWithCategories 创建商品及其参数类别（事务，带ID重试机制）
 func (r *ProductRepository) CreateWithCategories(product *models.Product, categories []models.ProductOptionCategory) error {
-	tx := r.DB.Begin()
+	maxRetries := 3
 
-	// 创建商品
-	if err := tx.Create(product).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("CreateWithCategories create product failed: %v", err)
-		return errors.New("创建商品失败")
-	}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		tx := r.DB.Begin()
 
-	// 创建商品参数类别
-	for i := range categories {
-		category := categories[i]
-		category.ProductID = product.ID
-
-		if err := tx.Create(&category).Error; err != nil {
+		// 创建商品
+		if err := tx.Create(product).Error; err != nil {
 			tx.Rollback()
-			log2.Errorf("CreateWithCategories create category failed: %v", err)
-			return errors.New("创建商品参数失败")
+			// 检查是否是重复键错误
+			if isDuplicateKeyError(err) && attempt < maxRetries-1 {
+				// 重新生成ID并重试
+				product.ID = utils.GenerateSnowflakeID()
+				continue
+			}
+			log2.Errorf("CreateWithCategories create product failed: %v", err)
+			return errors.New("创建商品失败")
 		}
+
+		// 创建商品参数类别
+		for i := range categories {
+			categoryRetry := 0
+			category := categories[i]
+			for categoryRetry < maxRetries {
+				category.ProductID = product.ID
+
+				if err := tx.Create(&category).Error; err != nil {
+					// 检查是否是重复键错误
+					if isDuplicateKeyError(err) && categoryRetry < maxRetries-1 {
+						// 重新生成ID并重试
+						category.ID = utils.GenerateSnowflakeID()
+						categoryRetry++
+						continue
+					}
+					tx.Rollback()
+					log2.Errorf("CreateWithCategories create category failed: %v", err)
+					return errors.New("创建商品参数失败")
+				}
+				break
+			}
+			// 更新原始切片中的ID，以便下次重试时使用新的ID
+			categories[i].ID = category.ID
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			log2.Errorf("CreateWithCategories commit failed: %v", err)
+			return errors.New("创建商品失败")
+		}
+
+		return nil
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		log2.Errorf("CreateWithCategories commit failed: %v", err)
-		return errors.New("创建商品失败")
-	}
-
-	return nil
+	return errors.New("创建商品失败：重复ID重试次数超限")
 }
 
-// UpdateWithCategories 更新商品及其参数类别（事务）
+// UpdateWithCategories 更新商品及其参数类别（事务，带ID重试机制）
 func (r *ProductRepository) UpdateWithCategories(product *models.Product, categories []models.ProductOptionCategory) error {
-	tx := r.DB.Begin()
+	maxRetries := 3
 
-	// 保存更新后的商品信息
-	if err := tx.Save(product).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("UpdateWithCategories save product failed: %v", err)
-		return errors.New("更新商品失败")
-	}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		tx := r.DB.Begin()
 
-	// 删除旧的参数类别
-	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
-		tx.Rollback()
-		log2.Errorf("UpdateWithCategories delete old categories failed: %v", err)
-		return errors.New("更新商品参数失败")
-	}
-
-	// 创建新的参数类别
-	for i := range categories {
-		category := categories[i]
-		category.ProductID = product.ID
-
-		if err := tx.Create(&category).Error; err != nil {
+		// 保存更新后的商品信息
+		if err := tx.Save(product).Error; err != nil {
 			tx.Rollback()
-			log2.Errorf("UpdateWithCategories create category failed: %v", err)
+			log2.Errorf("UpdateWithCategories save product failed: %v", err)
+			return errors.New("更新商品失败")
+		}
+
+		// 删除旧的参数类别
+		if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+			tx.Rollback()
+			log2.Errorf("UpdateWithCategories delete old categories failed: %v", err)
 			return errors.New("更新商品参数失败")
 		}
+
+		// 创建新的参数类别
+		for i := range categories {
+			categoryRetry := 0
+			category := categories[i]
+			for categoryRetry < maxRetries {
+				category.ProductID = product.ID
+
+				if err := tx.Create(&category).Error; err != nil {
+					// 检查是否是重复键错误
+					if isDuplicateKeyError(err) && categoryRetry < maxRetries-1 {
+						// 重新生成ID并重试
+						category.ID = utils.GenerateSnowflakeID()
+						categoryRetry++
+						continue
+					}
+					tx.Rollback()
+					log2.Errorf("UpdateWithCategories create category failed: %v", err)
+					return errors.New("更新商品参数失败")
+				}
+				break
+			}
+			// 更新原始切片中的ID
+			categories[i].ID = category.ID
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			log2.Errorf("UpdateWithCategories commit failed: %v", err)
+			return errors.New("更新商品失败")
+		}
+
+		return nil
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		log2.Errorf("UpdateWithCategories commit failed: %v", err)
-		return errors.New("更新商品失败")
-	}
-
-	return nil
+	return errors.New("更新商品失败：重复ID重试次数超限")
 }
 
 // DeleteWithDependencies 删除商品及其关联数据（事务）
@@ -251,4 +297,14 @@ func (r *ProductRepository) GetProductsByShop(shopID snowflake.ID, page int, pag
 		Products: products,
 		Total:    total,
 	}, nil
+}
+
+// isDuplicateKeyError 检查是否是MySQL重复键错误
+func isDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// MySQL duplicate entry error: Error 1062 (23000)
+	errStr := err.Error()
+	return strings.Contains(errStr, "Duplicate entry") || strings.Contains(errStr, "1062")
 }
