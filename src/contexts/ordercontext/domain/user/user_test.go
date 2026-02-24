@@ -89,14 +89,32 @@ func TestNewUser(t *testing.T) {
 			errMsg:   "密码长度必须在6-20位",
 		},
 		{
-			name:     "invalid password - only letters",
+			name:     "valid password - only letters (weak password allows this)",
 			username: "testuser",
 			phone:    "13800138000",
 			password: "abcdef",
 			userType: UserTypeDelivery,
 			role:     UserRolePublic,
+			wantErr:  false,
+		},
+		{
+			name:     "valid password - only digits (weak password allows this)",
+			username: "testuser",
+			phone:    "13800138000",
+			password: "123456",
+			userType: UserTypeDelivery,
+			role:     UserRolePublic,
+			wantErr:  false,
+		},
+		{
+			name:     "invalid password - only special chars",
+			username: "testuser",
+			phone:    "13800138000",
+			password: "!@#$%^",
+			userType: UserTypeDelivery,
+			role:     UserRolePublic,
 			wantErr:  true,
-			errMsg:   "密码必须包含字母和数字",
+			errMsg:   "密码必须包含字母或数字",
 		},
 	}
 
@@ -148,25 +166,31 @@ func TestNewSimpleUser(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name:     "valid simple user - 20 chars",
+			username: "testuser",
+			password: "abcdefghijklmn12345",
+			wantErr:  false,
+		},
+		{
 			name:     "invalid - too short",
 			username: "testuser",
 			password: "abc12",
 			wantErr:  true,
-			errMsg:   "密码必须为6位",
+			errMsg:   "密码长度必须在6-20位",
 		},
 		{
 			name:     "invalid - too long",
 			username: "testuser",
-			password: "abcdef123",
+			password: "abcdefghijklmnopqrstuvwxyz123456",
 			wantErr:  true,
-			errMsg:   "密码必须为6位",
+			errMsg:   "密码长度必须在6-20位",
 		},
 		{
-			name:     "invalid - contains special chars",
+			name:     "invalid - only special chars",
 			username: "testuser",
-			password: "abc12!",
+			password: "!@#$%^",
 			wantErr:  true,
-			errMsg:   "密码必须为6位字母或数字",
+			errMsg:   "密码必须包含字母或数字",
 		},
 	}
 
@@ -183,7 +207,7 @@ func TestNewSimpleUser(t *testing.T) {
 				assert.NotNil(t, user)
 				assert.NotEmpty(t, user.ID())
 				assert.Equal(t, tt.username, user.Name())
-				assert.Equal(t, "", user.Phone()) // Simple users have no phone
+				assert.Equal(t, "", user.Phone())
 				assert.Equal(t, UserTypeDelivery, user.UserType())
 				assert.Equal(t, UserRolePublic, user.Role())
 			}
@@ -280,13 +304,23 @@ func TestUser_SetPassword(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name:     "valid - only letters",
+			password: "abcdef",
+			wantErr:  false,
+		},
+		{
+			name:     "valid - only digits",
+			password: "123456",
+			wantErr:  false,
+		},
+		{
 			name:     "invalid - too short",
 			password: "ab12",
 			wantErr:  true,
 		},
 		{
-			name:     "invalid - only letters",
-			password: "abcdef",
+			name:     "invalid - only special chars",
+			password: "!@#$%^",
 			wantErr:  true,
 		},
 	}
@@ -346,13 +380,23 @@ func TestUser_ValidatePassword(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name:     "valid - only letters",
+			password: "abcdef",
+			wantErr:  false,
+		},
+		{
+			name:     "valid - only digits",
+			password: "123456",
+			wantErr:  false,
+		},
+		{
 			name:     "invalid - too short",
 			password: "ab12",
 			wantErr:  true,
 		},
 		{
-			name:     "invalid - only letters",
-			password: "abcdef",
+			name:     "invalid - only special chars",
+			password: "!@#$%^",
 			wantErr:  true,
 		},
 	}

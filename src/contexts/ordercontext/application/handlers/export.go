@@ -102,6 +102,21 @@ func (h *Handler) ExportData(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "导出失败")
 		return
 	}
+
+	// 导出订单项选项数据
+	if err := exportTableToCSV(h.DB, zipWriter, "order_item_options.csv", &[]models.OrderItemOption{}); err != nil {
+		h.logger.Errorf("导出订单项选项数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
+	// 导出用户第三方绑定数据
+	if err := exportTableToCSV(h.DB, zipWriter, "user_thirdparty_bindings.csv", &[]models.UserThirdpartyBinding{}); err != nil {
+		h.logger.Errorf("导出用户第三方绑定数据失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "导出失败")
+		return
+	}
+
 	// 在所有CSV导出完成后添加
 	if err := addUploadsToZip(zipWriter); err != nil {
 		h.logger.Errorf("图片打包失败: %v", err)

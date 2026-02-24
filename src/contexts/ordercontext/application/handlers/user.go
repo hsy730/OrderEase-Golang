@@ -3,8 +3,8 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"orderease/models"
 	userdomain "orderease/contexts/ordercontext/domain/user"
+	"orderease/models"
 	"orderease/utils"
 	"strconv"
 	"time"
@@ -46,7 +46,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		} else if errors.Is(err, userdomain.ErrPhoneAlreadyExists) {
 			errorResponse(c, http.StatusConflict, "该手机号已注册")
 		} else if errors.Is(err, userdomain.ErrInvalidPassword) {
-			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且包含字母和数字")
+			errorResponse(c, http.StatusBadRequest, "密码长度必须在6-20位且必须包含字母或数字")
 		} else if errors.Is(err, userdomain.ErrInvalidUserType) {
 			errorResponse(c, http.StatusBadRequest, "无效的用户类型")
 		} else if errors.Is(err, userdomain.ErrInvalidRole) {

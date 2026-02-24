@@ -10,33 +10,27 @@ import (
 // Password 密码值对象
 type Password string
 
-// NewPassword 创建密码值对象（宽松规则：6-20位，字母+数字，支持特殊字符）
-// 用于前端用户注册和登录
-func NewPassword(password string) (Password, error) {
-	// 长度验证：6-20位
+// NewWeakPassword 创建弱密码值对象（6-20位，必须包含字母或数字）
+// 用于管理员创建用户、前端用户注册等场景
+// 强密码也能通过弱密码校验（因为强密码包含字母和数字）
+func NewWeakPassword(password string) (Password, error) {
 	if len(password) < 6 || len(password) > 20 {
 		return "", errors.New("密码长度必须在6-20位")
 	}
 
-	// 必须包含字母和数字
-	hasLetter := regexp.MustCompile(`[a-zA-Z]`).MatchString(password)
-	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
-
-	if !hasLetter || !hasDigit {
-		return "", errors.New("密码必须包含字母和数字")
+	hasLetterOrDigit := regexp.MustCompile(`[a-zA-Z0-9]`).MatchString(password)
+	if !hasLetterOrDigit {
+		return "", errors.New("密码必须包含字母或数字")
 	}
-
-	// 特殊字符可选，不做硬性要求
 
 	return Password(password), nil
 }
 
-// NewStrictPassword 创建强密码值对象（管理员/店主：8+位，大小写+数字+特殊字符）
+// NewStrictPassword 创建强密码值对象（8-20位，大小写字母+数字+特殊字符）
 // 用于管理员和店主密码
 func NewStrictPassword(password string) (Password, error) {
-	// 长度验证：至少8位
-	if len(password) < 8 {
-		return "", errors.New("密码长度至少为8位")
+	if len(password) < 8 || len(password) > 20 {
+		return "", errors.New("密码长度必须在8-20位")
 	}
 
 	var (
@@ -75,22 +69,6 @@ func NewStrictPassword(password string) (Password, error) {
 	return Password(password), nil
 }
 
-// NewSimplePassword 创建简单密码（用于前端用户6位字母或数字）
-func NewSimplePassword(password string) (Password, error) {
-	// 长度验证：6位
-	if len(password) != 6 {
-		return "", errors.New("密码必须为6位")
-	}
-
-	// 必须全是字母或数字
-	matched, _ := regexp.MatchString(`^[a-zA-Z0-9]{6}$`, password)
-	if !matched {
-		return "", errors.New("密码必须为6位字母或数字")
-	}
-
-	return Password(password), nil
-}
-
 // String 返回密码字符串
 func (p Password) String() string {
 	return string(p)
@@ -98,17 +76,15 @@ func (p Password) String() string {
 
 // Hash 返回密码的哈希值（用于bcrypt）
 func (p Password) Hash() (string, error) {
-	// 如果已经哈希过，直接返回
 	if strings.HasPrefix(string(p), "$2a$") {
 		return string(p), nil
 	}
-	// 否则返回空，由调用方处理哈希
 	return "", nil
 }
 
-// IsValid 验证密码是否符合格式
+// IsValid 验证密码是否符合弱密码格式
 func (p Password) IsValid() bool {
-	_, err := NewPassword(string(p))
+	_, err := NewWeakPassword(string(p))
 	return err == nil
 }
 

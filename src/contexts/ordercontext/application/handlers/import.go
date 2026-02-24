@@ -57,13 +57,14 @@ func (h *Handler) ImportData(c *gin.Context) {
 
 	// 按照依赖关系的反序清空表（先清除依赖表，再清除主表）
 	tablesToClean := []interface{}{
+		&models.OrderItemOption{},         // 订单项选项（依赖 OrderItem）
 		&models.OrderItem{},
 		&models.Order{},
 		&models.ProductTag{},
 		&models.Tag{},
 		&models.Product{},
+		&models.UserThirdpartyBinding{},   // 用户第三方绑定（依赖 User）
 		&models.User{},
-		// 新增导出模块中的表
 		&models.Admin{},
 		&models.ProductOption{},
 		&models.Shop{},
@@ -71,6 +72,7 @@ func (h *Handler) ImportData(c *gin.Context) {
 
 	fileOrder := []string{
 		"users.csv",
+		"user_thirdparty_bindings.csv",  // 依赖 User，紧随其后
 		"admins.csv",
 		"shops.csv",
 		"products.csv",                  // 先导入products
@@ -80,6 +82,7 @@ func (h *Handler) ImportData(c *gin.Context) {
 		"product_tags.csv",
 		"orders.csv",
 		"order_items.csv",
+		"order_item_options.csv",        // 最后导入订单项选项
 	}
 
 	// 清空所有表
@@ -376,14 +379,27 @@ func createImportConverter(value reflect.Value) (func(string) (interface{}, erro
 
 	case fieldType.Kind() == reflect.Map:
 		return func(s string) (interface{}, error) {
-			if fieldType != reflect.TypeOf(datatypes.JSON{}) {
-				return nil, fmt.Errorf("暂不支持%s类型的map转换", fieldType)
+			// 支持 models.Metadata 类型
+			if fieldType == reflect.TypeOf(models.Metadata{}) {
+				trimmed := strings.TrimSpace(s)
+				if trimmed == "" || trimmed == "null" || trimmed == "{}" {
+					return models.Metadata{}, nil
+				}
+				var metadata models.Metadata
+				if err := json.Unmarshal([]byte(trimmed), &metadata); err != nil {
+					return nil, fmt.Errorf("解析 Metadata 失败: %w", err)
+				}
+				return metadata, nil
 			}
-			var raw map[string]interface{}
-			if err := json.Unmarshal([]byte(s), &raw); err != nil {
-				return nil, fmt.Errorf("JSON解析失败: %w", err)
+			// 支持 datatypes.JSON 类型
+			if fieldType == reflect.TypeOf(datatypes.JSON{}) {
+				var raw map[string]interface{}
+				if err := json.Unmarshal([]byte(s), &raw); err != nil {
+					return nil, fmt.Errorf("JSON解析失败: %w", err)
+				}
+				return datatypes.JSON(s), nil
 			}
-			return datatypes.JSON(s), nil
+			return nil, fmt.Errorf("暂不支持%s类型的map转换", fieldType)
 		}, nil
 	default:
 		return parseBasicType(value), nil
@@ -413,6 +429,10 @@ func createModelAndConverters(filename string) (interface{}, map[string]func(str
 		return &models.Order{}, createImportConverters(&models.Order{}), nil
 	case "order_items.csv":
 		return &models.OrderItem{}, createImportConverters(&models.OrderItem{}), nil
+	case "order_item_options.csv":
+		return &models.OrderItemOption{}, createImportConverters(&models.OrderItemOption{}), nil
+	case "user_thirdparty_bindings.csv":
+		return &models.UserThirdpartyBinding{}, createImportConverters(&models.UserThirdpartyBinding{}), nil
 	default:
 		return nil, nil, fmt.Errorf("未知模型类型")
 	}

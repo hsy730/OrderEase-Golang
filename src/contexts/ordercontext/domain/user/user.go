@@ -7,8 +7,7 @@
 //
 // 业务规则：
 //   - 手机号使用 Phone 值对象验证（11位，1开头）
-//   - 密码使用 Password 值对象验证（6-20位，字母+数字）
-//   - 前端用户使用 SimplePassword（6位）
+//   - 密码使用弱密码策略（6-20位，字母或数字）
 //   - 密码使用 bcrypt 哈希存储
 //
 // 用户类型：
@@ -22,7 +21,7 @@
 // 使用示例：
 //
 //	// 创建普通用户
-//	user, err := user.NewUser("张三", "13800138000", "Pass123", user.UserTypeDelivery, user.UserRolePublic)
+//	user, err := user.NewUser("张三", "13800138000", "abc123", user.UserTypeDelivery, user.UserRolePublic)
 //
 //	// 验证密码
 //	if err := user.VerifyPassword(inputPassword); err != nil {
@@ -96,7 +95,7 @@ const (
 // 参数：
 //   - name:     用户姓名
 //   - phone:    手机号（11位，1开头）
-//   - password: 密码（6-20位，必须包含字母和数字）
+//   - password: 密码（6-20位，字母或数字）
 //   - userType: 用户类型（delivery/pickup）
 //   - role:     用户角色（private_user/public_user）
 //
@@ -106,19 +105,18 @@ const (
 //
 // 验证流程：
 //   1. 手机号格式验证（Phone 值对象）
-//   2. 密码强度验证（Password 值对象）
+//   2. 密码强度验证（WeakPassword 值对象）
 //   3. 生成唯一用户ID
 //
 // 使用场景：
 //   - 后端用户注册
 func NewUser(name string, phone string, password string, userType UserType, role UserRole) (*User, error) {
-	// 使用值对象进行验证
 	phoneVO, err := value_objects.NewPhone(phone)
 	if err != nil {
 		return nil, err
 	}
 
-	passwordVO, err := value_objects.NewPassword(password)
+	passwordVO, err := value_objects.NewWeakPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +135,7 @@ func NewUser(name string, phone string, password string, userType UserType, role
 //
 // 参数：
 //   - name:     用户姓名
-//   - password: 简单密码（6位，纯数字）
+//   - password: 密码（6-20位，字母或数字）
 //
 // 返回：
 //   - *User: 创建成功的用户实体
@@ -145,18 +143,16 @@ func NewUser(name string, phone string, password string, userType UserType, role
 //
 // 特点：
 //   - 无手机号要求（Phone 为空值对象）
-//   - 6位简单密码（SimplePassword 值对象）
+//   - 弱密码策略（6-20位，字母或数字）
 //   - 默认类型：delivery
 //   - 默认角色：public_user
 //
 // 使用场景：
 //   - 前端用户快速注册
 func NewSimpleUser(name string, password string) (*User, error) {
-	// 前端用户无手机号，使用空Phone值对象
 	phoneVO, _ := value_objects.NewPhone("")
 
-	// 使用简单密码验证
-	passwordVO, err := value_objects.NewSimplePassword(password)
+	passwordVO, err := value_objects.NewWeakPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +213,7 @@ func (u *User) SetPhone(phone string) error {
 }
 
 func (u *User) SetPassword(password string) error {
-	passwordVO, err := value_objects.NewPassword(password)
+	passwordVO, err := value_objects.NewWeakPassword(password)
 	if err != nil {
 		return err
 	}
@@ -252,7 +248,7 @@ func (u *User) SetAddress(address string) {
 //   - ValidatePassword: 仅验证格式，用于注册时
 //   - VerifyPassword:   比对哈希值，用于登录时
 func (u *User) ValidatePassword(plainPassword string) error {
-	_, err := value_objects.NewPassword(plainPassword)
+	_, err := value_objects.NewWeakPassword(plainPassword)
 	return err
 }
 

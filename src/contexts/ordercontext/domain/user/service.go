@@ -102,25 +102,22 @@ func (s *Service) Register(dto RegisterUserDTO) (*User, error) {
 		}
 	}
 
-	// 5. 验证密码（管理员创建用户使用强密码规则）
-	_, err = value_objects.NewStrictPassword(dto.Password)
+	// 5. 验证密码（管理员创建用户使用弱密码规则：6-20位字母或数字）
+	_, err = value_objects.NewWeakPassword(dto.Password)
 	if err != nil {
 		return nil, ErrInvalidPassword
 	}
 
-	// 6. 创建用户实体（使用 NewUser，内部会用宽松规则验证）
-	user, err := NewUser(
-		dto.Username,
-		dto.Phone,
-		dto.Password,
-		UserType(dto.UserType),
-		UserRole(dto.Role),
-	)
-	if err != nil {
-		if errors.Is(err, ErrInvalidPassword) {
-			return nil, ErrInvalidPassword
-		}
-		return nil, err
+	// 6. 创建用户实体
+	phoneVO, _ := value_objects.NewPhone(dto.Phone)
+	passwordVO := value_objects.Password(dto.Password)
+	user := &User{
+		id:       NewUserID(),
+		name:     dto.Username,
+		phone:    phoneVO,
+		password: passwordVO,
+		userType: UserType(dto.UserType),
+		role:     UserRole(dto.Role),
 	}
 
 	// 7. 持久化
@@ -173,8 +170,8 @@ func (s *Service) RegisterWithPasswordValidation(dto RegisterWithPasswordValidat
 		return nil, ErrUsernameAlreadyExists
 	}
 
-	// 2. 使用与 FrontendUserRegister 相同的密码规则 (6-20位 + 字母数字)
-	passwordVO, err := value_objects.NewPassword(dto.Password)
+	// 2. 使用弱密码规则 (6-20位 + 字母或数字)
+	passwordVO, err := value_objects.NewWeakPassword(dto.Password)
 	if err != nil {
 		return nil, ErrInvalidPassword
 	}
