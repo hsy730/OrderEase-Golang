@@ -82,19 +82,19 @@ func (m Metadata) GetRefreshToken() string {
 }
 
 // SetAccessToken 设置 access_token 到 metadata
-func (m Metadata) SetAccessToken(token string) {
+func (m *Metadata) SetAccessToken(token string) {
 	if m == nil {
-		m = make(Metadata)
+		*m = make(Metadata)
 	}
-	m["access_token"] = token
+	(*m)["access_token"] = token
 }
 
 // SetRefreshToken 设置 refresh_token 到 metadata
-func (m Metadata) SetRefreshToken(token string) {
+func (m *Metadata) SetRefreshToken(token string) {
 	if m == nil {
-		m = make(Metadata)
+		*m = make(Metadata)
 	}
-	m["refresh_token"] = token
+	(*m)["refresh_token"] = token
 }
 
 // IsActiveBinding 检查绑定是否激活
