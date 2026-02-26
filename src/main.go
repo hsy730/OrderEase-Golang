@@ -136,6 +136,6 @@ func main() {
 
 	// 启动服务器
 	serverAddr := fmt.Sprintf("%s:%d", container.Config.Server.Host, container.Config.Server.Port)
-	log2.Info("服务器启动在 %s", serverAddr)
+	log2.Infof("服务器启动在 %s", serverAddr)
 	log2.Fatal(r.Run(serverAddr))
 }
