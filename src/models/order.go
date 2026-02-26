@@ -8,12 +8,12 @@ import (
 
 type Order struct {
 	ID         snowflake.ID `gorm:"primarykey;column:id;type:bigint unsigned" json:"id,omitempty"`
-	UserID     snowflake.ID `gorm:"column:user_id" json:"user_id"`
-	ShopID     snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"`
+	UserID     snowflake.ID `gorm:"column:user_id;index:idx_user_shop_status,priority:1;not null" json:"user_id"`
+	ShopID     snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index:idx_shop;index:idx_user_shop_status,priority:2;index:idx_shop_status,priority:1;not null" json:"shop_id"`
 	TotalPrice Price        `gorm:"column:total_price;type:double" json:"total_price"`
-	Status     int          `gorm:"column:status" json:"status"`
+	Status     int          `gorm:"column:status;index:idx_user_shop_status,priority:3;index:idx_shop_status,priority:2" json:"status"`
 	Remark     string       `gorm:"column:remark" json:"remark"`
-	CreatedAt  time.Time    `gorm:"column:created_at" json:"created_at"`
+	CreatedAt  time.Time    `gorm:"column:created_at;index" json:"created_at"`
 	UpdatedAt  time.Time    `gorm:"column:updated_at" json:"updated_at"`
 	Items      []OrderItem  `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE" json:"items"`
 	User       User         `gorm:"foreignKey:UserID" json:"user"`
