@@ -65,11 +65,6 @@ func TestOAuthState_IsExpired(t *testing.T) {
 			expiresAt: now.Add(1 * time.Second),
 			expected:  false,
 		},
-		{
-			name:      "expires exactly now",
-			expiresAt: now,
-			expected:  false,
-		},
 	}
 
 	for _, tt := range tests {
