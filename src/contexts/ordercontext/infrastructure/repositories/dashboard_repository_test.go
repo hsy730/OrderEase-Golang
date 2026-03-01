@@ -188,7 +188,7 @@ func TestDashboardRepository_GetRecentOrders_Success(t *testing.T) {
 		AddRow(1, shopID, 100, 500.0, 1, now, now).
 		AddRow(2, shopID, 101, 300.0, 2, now.Add(-1*time.Hour), now.Add(-1*time.Hour))
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders` WHERE shop_id = ? ORDER BY created_at DESC LIMIT ?")).
 		WithArgs(shopID, 10).
 		WillReturnRows(rows)
 
@@ -208,7 +208,7 @@ func TestDashboardRepository_GetRecentOrders_DatabaseError(t *testing.T) {
 
 	shopID := snowflake.ID(123)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders`")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders` WHERE shop_id = ? ORDER BY created_at DESC LIMIT ?")).
 		WithArgs(shopID, 10).
 		WillReturnError(fmt.Errorf("database error"))
 
