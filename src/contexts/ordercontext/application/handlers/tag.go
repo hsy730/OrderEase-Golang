@@ -611,5 +611,3 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		"deleted_count": result.DeletedCount,
 	})
 }
-
-// 注意：updateProductTags 方法已迁移到 domain/tag/service.go (Step 45)

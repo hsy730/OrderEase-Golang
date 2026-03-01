@@ -189,7 +189,7 @@ func TestDashboardRepository_GetRecentOrders_Success(t *testing.T) {
 		AddRow(2, shopID, 101, 300.0, 2, now.Add(-1*time.Hour), now.Add(-1*time.Hour))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders`")).
-		WithArgs(shopID).
+		WithArgs(shopID, 10).
 		WillReturnRows(rows)
 
 	repo := NewDashboardRepository(db)
@@ -209,7 +209,7 @@ func TestDashboardRepository_GetRecentOrders_DatabaseError(t *testing.T) {
 	shopID := snowflake.ID(123)
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `orders`")).
-		WithArgs(shopID).
+		WithArgs(shopID, 10).
 		WillReturnError(fmt.Errorf("database error"))
 
 	repo := NewDashboardRepository(db)
