@@ -53,23 +53,10 @@ func TestDashboardRepository_GetOrderStats_Success(t *testing.T) {
 	yesterdayStart := todayStart.Add(-24 * time.Hour)
 	yesterdayEnd := todayStart
 
-	todayCountRows := sqlmock.NewRows([]string{"count"}).AddRow(10)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `orders`")).
-		WithArgs(shopID, todayStart, todayEnd).
-		WillReturnRows(todayCountRows)
-
-	todayRevenueRows := sqlmock.NewRows([]string{"total_price"}).AddRow(1000.0)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(total_price), 0) FROM `orders`")).
-		WillReturnRows(todayRevenueRows)
-
-	yesterdayCountRows := sqlmock.NewRows([]string{"count"}).AddRow(8)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `orders`")).
-		WithArgs(shopID, yesterdayStart, yesterdayEnd).
-		WillReturnRows(yesterdayCountRows)
-
-	yesterdayRevenueRows := sqlmock.NewRows([]string{"total_price"}).AddRow(800.0)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(total_price), 0) FROM `orders`")).
-		WillReturnRows(yesterdayRevenueRows)
+	rows := sqlmock.NewRows([]string{"today_orders", "yesterday_orders", "today_revenue", "yesterday_revenue"}).
+		AddRow(10, 8, 1000.0, 800.0)
+	mock.ExpectQuery("SELECT.*today_orders.*yesterday_orders.*today_revenue.*yesterday_revenue").
+		WillReturnRows(rows)
 
 	repo := NewDashboardRepository(db)
 	stats, err := repo.GetOrderStats(shopID, todayStart, todayEnd, yesterdayStart, yesterdayEnd)
@@ -93,15 +80,14 @@ func TestDashboardRepository_GetOrderStats_DatabaseError(t *testing.T) {
 	yesterdayStart := todayStart.Add(-24 * time.Hour)
 	yesterdayEnd := todayStart
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `orders`")).
-		WithArgs(shopID, todayStart, todayEnd).
+	mock.ExpectQuery("SELECT.*today_orders.*yesterday_orders.*today_revenue.*yesterday_revenue").
 		WillReturnError(fmt.Errorf("database error"))
 
 	repo := NewDashboardRepository(db)
 	stats, err := repo.GetOrderStats(shopID, todayStart, todayEnd, yesterdayStart, yesterdayEnd)
 
 	assert.Error(t, err)
-	assert.Equal(t, "获取今日订单数失败", err.Error())
+	assert.Equal(t, "获取订单统计失败", err.Error())
 	assert.Nil(t, stats)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -159,12 +145,12 @@ func TestDashboardRepository_GetUserStats_Success(t *testing.T) {
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	todayRows := sqlmock.NewRows([]string{"count"}).AddRow(5)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(DISTINCT `user_id`) FROM `orders`")).
+	mock.ExpectQuery("SELECT COUNT\\(DISTINCT\\(`user_id`\\)\\) FROM `orders`").
 		WithArgs(shopID, todayStart).
 		WillReturnRows(todayRows)
 
 	totalRows := sqlmock.NewRows([]string{"count"}).AddRow(50)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(DISTINCT `user_id`) FROM `orders`")).
+	mock.ExpectQuery("SELECT COUNT\\(DISTINCT\\(`user_id`\\)\\) FROM `orders`").
 		WithArgs(shopID).
 		WillReturnRows(totalRows)
 
@@ -231,12 +217,37 @@ func TestDashboardRepository_GetHotProducts_Success(t *testing.T) {
 		AddRow(1, "Product 1", "http://example.com/1.jpg", 100.0, 50).
 		AddRow(2, "Product 2", "http://example.com/2.jpg", 200.0, 30)
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT p.id, p.name, p.image_url, p.price, COUNT(oi.id) as sales")).
-		WithArgs(shopID, 5).
+	mock.ExpectQuery("SELECT p.id, p.name, p.image_url, p.price, COUNT\\(oi.id\\) as sales").
 		WillReturnRows(rows)
 
 	repo := NewDashboardRepository(db)
 	products, err := repo.GetHotProducts(shopID, 5)
+
+	assert.NoError(t, err)
+	assert.Len(t, products, 2)
+	assert.Equal(t, "Product 1", products[0].Name)
+	assert.Equal(t, 50, products[0].Sales)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDashboardRepository_GetHotProductsInRange_Success(t *testing.T) {
+	db, mock, sqlDB := setupDashboardTestDB(t)
+	defer sqlDB.Close()
+
+	shopID := snowflake.ID(123)
+	now := time.Now()
+	startTime := now.AddDate(0, 0, -30)
+	endTime := now
+
+	rows := sqlmock.NewRows([]string{"id", "name", "image_url", "price", "sales"}).
+		AddRow(1, "Product 1", "http://example.com/1.jpg", 100.0, 50).
+		AddRow(2, "Product 2", "http://example.com/2.jpg", 200.0, 30)
+
+	mock.ExpectQuery("SELECT p.id, p.name, p.image_url, p.price, COUNT\\(oi.id\\) as sales").
+		WillReturnRows(rows)
+
+	repo := NewDashboardRepository(db)
+	products, err := repo.GetHotProductsInRange(shopID, 5, startTime, endTime)
 
 	assert.NoError(t, err)
 	assert.Len(t, products, 2)

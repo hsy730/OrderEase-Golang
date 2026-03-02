@@ -75,36 +75,37 @@ type RecentOrder struct {
 	CreatedAt  time.Time    `json:"created_at"`
 }
 
-// GetOrderStats 获取订单统计（今日和昨日）
+// GetOrderStats 获取订单统计（今日和昨日）- 优化为单次查询
 func (r *DashboardRepository) GetOrderStats(shopID snowflake.ID, todayStart, todayEnd, yesterdayStart, yesterdayEnd time.Time) (*OrderStatsResponse, error) {
-	var todayCount, yesterdayCount int64
-	var todayRevenue, yesterdayRevenue float64
-
-	// 今日订单统计
-	todayQuery := r.DB.Model(&models.Order{}).Where("shop_id = ? AND created_at >= ? AND created_at < ?", shopID, todayStart, todayEnd)
-	if err := todayQuery.Count(&todayCount).Error; err != nil {
-		log2.Errorf("GetOrderStats today count failed: %v", err)
-		return nil, errors.New("获取今日订单数失败")
+	type StatsResult struct {
+		TodayOrders      int64
+		YesterdayOrders  int64
+		TodayRevenue     float64
+		YesterdayRevenue float64
 	}
 
-	// 今日销售额
-	todayQuery.Select("COALESCE(SUM(total_price), 0)").Scan(&todayRevenue)
+	var result StatsResult
+	err := r.DB.Model(&models.Order{}).
+		Select(`
+			COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END), 0) as today_orders,
+			COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END), 0) as yesterday_orders,
+			COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? THEN total_price ELSE 0 END), 0) as today_revenue,
+			COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? THEN total_price ELSE 0 END), 0) as yesterday_revenue
+		`, todayStart, todayEnd, yesterdayStart, yesterdayEnd, todayStart, todayEnd, yesterdayStart, yesterdayEnd).
+		Where("shop_id = ?", shopID).
+		Where("created_at >= ? AND created_at < ?", yesterdayStart, todayEnd).
+		Scan(&result).Error
 
-	// 昨日订单统计
-	yesterdayQuery := r.DB.Model(&models.Order{}).Where("shop_id = ? AND created_at >= ? AND created_at < ?", shopID, yesterdayStart, yesterdayEnd)
-	if err := yesterdayQuery.Count(&yesterdayCount).Error; err != nil {
-		log2.Errorf("GetOrderStats yesterday count failed: %v", err)
-		return nil, errors.New("获取昨日订单数失败")
+	if err != nil {
+		log2.Errorf("GetOrderStats failed: %v", err)
+		return nil, errors.New("获取订单统计失败")
 	}
-
-	// 昨日销售额
-	yesterdayQuery.Select("COALESCE(SUM(total_price), 0)").Scan(&yesterdayRevenue)
 
 	return &OrderStatsResponse{
-		TodayOrders:      int(todayCount),
-		YesterdayOrders:  int(yesterdayCount),
-		TodayRevenue:     todayRevenue,
-		YesterdayRevenue: yesterdayRevenue,
+		TodayOrders:      int(result.TodayOrders),
+		YesterdayOrders:  int(result.YesterdayOrders),
+		TodayRevenue:     result.TodayRevenue,
+		YesterdayRevenue: result.YesterdayRevenue,
 	}, nil
 }
 
@@ -287,8 +288,13 @@ func (r *DashboardRepository) GetSalesTrend(shopID snowflake.ID, period string) 
 	}, nil
 }
 
-// GetHotProducts 获取热销商品
+// GetHotProducts 获取热销商品（默认最近30天）
 func (r *DashboardRepository) GetHotProducts(shopID snowflake.ID, limit int) ([]HotProduct, error) {
+	return r.GetHotProductsInRange(shopID, limit, time.Now().AddDate(0, 0, -30), time.Now())
+}
+
+// GetHotProductsInRange 获取指定时间范围内的热销商品
+func (r *DashboardRepository) GetHotProductsInRange(shopID snowflake.ID, limit int, startTime, endTime time.Time) ([]HotProduct, error) {
 	type ProductSales struct {
 		ID       snowflake.ID
 		Name     string
@@ -302,11 +308,12 @@ func (r *DashboardRepository) GetHotProducts(shopID snowflake.ID, limit int) ([]
 		SELECT p.id, p.name, p.image_url, p.price, COUNT(oi.id) as sales
 		FROM products p
 		LEFT JOIN order_items oi ON p.id = oi.product_id
+		LEFT JOIN orders o ON oi.order_id = o.id AND o.shop_id = ? AND o.created_at >= ? AND o.created_at <= ?
 		WHERE p.shop_id = ?
 		GROUP BY p.id, p.name, p.image_url, p.price
 		ORDER BY sales DESC
 		LIMIT ?
-	`, shopID, limit).Scan(&results)
+	`, shopID, startTime, endTime, shopID, limit).Scan(&results)
 
 	hotProducts := make([]HotProduct, len(results))
 	for i, r := range results {

@@ -61,7 +61,7 @@ func (r *TagRepository) GetByIDAndShopID(id int, shopID snowflake.ID) (*models.T
 	return &tag, nil
 }
 
-// GetListByShopID 获取店铺的标签列表
+// GetListByShopID 获取店铺的标签列表（无分页，建议使用 GetListByShopIDPaginated）
 func (r *TagRepository) GetListByShopID(shopID snowflake.ID) ([]models.Tag, error) {
 	var tags []models.Tag
 	err := r.DB.Where("shop_id = ?", shopID).Order("created_at DESC").Find(&tags).Error
@@ -70,6 +70,27 @@ func (r *TagRepository) GetListByShopID(shopID snowflake.ID) ([]models.Tag, erro
 		return nil, errors.New("查询标签列表失败")
 	}
 	return tags, nil
+}
+
+// GetListByShopIDPaginated 获取店铺的标签列表（分页版本）
+func (r *TagRepository) GetListByShopIDPaginated(shopID snowflake.ID, page, pageSize int) ([]models.Tag, int64, error) {
+	var tags []models.Tag
+	var total int64
+
+	baseQuery := r.DB.Model(&models.Tag{}).Where("shop_id = ?", shopID)
+
+	if err := baseQuery.Count(&total).Error; err != nil {
+		log2.Errorf("GetListByShopIDPaginated count failed: %v", err)
+		return nil, 0, errors.New("获取标签总数失败")
+	}
+
+	offset := (page - 1) * pageSize
+	if err := baseQuery.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&tags).Error; err != nil {
+		log2.Errorf("GetListByShopIDPaginated query failed: %v", err)
+		return nil, 0, errors.New("查询标签列表失败")
+	}
+
+	return tags, total, nil
 }
 
 // 在 ProductRepository 结构体新增方法
@@ -102,11 +123,15 @@ func (r *ProductRepository) GetShopTagsByID(shopID snowflake.ID) ([]models.Tag, 
 	return tags, nil
 }
 
-// GetUnboundTags 获取商品未绑定的标签（该店铺下未被该商品绑定的标签）
+// GetUnboundTags 获取商品未绑定的标签（该店铺下未被该商品绑定的标签）- 使用LEFT JOIN优化
 func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID snowflake.ID) ([]models.Tag, error) {
 	var tags []models.Tag
-	err := r.DB.Where("shop_id = ? AND id NOT IN (SELECT tag_id FROM product_tags WHERE product_id = ?)", shopID, productID).
-		Find(&tags).Error
+	err := r.DB.Raw(`
+		SELECT t.*
+		FROM tags t
+		LEFT JOIN product_tags pt ON t.id = pt.tag_id AND pt.product_id = ?
+		WHERE t.shop_id = ? AND pt.tag_id IS NULL
+	`, productID, shopID).Scan(&tags).Error
 	if err != nil {
 		log2.Errorf("GetUnboundTags failed: %v", err)
 		return nil, err
@@ -116,11 +141,15 @@ func (r *ProductRepository) GetUnboundTags(productID snowflake.ID, shopID snowfl
 
 // ==================== Tag 复杂查询方法 ====================
 
-// GetUnboundProductsCount 获取店铺中未绑定任何标签的商品数量
+// GetUnboundProductsCount 获取店铺中未绑定任何标签的商品数量 - 使用LEFT JOIN优化
 func (r *TagRepository) GetUnboundProductsCount(shopID snowflake.ID) (int64, error) {
 	var count int64
-	err := r.DB.Raw(`SELECT COUNT(*) FROM products
-		WHERE shop_id = ? AND id NOT IN (SELECT product_id FROM product_tags)`, shopID).Scan(&count).Error
+	err := r.DB.Raw(`
+		SELECT COUNT(*)
+		FROM products p
+		LEFT JOIN product_tags pt ON p.id = pt.product_id
+		WHERE p.shop_id = ? AND pt.product_id IS NULL
+	`, shopID).Scan(&count).Error
 	if err != nil {
 		log2.Errorf("GetUnboundProductsCount failed: %v", err)
 		return 0, errors.New("查询未绑定商品数量失败")
