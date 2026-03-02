@@ -19,6 +19,10 @@ func GetCache() *cache.Cache {
 	return globalCache
 }
 
+func ResetCache() {
+	globalCache = nil
+}
+
 const (
 	CacheKeyOrderStats      = "dashboard:order_stats"
 	CacheKeyProductStats    = "dashboard:product_stats"

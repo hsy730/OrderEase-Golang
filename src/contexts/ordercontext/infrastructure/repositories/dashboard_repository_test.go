@@ -11,6 +11,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/stretchr/testify/assert"
 	"orderease/models"
+	"orderease/utils/cache"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -43,6 +44,7 @@ func TestNewDashboardRepository(t *testing.T) {
 }
 
 func TestDashboardRepository_GetOrderStats_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -70,6 +72,7 @@ func TestDashboardRepository_GetOrderStats_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetOrderStats_DatabaseError(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -93,6 +96,7 @@ func TestDashboardRepository_GetOrderStats_DatabaseError(t *testing.T) {
 }
 
 func TestDashboardRepository_GetProductStats_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -118,6 +122,7 @@ func TestDashboardRepository_GetProductStats_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetProductStats_DatabaseError(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -137,6 +142,7 @@ func TestDashboardRepository_GetProductStats_DatabaseError(t *testing.T) {
 }
 
 func TestDashboardRepository_GetUserStats_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -164,6 +170,7 @@ func TestDashboardRepository_GetUserStats_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetRecentOrders_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -189,6 +196,7 @@ func TestDashboardRepository_GetRecentOrders_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetRecentOrders_DatabaseError(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -208,6 +216,7 @@ func TestDashboardRepository_GetRecentOrders_DatabaseError(t *testing.T) {
 }
 
 func TestDashboardRepository_GetHotProducts_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -231,6 +240,7 @@ func TestDashboardRepository_GetHotProducts_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetHotProductsInRange_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -257,6 +267,7 @@ func TestDashboardRepository_GetHotProductsInRange_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetOrderEfficiency_Success(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -294,6 +305,7 @@ func TestDashboardRepository_GetOrderEfficiency_Success(t *testing.T) {
 }
 
 func TestDashboardRepository_GetSalesTrend_Week(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -316,6 +328,7 @@ func TestDashboardRepository_GetSalesTrend_Week(t *testing.T) {
 }
 
 func TestDashboardRepository_GetSalesTrend_Month(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -338,6 +351,7 @@ func TestDashboardRepository_GetSalesTrend_Month(t *testing.T) {
 }
 
 func TestDashboardRepository_GetSalesTrend_Year(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
@@ -360,6 +374,7 @@ func TestDashboardRepository_GetSalesTrend_Year(t *testing.T) {
 }
 
 func TestDashboardRepository_GetSalesTrend_Default(t *testing.T) {
+	cache.ResetCache()
 	db, mock, sqlDB := setupDashboardTestDB(t)
 	defer sqlDB.Close()
 
