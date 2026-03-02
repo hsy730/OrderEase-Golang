@@ -6,6 +6,7 @@ import (
 	productdomain "orderease/contexts/ordercontext/domain/product"
 	"orderease/models"
 	"orderease/utils"
+	"orderease/utils/cache"
 	"orderease/utils/log2"
 	"os"
 	"strconv"
@@ -90,6 +91,10 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		successResponse(c, productModel)
 		return
 	}
+
+	// 使dashboard缓存失效（商品统计）
+	go cache.InvalidateDashboardCache(int64(validShopID))
+
 	successResponse(c, createdProduct)
 }
 
@@ -137,6 +142,9 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
 		return
 	}
+
+	// 使dashboard缓存失效（商品统计）
+	go cache.InvalidateDashboardCache(int64(validShopID))
 
 	// 返回成功响应
 	successResponse(c, gin.H{
@@ -319,6 +327,10 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
 	}
+
+	// 使dashboard缓存失效（商品统计）
+	go cache.InvalidateDashboardCache(int64(validShopID))
+
 	successResponse(c, updatedProduct)
 }
 
@@ -367,6 +379,9 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// 使dashboard缓存失效（商品统计）
+	go cache.InvalidateDashboardCache(int64(validShopID))
 
 	successResponse(c, gin.H{"message": "商品删除成功"})
 }

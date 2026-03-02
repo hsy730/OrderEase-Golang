@@ -8,6 +8,7 @@ import (
 	"orderease/contexts/ordercontext/infrastructure/repositories"
 	"orderease/models"
 	"orderease/utils"
+	"orderease/utils/cache"
 	"orderease/utils/log2"
 	"strconv"
 	"time"
@@ -114,6 +115,9 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	// 触发SSE通知
 	go h.NotifyNewOrder(*orderModel)
+
+	// 使dashboard缓存失效
+	go cache.InvalidateDashboardCache(int64(validShopID))
 
 	successResponse(c, gin.H{
 		"order_id":    orderModel.ID,
@@ -340,6 +344,9 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	orderEntity := orderdomain.OrderFromModel(order)
 	response := orderEntity.ToCreateOrderRequest()
 
+	// 使dashboard缓存失效
+	go cache.InvalidateDashboardCache(int64(order.ShopID))
+
 	successResponse(c, response)
 }
 
@@ -396,6 +403,10 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	}
 
 	tx.Commit()
+
+	// 使dashboard缓存失效
+	go cache.InvalidateDashboardCache(int64(validShopID))
+
 	successResponse(c, gin.H{"message": "订单删除成功"})
 }
 
@@ -462,6 +473,9 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	tx.Commit()
+
+	// 使dashboard缓存失效
+	go cache.InvalidateDashboardCache(int64(validShopID))
 
 	// 返回更新后的订单信息
 	oldStatus := order.Status
