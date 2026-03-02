@@ -41,11 +41,11 @@ func Init() (*gorm.DB, error) {
 
 	// 数据库迁移
 	tables := []interface{}{
+		&models.User{},                     // User 必须在 Order 之前，因为 Order 有外键引用 User
 		&models.Product{},
 		&models.Order{},
 		&models.OrderItem{},
 		&models.OrderItemOption{}, // 添加这一行，确保order_item_options表被自动创建
-		&models.User{},
 		&models.Tag{},
 		&models.ProductTag{},
 		&models.ProductOption{},
