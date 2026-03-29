@@ -16,21 +16,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// MiniUserInfo 小程序用户信息
-type MiniUserInfo struct {
-	NickName      string `json:"nickName"`
-	AvatarURL     string `json:"avatarUrl"`
-	Gender        int    `json:"gender"`
-	EncryptedData string `json:"encryptedData"`
-	IV            string `json:"iv"`
-	RawData       string `json:"rawData"`
-	Signature     string `json:"signature"`
-}
-
-// MiniProgramLoginRequest 小程序登录请求
+// MiniProgramLoginRequest 小程序登录请求（新版微信授权流程）
 type MiniProgramLoginRequest struct {
-	Code    string       `json:"code" binding:"required"`
-	UserInfo MiniUserInfo `json:"userInfo"`
+	Code      string `json:"code" binding:"required"`
+	Nickname  string `json:"nickname"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // MiniProgramAuthHandler 小程序认证处理器
@@ -59,7 +49,7 @@ func NewMiniProgramAuthHandler(db *gorm.DB) (*MiniProgramAuthHandler, error) {
 	}, nil
 }
 
-// WeChatMiniProgramLogin 微信小程序登录
+// WeChatMiniProgramLogin 微信小程序登录（新版授权流程）
 // POST /api/order-ease/v1/user/wechat-login
 func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 	var req MiniProgramLoginRequest
@@ -72,7 +62,7 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 		return
 	}
 
-	log2.Debugf("微信小程序登录请求: code=%s, nickName=%s", req.Code, req.UserInfo.NickName)
+	log2.Debugf("微信小程序登录请求: code=%s, nickname=%s, avatar_url=%s", req.Code, req.Nickname, req.AvatarURL)
 
 	// 1. 通过 code 换取 openid 和 session_key
 	sessionInfo, err := h.miniProgramClient.Code2Session(c.Request.Context(), req.Code)
@@ -88,7 +78,7 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 	log2.Debugf("获取到 openid: %s", sessionInfo.OpenID)
 
 	// 2. 查找或创建用户
-	user, isNewUser, err := h.findOrCreateUser(sessionInfo, &req.UserInfo)
+	user, isNewUser, err := h.findOrCreateUser(sessionInfo, req.Nickname, req.AvatarURL)
 	if err != nil {
 		log2.Errorf("查找或创建用户失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -120,7 +110,6 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 				"name":       user.Name,
 				"nickname":   user.Nickname,
 				"avatarUrl":  h.extractAvatarURL(user, sessionInfo.OpenID),
-				"gender":     h.extractGender(user),
 				"role":       user.Role,
 				"type":       user.Type,
 				"created_at": user.CreatedAt.Format(time.RFC3339),
@@ -133,7 +122,7 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 }
 
 // findOrCreateUser 查找或创建用户
-func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInfo, userInfo *MiniUserInfo) (*models.User, bool, error) {
+func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInfo, nickname, avatarURL string) (*models.User, bool, error) {
 	providerUserID := sessionInfo.OpenID
 
 	// 1. 先通过绑定表查找用户
@@ -151,11 +140,11 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 		if sessionInfo.UnionID != "" && binding.UnionID == "" {
 			binding.UnionID = sessionInfo.UnionID
 		}
-		if userInfo.NickName != "" && binding.Nickname != userInfo.NickName {
-			binding.Nickname = userInfo.NickName
+		if nickname != "" && binding.Nickname != nickname {
+			binding.Nickname = nickname
 		}
-		if userInfo.AvatarURL != "" && binding.AvatarURL != userInfo.AvatarURL {
-			binding.AvatarURL = userInfo.AvatarURL
+		if avatarURL != "" && binding.AvatarURL != avatarURL {
+			binding.AvatarURL = avatarURL
 		}
 		if err := h.bindingRepo.Update(binding); err != nil {
 			log2.Warnf("update binding failed: %v", err)
@@ -169,12 +158,12 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 	}
 
 	// 2. 用户不存在，创建新用户
-	username := h.generateUsername(sessionInfo.OpenID, userInfo.NickName)
+	username := h.generateUsername(sessionInfo.OpenID, nickname)
 
 	user := &models.User{
 		ID:       utils.GenerateSnowflakeID(),
 		Name:     username,
-		Nickname: userInfo.NickName,
+		Nickname: nickname,
 		Type:     "public_user",
 		Role:     "public_user",
 	}
@@ -199,10 +188,8 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 		Provider:       oauth.ProviderWeChat.String(),
 		ProviderUserID: providerUserID,
 		UnionID:        sessionInfo.UnionID,
-		Nickname:       userInfo.NickName,
-		AvatarURL:      userInfo.AvatarURL,
-		Gender:         userInfo.Gender,
-		Metadata:       h.buildMetadata(userInfo),
+		Nickname:       nickname,
+		AvatarURL:      avatarURL,
 		IsActive:       true,
 		LastLoginAt:    &[]time.Time{time.Now()}[0],
 	}
@@ -249,24 +236,4 @@ func (h *MiniProgramAuthHandler) extractAvatarURL(user *models.User, openID stri
 		}
 	}
 	return ""
-}
-
-// extractGender 提取性别
-func (h *MiniProgramAuthHandler) extractGender(user *models.User) int {
-	// 从绑定表查询
-	var binding models.UserThirdpartyBinding
-	if err := h.db.Where("user_id = ? AND provider = ?", uint64(user.ID), oauth.ProviderWeChat.String()).First(&binding).Error; err == nil {
-		return binding.Gender
-	}
-	return 0
-}
-
-// buildMetadata 构建 metadata
-func (h *MiniProgramAuthHandler) buildMetadata(userInfo *MiniUserInfo) models.Metadata {
-	metadata := make(models.Metadata)
-	metadata["encrypted_data"] = userInfo.EncryptedData
-	metadata["signature"] = userInfo.Signature
-	metadata["raw_data"] = userInfo.RawData
-	metadata["login_at"] = time.Now().Unix()
-	return metadata
 }
