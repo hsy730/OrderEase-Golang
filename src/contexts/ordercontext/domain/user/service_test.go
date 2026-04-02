@@ -519,3 +519,57 @@ func TestService_GetByUsername_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, user)
 }
+
+// ==================== UpdateAvatar Tests ====================
+
+func TestService_UpdateAvatar(t *testing.T) {
+	testUser, _ := NewUser("testuser", "13800138000", "abc123", UserTypeDelivery, UserRolePublic)
+
+	mockRepo := &MockRepository{
+		getByIDFunc: func(id UserID) (*User, error) {
+			return testUser, nil
+		},
+		updateFunc: func(user *User) error {
+			return nil
+		},
+	}
+
+	service := NewService(mockRepo)
+
+	avatarURL := "/uploads/avatars/test_avatar.jpg"
+	err := service.UpdateAvatar(testUser.ID(), avatarURL)
+	assert.NoError(t, err)
+	assert.Equal(t, avatarURL, testUser.Avatar())
+}
+
+func TestService_UpdateAvatar_UserNotFound(t *testing.T) {
+	mockRepo := &MockRepository{
+		getByIDFunc: func(id UserID) (*User, error) {
+			return nil, errors.New("not found")
+		},
+	}
+
+	service := NewService(mockRepo)
+
+	err := service.UpdateAvatar(NewUserID(), "/uploads/avatars/test.jpg")
+	assert.Error(t, err)
+}
+
+func TestService_UpdateAvatar_UpdateFailed(t *testing.T) {
+	testUser, _ := NewUser("testuser", "13800138000", "abc123", UserTypeDelivery, UserRolePublic)
+
+	mockRepo := &MockRepository{
+		getByIDFunc: func(id UserID) (*User, error) {
+			return testUser, nil
+		},
+		updateFunc: func(user *User) error {
+			return errors.New("update failed")
+		},
+	}
+
+	service := NewService(mockRepo)
+
+	err := service.UpdateAvatar(testUser.ID(), "/uploads/avatars/test.jpg")
+	assert.Error(t, err)
+	assert.Equal(t, "update failed", err.Error())
+}

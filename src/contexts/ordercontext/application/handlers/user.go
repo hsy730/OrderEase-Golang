@@ -407,6 +407,11 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 }
 
 // 上传用户头像
+//
+// 遵循DDD架构原则：
+//   - Handler 层只负责 HTTP 请求处理和响应
+//   - 业务逻辑委托给领域服务 (userDomain)
+//   - 不直接操作 Repository
 func (h *Handler) UploadAvatar(c *gin.Context) {
 	// 获取用户ID
 	userID, exists := c.Get("userID")
@@ -446,16 +451,9 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 更新用户头像URL
+	// 使用领域服务更新用户头像（遵循DDD架构）
 	avatarURL := "/uploads/avatars/" + filename
-	user, err := h.userRepo.GetUserByID(userID.(string))
-	if err != nil {
-		errorResponse(c, http.StatusNotFound, "用户未找到")
-		return
-	}
-
-	user.Avatar = avatarURL
-	if err := h.userRepo.Update(user); err != nil {
+	if err := h.userDomain.UpdateAvatar(userdomain.UserID(userID.(string)), avatarURL); err != nil {
 		h.logger.Errorf("更新用户头像失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新头像失败")
 		return

@@ -257,3 +257,30 @@ func (s *Service) DeleteUser(id UserID) error {
 
 	return s.repo.Delete(user)
 }
+
+// UpdateAvatar 更新用户头像
+//
+// 参数：
+//   - id: 用户ID
+//   - avatarURL: 头像URL路径
+//
+// 返回：
+//   - nil: 更新成功
+//   - error: 用户不存在或其他错误
+//
+// 业务规则：
+//   - 头像URL不能为空
+//   - 用户必须存在
+func (s *Service) UpdateAvatar(id UserID, avatarURL string) error {
+	// 1. 获取用户
+	user, err := s.repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	// 2. 更新头像（使用实体的 Setter 方法）
+	user.SetAvatar(avatarURL)
+
+	// 3. 持久化
+	return s.repo.Update(user)
+}

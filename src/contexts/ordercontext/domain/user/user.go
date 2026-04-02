@@ -59,6 +59,7 @@ type User struct {
 	userType UserType
 	role     UserRole
 	address  string
+	avatar   string
 }
 
 // UserID 用户ID类型
@@ -197,6 +198,10 @@ func (u *User) Address() string {
 	return u.address
 }
 
+func (u *User) Avatar() string {
+	return u.avatar
+}
+
 // Setters 方法
 
 func (u *User) SetName(name string) {
@@ -231,6 +236,10 @@ func (u *User) SetRole(role UserRole) {
 
 func (u *User) SetAddress(address string) {
 	u.address = address
+}
+
+func (u *User) SetAvatar(avatar string) {
+	u.avatar = avatar
 }
 
 // 业务方法
@@ -327,6 +336,7 @@ func (u *User) ToModel() *models.User {
 		Type:     string(u.userType),
 		Role:     string(u.role),
 		Address:  u.address,
+		Avatar:   u.avatar,
 	}
 }
 
@@ -340,5 +350,6 @@ func UserFromModel(model *models.User) *User {
 		userType: UserType(model.Type),
 		role:     UserRole(model.Role),
 		address:  model.Address,
+		avatar:   model.Avatar,
 	}
 }
