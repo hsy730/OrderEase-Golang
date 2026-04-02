@@ -127,6 +127,9 @@ func main() {
 	if err := os.MkdirAll("./uploads/products", 0755); err != nil {
 		log2.Fatal("创建上传目录失败:", err)
 	}
+	if err := os.MkdirAll("./uploads/avatars", 0755); err != nil {
+		log2.Fatal("创建头像上传目录失败:", err)
+	}
 	log2.Info("上传目录创建成功")
 
 	// 启动后台任务

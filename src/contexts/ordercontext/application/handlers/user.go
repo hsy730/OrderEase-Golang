@@ -405,3 +405,64 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 	}
 	successResponse(c, responseData)
 }
+
+// 上传用户头像
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	// 获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未认证")
+		return
+	}
+
+	// 获取上传的文件
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "缺少头像文件")
+		return
+	}
+
+	// 检查文件类型
+	ext := utils.GetFileExtension(file.Filename)
+	if !utils.IsAllowedImageExt(ext) {
+		errorResponse(c, http.StatusBadRequest, "不支持的图片格式")
+		return
+	}
+
+	// 检查文件大小
+	if file.Size > 5*1024*1024 { // 5MB
+		errorResponse(c, http.StatusBadRequest, "文件大小不能超过5MB")
+		return
+	}
+
+	// 生成唯一文件名
+	filename := utils.GenerateUniqueFilename(file.Filename)
+	filepath := "./uploads/avatars/" + filename
+
+	// 保存文件
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		h.logger.Errorf("保存头像失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "保存头像失败")
+		return
+	}
+
+	// 更新用户头像URL
+	avatarURL := "/uploads/avatars/" + filename
+	user, err := h.userRepo.GetUserByID(userID.(string))
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, "用户未找到")
+		return
+	}
+
+	user.Avatar = avatarURL
+	if err := h.userRepo.Update(user); err != nil {
+		h.logger.Errorf("更新用户头像失败: %v", err)
+		errorResponse(c, http.StatusInternalServerError, "更新头像失败")
+		return
+	}
+
+	successResponse(c, gin.H{
+		"message":    "头像上传成功",
+		"avatar_url": avatarURL,
+	})
+}

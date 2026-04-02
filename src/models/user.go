@@ -15,6 +15,7 @@ type User struct {
 	Address   string       `gorm:"column:address" json:"address"`
 	Type      string       `gorm:"column:type" json:"type"` // delivery:邮寄, pickup:自提, system:系统用户
 	Nickname  string       `gorm:"column:nickname;size:100" json:"nickname"` // 用户昵称
+	Avatar    string       `gorm:"column:avatar" json:"avatar"` // 用户头像
 
 	// 第三方平台绑定（关联查询时使用）
 	ThirdpartyBindings []UserThirdpartyBinding `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;" json:"thirdparty_bindings,omitempty"`

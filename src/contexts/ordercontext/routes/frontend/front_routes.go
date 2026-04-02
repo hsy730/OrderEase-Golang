@@ -32,5 +32,6 @@ func SetupFrontRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 		protected.GET("/shop/:shopId/tags", h.GetShopTags)
 		protected.GET("/shop/detail", h.GetShopInfo)
 		protected.GET("/shop/image", h.GetShopImage)
+		protected.POST("/user/upload-avatar", h.UploadAvatar)
 	}
 }

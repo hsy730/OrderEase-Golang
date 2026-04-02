@@ -8,6 +8,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // 注意：IsValidImageType 已被 Domain 层替代
@@ -106,4 +109,27 @@ func CompressImage(filePath string, maxSize int64) (int64, error) {
 	}
 
 	return written, nil
+}
+
+// GetFileExtension 获取文件扩展名
+func GetFileExtension(filename string) string {
+	return strings.ToLower(filepath.Ext(filename))
+}
+
+// IsAllowedImageExt 检查是否为允许的图片扩展名
+func IsAllowedImageExt(ext string) bool {
+	allowedExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".gif":  true,
+	}
+	return allowedExts[ext]
+}
+
+// GenerateUniqueFilename 生成唯一的文件名
+func GenerateUniqueFilename(originalFilename string) string {
+	ext := filepath.Ext(originalFilename)
+	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
+	return strings.Join([]string{GenerateRandomString(10), "_", strconv.FormatInt(timestamp, 10)}, "") + ext
 }
