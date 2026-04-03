@@ -19,6 +19,7 @@ import (
 // MiniProgramLoginRequest 小程序登录请求（新版微信授权流程）
 type MiniProgramLoginRequest struct {
 	Code      string `json:"code" binding:"required"`
+	Silent    bool   `json:"silent"` // 静默登录标识
 	Nickname  string `json:"nickname"`
 	AvatarURL string `json:"avatar_url"`
 }
@@ -62,7 +63,7 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 		return
 	}
 
-	log2.Debugf("微信小程序登录请求: code=%s, nickname=%s, avatar_url=%s", req.Code, req.Nickname, req.AvatarURL)
+	log2.Debugf("微信小程序登录请求: code=%s, silent=%v, nickname=%s, avatar_url=%s", req.Code, req.Silent, req.Nickname, req.AvatarURL)
 
 	// 1. 通过 code 换取 openid 和 session_key
 	sessionInfo, err := h.miniProgramClient.Code2Session(c.Request.Context(), req.Code)
@@ -78,7 +79,14 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 	log2.Debugf("获取到 openid: %s", sessionInfo.OpenID)
 
 	// 2. 查找或创建用户
-	user, isNewUser, err := h.findOrCreateUser(sessionInfo, req.Nickname, req.AvatarURL)
+	// 静默登录模式下，不需要用户信息（昵称、头像等）
+	var nickname, avatarURL string
+	if !req.Silent {
+		nickname = req.Nickname
+		avatarURL = req.AvatarURL
+	}
+
+	user, isNewUser, err := h.findOrCreateUser(sessionInfo, nickname, avatarURL)
 	if err != nil {
 		log2.Errorf("查找或创建用户失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
