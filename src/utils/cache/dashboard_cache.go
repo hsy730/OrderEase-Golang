@@ -78,9 +78,16 @@ func InvalidateDashboardCache(shopID int64) {
 }
 
 func containsShopID(key string, shopID int64) bool {
-	shopIDStr := fmt.Sprintf(":%d:", shopID)
-	for i := 0; i <= len(key)-len(shopIDStr); i++ {
-		if key[i:i+len(shopIDStr)] == shopIDStr {
+	// 检查键是否以 :shopID 结尾
+	endPattern := fmt.Sprintf(":%d", shopID)
+	if len(key) >= len(endPattern) && key[len(key)-len(endPattern):] == endPattern {
+		return true
+	}
+	
+	// 检查键是否包含 :shopID:
+	middlePattern := fmt.Sprintf(":%d:", shopID)
+	for i := 0; i <= len(key)-len(middlePattern); i++ {
+		if key[i:i+len(middlePattern)] == middlePattern {
 			return true
 		}
 	}

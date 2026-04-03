@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"orderease/contexts/thirdparty/infrastructure/config"
 	"orderease/contexts/thirdparty/infrastructure/persistence/repositories"
 	"orderease/contexts/thirdparty/infrastructure/external/wechat"
 )
@@ -33,7 +34,8 @@ func setupMiniProgramAuthHandlerTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock)
 func newTestMiniProgramAuthHandler(db *gorm.DB) *MiniProgramAuthHandler {
 	return &MiniProgramAuthHandler{
 		db:                db,
-		miniProgramClient: &wechat.MiniProgramClient{AppID: "test_app_id", AppSecret: "test_app_secret"},
+		miniProgramClient: wechat.NewMiniProgramClient("test_app_id", "test_app_secret"),
+		config:            &config.MiniProgramConfig{Enabled: true, AppID: "test_app_id", AppSecret: "test_app_secret"},
 		bindingRepo:       repositories.NewUserThirdpartyBindingRepository(db),
 	}
 }
@@ -62,9 +64,7 @@ func newMiniProgramUserRows(userID snowflake.ID, name, nickname, avatar string) 
 
 // 测试静默登录：首次登录，无绑定记录，应创建新用户
 func TestWeChatMiniProgramLogin_SilentLogin_FirstTime(t *testing.T) {
-	db, mock := setupMiniProgramAuthHandlerTestDB(t)
-
-	h := newTestMiniProgramAuthHandler(db)
+	_, mock := setupMiniProgramAuthHandlerTestDB(t)
 
 	req := MiniProgramLoginRequest{
 		Code:   "test_code",
@@ -72,7 +72,7 @@ func TestWeChatMiniProgramLogin_SilentLogin_FirstTime(t *testing.T) {
 	}
 
 	// 模拟绑定查询失败（首次登录）
-	mock.ExpectQuery("SELECT \* FROM `user_thirdparty_bindings`").
+	mock.ExpectQuery("SELECT * FROM `user_thirdparty_bindings`").
 		WithArgs("wechat", "test_openid", true, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
@@ -99,9 +99,7 @@ func TestWeChatMiniProgramLogin_SilentLogin_FirstTime(t *testing.T) {
 
 // 测试静默登录：已有绑定记录，应更新绑定信息
 func TestWeChatMiniProgramLogin_SilentLogin_ExistingUser(t *testing.T) {
-	db, mock := setupMiniProgramAuthHandlerTestDB(t)
-
-	h := newTestMiniProgramAuthHandler(db)
+	_, mock := setupMiniProgramAuthHandlerTestDB(t)
 
 	userID := snowflake.ID(1000)
 
@@ -111,12 +109,12 @@ func TestWeChatMiniProgramLogin_SilentLogin_ExistingUser(t *testing.T) {
 	}
 
 	// 模拟绑定查询成功
-	mock.ExpectQuery("SELECT \* FROM `user_thirdparty_bindings`").
+	mock.ExpectQuery("SELECT * FROM `user_thirdparty_bindings`").
 		WithArgs("wechat", "test_openid", true, 1).
 		WillReturnRows(newMiniProgramBindingRows(userID, "test_openid", "", ""))
 
 	// 模拟用户查询成功
-	mock.ExpectQuery("SELECT \* FROM `users`").
+	mock.ExpectQuery("SELECT * FROM `users`").
 		WithArgs(userID, 1).
 		WillReturnRows(newMiniProgramUserRows(userID, "wx_user_123456", "", ""))
 
@@ -139,9 +137,7 @@ func TestWeChatMiniProgramLogin_SilentLogin_ExistingUser(t *testing.T) {
 
 // 测试非静默登录：正常授权流程
 func TestWeChatMiniProgramLogin_NonSilentLogin(t *testing.T) {
-	db, mock := setupMiniProgramAuthHandlerTestDB(t)
-
-	h := newTestMiniProgramAuthHandler(db)
+	_, mock := setupMiniProgramAuthHandlerTestDB(t)
 
 	req := MiniProgramLoginRequest{
 		Code:      "test_code",
@@ -151,7 +147,7 @@ func TestWeChatMiniProgramLogin_NonSilentLogin(t *testing.T) {
 	}
 
 	// 模拟绑定查询失败（首次登录）
-	mock.ExpectQuery("SELECT \* FROM `user_thirdparty_bindings`").
+	mock.ExpectQuery("SELECT * FROM `user_thirdparty_bindings`").
 		WithArgs("wechat", "test_openid", true, 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
