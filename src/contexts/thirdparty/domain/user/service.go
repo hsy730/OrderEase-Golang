@@ -36,8 +36,10 @@ type OAuthResultAdapter interface {
 
 // FindOrCreateByOpenID 通过 OpenID 查找或创建用户（含绑定管理）
 func (s *Service) FindOrCreateByOpenID(result OAuthResultAdapter) (*models.User, error) {
+	// 首先尝试查找绑定
 	binding, err := s.bindingRepo.FindByProviderAndUserID(oauth.ProviderWeChat, result.GetOpenID())
 	if err == nil && binding != nil {
+		// 更新已存在的用户
 		return s.updateExistingUser(binding, result)
 	}
 
@@ -45,6 +47,7 @@ func (s *Service) FindOrCreateByOpenID(result OAuthResultAdapter) (*models.User,
 		return nil, fmt.Errorf("query binding failed: %w", err)
 	}
 
+	// 创建新用户和绑定（已在方法内使用事务）
 	return s.createNewUserWithBinding(result)
 }
 
