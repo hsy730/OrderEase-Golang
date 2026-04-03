@@ -1,8 +1,11 @@
 package tag
 
 import (
+	"fmt"
+
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
+	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
 	"orderease/models"
 )
 
@@ -93,4 +96,22 @@ func (s *Service) UpdateProductTags(dto UpdateProductTagsDTO) (*UpdateProductTag
 		AddedCount:   len(tagsToAdd),
 		DeletedCount: len(tagsToDelete),
 	}, nil
+}
+
+// UpdateTag 更新标签
+func (s *Service) UpdateTag(tag models.Tag, shopID snowflake.ID) error {
+	tag.ShopID = shopID
+	return s.db.Save(&tag).Error
+}
+
+// DeleteTag 删除标签（含关联检查）
+func (s *Service) DeleteTag(id string, shopID snowflake.ID) error {
+	var count int64
+	if err := s.db.Model(&models.ProductTag{}).Where("tag_id = ?", id).Count(&count).Error; err != nil {
+		return fmt.Errorf("查询标签关联失败: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("该标签已关联 %d 个商品", count)
+	}
+	return s.db.Delete(&models.Tag{}, id).Error
 }

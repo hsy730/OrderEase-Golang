@@ -93,29 +93,18 @@ func (h *Handler) UniversalLogin(c *gin.Context) {
 
 // 修改管理员密码
 func (h *Handler) ChangeAdminPassword(c *gin.Context) {
-	log2.Debugf("开始处理管理员修改密码请求")
-
 	var passwordData struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&passwordData); err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的请求数据")
+		errorResponse(c, http.StatusBadRequest, "无效的请求数据: "+err.Error())
 		return
 	}
 
-	// 获取唯一的管理员账户
-	admin, err := h.adminRepo.GetFirstAdmin()
-	if err != nil {
-		log2.Errorf("查找管理员失败: %v", err)
-		errorResponse(c, http.StatusNotFound, "管理员账户不存在")
-		return
-	}
-
-	// 验证旧密码
-	if !admin.CheckPassword(passwordData.OldPassword) {
-		errorResponse(c, http.StatusUnauthorized, "旧密码错误")
+	if passwordData.OldPassword == passwordData.NewPassword {
+		errorResponse(c, http.StatusBadRequest, "新密码不能与旧密码相同")
 		return
 	}
 
@@ -125,18 +114,14 @@ func (h *Handler) ChangeAdminPassword(c *gin.Context) {
 		return
 	}
 
-	// 更新密码
-	admin.Password = passwordData.NewPassword
-	if err := admin.HashPassword(); err != nil {
-		log2.Errorf("密码加密失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
-		return
-	}
-
-	// 使用 Repository 更新管理员
-	if err := h.adminRepo.Update(admin); err != nil {
-		log2.Errorf("保存新密码失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
+	// 使用领域服务更新管理员密码（含验证+哈希+持久化）
+	if err := h.adminDomain.UpdatePassword("admin", passwordData.OldPassword, passwordData.NewPassword); err != nil {
+		log2.Errorf("修改管理员密码失败: %v", err)
+		if err.Error() == "管理员账户不存在" || err.Error() == "旧密码错误" {
+			errorResponse(c, http.StatusUnauthorized, err.Error())
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "修改密码失败")
+		}
 		return
 	}
 
@@ -192,12 +177,8 @@ func (h *Handler) ChangeShopPassword(c *gin.Context) {
 		return
 	}
 
-	// 更新密码（使用 Domain 实体自动哈希）
-	shopDomain.SetOwnerPassword(passwordData.NewPassword)
-	updatedShop := shopDomain.ToModel()
-
-	// 使用 Repository 更新店铺
-	if err := h.shopRepo.Update(updatedShop); err != nil {
+	// 更新密码（使用 Domain 服务自动哈希）
+	if err := h.shopService.UpdatePassword(snowflake.ID(shopID), passwordData.NewPassword); err != nil {
 		log2.Errorf("保存新密码失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "修改密码失败")
 		return

@@ -524,3 +524,12 @@ func parseBasicType(value reflect.Value) func(string) (interface{}, error) {
 		}
 	}
 }
+
+func parseColumnName(tag string) string {
+	for _, part := range strings.Split(tag, ";") {
+		if strings.HasPrefix(part, "column:") {
+			return strings.TrimPrefix(part, "column:")
+		}
+	}
+	return ""
+}

@@ -11,6 +11,13 @@ type OAuthResult struct {
 	RawData      map[string]interface{} // 原始数据
 }
 
+func (r *OAuthResult) GetOpenID() string       { return r.OpenID }
+func (r *OAuthResult) GetUnionID() string      { return r.UnionID }
+func (r *OAuthResult) GetAccessToken() string  { return r.AccessToken }
+func (r *OAuthResult) GetRefreshToken() string { return r.RefreshToken }
+func (r *OAuthResult) GetExpiresIn() int64     { return r.ExpiresIn }
+func (r *OAuthResult) GetRawData() map[string]interface{} { return r.RawData }
+
 // UserInfo 第三方平台用户信息
 type UserInfo struct {
 	OpenID   string // 用户唯一标识

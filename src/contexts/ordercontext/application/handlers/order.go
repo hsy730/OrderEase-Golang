@@ -325,8 +325,8 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	order.Status = updatedOrder.Status
 	order.TotalPrice = updatedOrder.TotalPrice
 
-	// 使用 Repository 更新订单（包含删除旧订单项、创建新订单项）
-	if err := h.orderRepo.UpdateOrder(order, updatedOrder.Items); err != nil {
+	// 使用领域服务持久化订单更新（包含删除旧订单项、创建新订单项）
+	if err := h.orderService.PersistUpdate(order, updatedOrder.Items); err != nil {
 		h.logger.Errorf("更新订单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -394,8 +394,8 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		}
 	}
 
-	// 使用 Repository 删除订单及其关联数据
-	if err := h.orderRepo.DeleteOrderInTx(tx, id, validShopID); err != nil {
+	// 使用领域服务删除订单及其关联数据（事务内）
+	if err := h.orderService.PersistDeleteInTx(tx, id, validShopID); err != nil {
 		tx.Rollback()
 		h.logger.Errorf("删除订单失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())

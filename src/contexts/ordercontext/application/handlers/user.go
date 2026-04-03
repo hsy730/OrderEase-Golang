@@ -6,6 +6,7 @@ import (
 	userdomain "orderease/contexts/ordercontext/domain/user"
 	"orderease/models"
 	"orderease/utils"
+	"os"
 	"strconv"
 	"time"
 
@@ -106,18 +107,6 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
-	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-	// 	return
-	// }
-
-	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-
 	user, err := h.userRepo.GetUserByID(id)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, "用户未找到")
@@ -208,40 +197,16 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		}
 	}
 
-	// 查询现有用户并更新其他字段
-	userModel, err := h.userRepo.GetUserByID(id)
+	// 使用 Domain Service 更新用户基本信息（类型、角色、地址）
+	userID := userdomain.UserID(id)
+	updatedUser, err := h.userDomain.UpdateProfile(userID, updateData.Type, updateData.Role, updateData.Address)
 	if err != nil {
 		h.logger.Errorf("更新用户失败, ID: %s, 错误: %v", id, err)
-		errorResponse(c, http.StatusNotFound, "用户未找到")
-		return
-	}
-
-	// 更新其他字段
-	if updateData.Type != "" {
-		userModel.Type = updateData.Type
-	}
-	if updateData.Address != "" {
-		userModel.Address = updateData.Address
-	}
-	if updateData.Role != "" {
-		userModel.Role = updateData.Role
-	}
-
-	if err := h.userRepo.Update(userModel); err != nil {
-		h.logger.Errorf("更新用户失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新用户失败")
 		return
 	}
 
-	// 重新获取更新后的用户信息
-	userModel, err = h.userRepo.GetUserByID(id)
-	if err != nil {
-		h.logger.Errorf("获取更新后的用户信息失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "获取更新后的用户信息失败")
-		return
-	}
-
-	successResponse(c, userModel)
+	successResponse(c, updatedUser.ToModel())
 }
 
 // 删除用户
@@ -252,26 +217,26 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// requestShopID, err := strconv.ParseUint(c.Query("shop_id"), 10, 64)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
-	// 	return
-	// }
+	userID := userdomain.UserID(id)
 
-	// validShopID, err := h.validAndReturnShopID(c, requestShopID)
-	// if err != nil {
-	// 	errorResponse(c, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-
-	user, err := h.userRepo.GetUserByID(id)
+	// 先查询用户信息以获取头像路径（用于文件清理）
+	user, err := h.userDomain.GetByID(userID)
 	if err != nil {
 		h.logger.Errorf("删除用户失败, ID: %s, 错误: %v", id, err)
 		errorResponse(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
-	if err := h.userRepo.Delete(user); err != nil {
+	// 删除头像文件（文件系统操作保留在 Handler 层）
+	if user.Avatar() != "" {
+		avatarPath := "." + user.Avatar()
+		if err := os.Remove(avatarPath); err != nil && !os.IsNotExist(err) {
+			h.logger.Warnf("删除用户头像文件失败, 路径: %s, 错误: %v", avatarPath, err)
+		}
+	}
+
+	// 使用 Domain Service 删除用户
+	if err := h.userDomain.DeleteUser(userID); err != nil {
 		h.logger.Errorf("删除用户记录失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "删除用户失败")
 		return
@@ -418,6 +383,15 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	if !exists {
 		errorResponse(c, http.StatusUnauthorized, "未认证")
 		return
+	}
+
+	// 查询当前用户，清理旧头像
+	currentUser, err := h.userRepo.GetUserByID(userID.(string))
+	if err == nil && currentUser.Avatar != "" {
+		oldAvatarPath := "." + currentUser.Avatar
+		if removeErr := os.Remove(oldAvatarPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			h.logger.Warnf("删除旧头像文件失败, 路径: %s, 错误: %v", oldAvatarPath, removeErr)
+		}
 	}
 
 	// 获取上传的文件

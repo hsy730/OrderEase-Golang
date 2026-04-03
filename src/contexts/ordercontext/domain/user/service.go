@@ -259,28 +259,47 @@ func (s *Service) DeleteUser(id UserID) error {
 }
 
 // UpdateAvatar 更新用户头像
-//
-// 参数：
-//   - id: 用户ID
-//   - avatarURL: 头像URL路径
-//
-// 返回：
-//   - nil: 更新成功
-//   - error: 用户不存在或其他错误
-//
-// 业务规则：
-//   - 头像URL不能为空
-//   - 用户必须存在
 func (s *Service) UpdateAvatar(id UserID, avatarURL string) error {
-	// 1. 获取用户
 	user, err := s.repo.GetByID(id)
 	if err != nil {
 		return err
 	}
 
-	// 2. 更新头像（使用实体的 Setter 方法）
 	user.SetAvatar(avatarURL)
 
-	// 3. 持久化
 	return s.repo.Update(user)
+}
+
+// UpdateProfile 更新用户基本信息（类型、角色、地址）
+//
+// 参数：
+//   - id: 用户ID
+//   - userType: 用户类型（delivery/pickup），空字符串表示不更新
+//   - role: 用户角色（private_user/public_user），空字符串表示不更新
+//   - address: 地址，空字符串表示不更新
+//
+// 返回：
+//   - *User: 更新后的领域实体
+//   - error: 用户不存在
+func (s *Service) UpdateProfile(id UserID, userType string, role string, address string) (*User, error) {
+	user, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if userType != "" {
+		user.SetUserType(UserType(userType))
+	}
+	if role != "" {
+		user.SetRole(UserRole(role))
+	}
+	if address != "" {
+		user.SetAddress(address)
+	}
+
+	if err := s.repo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }

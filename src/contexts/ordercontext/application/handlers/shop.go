@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -214,7 +213,7 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
 		ID              snowflake.ID            `json:"id" binding:"required"`
 		OwnerUsername   string                  `json:"owner_username" binding:"required"`
-		OwnerPassword   *string                 `json:"owner_password"` // 使用指针类型以区分null和空字符串
+		OwnerPassword   *string                 `json:"owner_password"`
 		Name            string                  `json:"name"`
 		ContactPhone    string                  `json:"contact_phone"`
 		ContactEmail    string                  `json:"contact_email"`
@@ -230,117 +229,59 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 		return
 	}
 
-	// 检查OrderStatusFlow的Statuses是否为null，如果是则将整个OrderStatusFlow设为nil
 	if updateData.OrderStatusFlow != nil && updateData.OrderStatusFlow.Statuses == nil {
 		updateData.OrderStatusFlow = nil
 	}
 
-	// 查询现有店铺
-	shop, err := h.shopRepo.GetShopByID(updateData.ID)
-	if err != nil {
-		errorResponse(c, http.StatusNotFound, "店铺不存在")
-		return
-	}
-
-	// 获取用户信息
 	userInfo, exists := c.Get("userInfo")
 	if !exists {
 		errorResponse(c, http.StatusUnauthorized, "未获取到用户信息")
 		return
 	}
-
 	user := userInfo.(models.UserInfo)
 
-	// 检查是否在修改店铺过期时间，如果是，需要管理员权限
 	if updateData.ValidUntil != "" && !user.IsAdmin {
 		updateData.ValidUntil = ""
 	}
 
-	// 更新字段
-	if updateData.Name != "" {
-		shop.Name = updateData.Name
-	}
-
-	if updateData.ContactPhone != "" {
-		shop.ContactPhone = updateData.ContactPhone
-	}
-
-	if updateData.ContactEmail != "" {
-		shop.ContactEmail = updateData.ContactEmail
-	}
-
-	if updateData.Description != "" {
-		shop.Description = updateData.Description
-	}
-
-	if updateData.Address != "" {
-		shop.Address = updateData.Address
-	}
-
-	if updateData.Settings != nil {
-		shop.Settings = json.RawMessage(updateData.Settings)
-	}
-
-	// 如果提供了订单流转配置，则更新
-	if updateData.OrderStatusFlow != nil {
-		shop.OrderStatusFlow = *updateData.OrderStatusFlow
-	} else {
-		// 如果数据库中也没有订单流转信息，则填充默认配置
-		if len(shop.OrderStatusFlow.Statuses) == 0 {
-			var defaultOrderStatusFlow models.OrderStatusFlow
-			if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &defaultOrderStatusFlow); err != nil {
-				h.logger.Errorf("解析默认订单流转配置失败: %v", err)
-				errorResponse(c, http.StatusInternalServerError, "解析默认订单流转配置失败")
-				return
-			}
-			shop.OrderStatusFlow = defaultOrderStatusFlow
-		}
-	}
-	if updateData.ValidUntil != "" {
-		validUntil, err := time.Parse(time.RFC3339, updateData.ValidUntil)
-		if err != nil {
-			errorResponse(c, http.StatusBadRequest, "无效的有效期格式")
-			return
-		}
-		shop.ValidUntil = validUntil
-	}
-
-	if updateData.OwnerUsername != "" {
-		shop.OwnerUsername = updateData.OwnerUsername
-	}
-	// 处理密码更新：如果密码不为null，则使用 Domain 实体更新密码
-	if updateData.OwnerPassword != nil {
-		// 转换为 Domain 实体（shop 已经是指针，不需要再取地址）
-		shopEntity := shopdomain.ShopFromModel(shop)
-		// 设置明文密码
-		shopEntity.SetOwnerPassword(*updateData.OwnerPassword)
-		// 转换回 Model（自动处理密码哈希）
-		shopModel := shopEntity.ToModel()
-		// 更新密码字段
-		shop.OwnerPassword = shopModel.OwnerPassword
-	}
-
-	// 使用 Repository 更新店铺
-	if err := h.shopRepo.Update(shop); err != nil {
+	// 使用领域服务更新店铺信息（封装所有字段更新逻辑）
+	updatedShop, err := h.shopService.UpdateInfo(updateData.ID, shopdomain.ShopUpdates{
+		Name:            updateData.Name,
+		ContactPhone:    updateData.ContactPhone,
+		ContactEmail:    updateData.ContactEmail,
+		Description:     updateData.Description,
+		Address:         updateData.Address,
+		Settings:        updateData.Settings,
+		OrderStatusFlow: updateData.OrderStatusFlow,
+		ValidUntil:      updateData.ValidUntil,
+		OwnerUsername:   updateData.OwnerUsername,
+		OwnerPassword:   updateData.OwnerPassword,
+	})
+	if err != nil {
 		h.logger.Errorf("更新店铺失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
+		if err.Error() == "店铺不存在" {
+			errorResponse(c, http.StatusNotFound, "店铺不存在")
+		} else if err.Error() == "无效的有效期格式" {
+			errorResponse(c, http.StatusBadRequest, err.Error())
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "更新店铺失败")
+		}
 		return
 	}
 
-	// 构建响应数据（不包含密码）
 	successResponse(c, gin.H{
 		"code": 200,
 		"data": gin.H{
-			"id":                shop.ID,
-			"name":              shop.Name,
-			"description":       shop.Description,
-			"owner_username":    shop.OwnerUsername,
-			"contact_phone":     shop.ContactPhone,
-			"address":           shop.Address,
-			"contact_email":     shop.ContactEmail,
-			"valid_until":       shop.ValidUntil.Format(time.RFC3339),
-			"settings":          shop.Settings,
-			"order_status_flow": shop.OrderStatusFlow,
+			"id":                updatedShop.ID,
+			"name":              updatedShop.Name,
+			"description":       updatedShop.Description,
+			"owner_username":    updatedShop.OwnerUsername,
+			"contact_phone":     updatedShop.ContactPhone,
+			"address":           updatedShop.Address,
+			"contact_email":     updatedShop.ContactEmail,
+			"valid_until":       updatedShop.ValidUntil.Format(time.RFC3339),
+			"settings":          updatedShop.Settings,
+			"order_status_flow": updatedShop.OrderStatusFlow,
 		},
 	})
 }
@@ -595,20 +536,11 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 		return
 	}
 
-	// 查询店铺是否存在
-	shop, err := h.shopRepo.GetShopByID(req.ShopID)
+	// 使用领域服务更新订单流转状态配置
+	updatedShop, err := h.shopService.UpdateOrderStatusFlow(req.ShopID, req.OrderStatusFlow)
 	if err != nil {
-		errorResponse(c, http.StatusNotFound, "店铺不存在")
-		return
-	}
-
-	// 更新订单流转状态配置
-	shop.OrderStatusFlow = req.OrderStatusFlow
-
-	// 使用 Repository 更新店铺
-	if err := h.shopRepo.Update(shop); err != nil {
 		h.logger.Errorf("更新店铺订单流转状态配置失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新店铺订单流转状态配置失败")
+		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -616,8 +548,8 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 		"code":    200,
 		"message": "店铺订单流转状态配置更新成功",
 		"data": gin.H{
-			"shop_id":           shop.ID,
-			"order_status_flow": shop.OrderStatusFlow,
+			"shop_id":           updatedShop.ID,
+			"order_status_flow": updatedShop.OrderStatusFlow,
 		},
 	})
 }

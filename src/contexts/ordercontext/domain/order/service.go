@@ -23,6 +23,8 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
+	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
+	// TODO(DDD-P3): 移除 *gorm.DB 直接注入，改为通过 Repository 接口操作数据
 	"orderease/models"
 )
 
@@ -407,4 +409,54 @@ func (s *Service) ValidateStatusTransition(currentStatus int, nextStatus int, fl
 
 	// 如果在店铺流转定义中找不到当前状态
 	return fmt.Errorf("当前状态不允许转换")
+}
+
+// PersistUpdate 持久化订单更新（含订单项替换，事务内）
+func (s *Service) PersistUpdate(order *models.Order, newItems []models.OrderItem) error {
+	tx := s.db.Begin()
+
+	if err := tx.Where("order_id = ?", order.ID).Delete(&models.OrderItem{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除原有订单项失败: %w", err)
+	}
+
+	for i := range newItems {
+		newItems[i].OrderID = order.ID
+	}
+	if err := tx.Create(&newItems).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("创建新订单项失败: %w", err)
+	}
+
+	if err := tx.Save(order).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("更新订单信息失败: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("更新订单失败: %w", err)
+	}
+
+	return nil
+}
+
+// PersistDeleteInTx 在给定事务中删除订单及其关联数据（不提交事务）
+func (s *Service) PersistDeleteInTx(tx *gorm.DB, orderID string, shopID snowflake.ID) error {
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+		return fmt.Errorf("删除订单项失败: %w", err)
+	}
+
+	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+		return fmt.Errorf("删除订单状态日志失败: %w", err)
+	}
+
+	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	if result.Error != nil {
+		return fmt.Errorf("删除订单记录失败: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("订单不存在")
+	}
+
+	return nil
 }

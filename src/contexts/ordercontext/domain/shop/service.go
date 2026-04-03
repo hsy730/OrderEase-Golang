@@ -21,7 +21,10 @@ import (
 	"time"
 
 	"github.com/bwmarrin/snowflake"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
+	// TODO(DDD-P3): 移除 *gorm.DB 直接注入，改为通过 Repository 接口操作数据
 	"orderease/models"
 )
 
@@ -153,19 +156,131 @@ func (s *Service) ProcessValidUntil(validUntilStr string) (time.Time, error) {
 }
 
 // ParseOrderStatusFlow 解析订单状态流转配置
-// 如果提供了配置则使用提供的配置，否则使用默认配置
 func (s *Service) ParseOrderStatusFlow(orderStatusFlow *models.OrderStatusFlow) (models.OrderStatusFlow, error) {
 	var flow models.OrderStatusFlow
 
-	// 解析默认订单流转配置
 	if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &flow); err != nil {
 		return models.OrderStatusFlow{}, errors.New("解析默认订单流转配置失败")
 	}
 
-	// 如果提供了订单流转配置，则使用提供的配置
 	if orderStatusFlow != nil {
 		flow = *orderStatusFlow
 	}
 
 	return flow, nil
+}
+
+// ShopUpdates 店铺更新数据（DTO）
+type ShopUpdates struct {
+	Name            string
+	ContactPhone    string
+	ContactEmail    string
+	Description     string
+	Address         string
+	Settings        datatypes.JSON
+	OrderStatusFlow *models.OrderStatusFlow
+	ValidUntil      string
+	OwnerUsername   string
+	OwnerPassword   *string
+}
+
+// UpdateInfo 更新店铺基本信息
+func (s *Service) UpdateInfo(shopID snowflake.ID, updates ShopUpdates) (*models.Shop, error) {
+	var shopModel models.Shop
+	if err := s.db.First(&shopModel, shopID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("店铺不存在")
+		}
+		return nil, fmt.Errorf("查询店铺失败: %w", err)
+	}
+
+	shopEntity := ShopFromModel(&shopModel)
+
+	if updates.Name != "" {
+		shopEntity.SetName(updates.Name)
+	}
+	if updates.ContactPhone != "" {
+		shopEntity.SetContactPhone(updates.ContactPhone)
+	}
+	if updates.ContactEmail != "" {
+		shopEntity.SetContactEmail(updates.ContactEmail)
+	}
+	if updates.Description != "" {
+		shopEntity.SetDescription(updates.Description)
+	}
+	if updates.Address != "" {
+		shopEntity.SetAddress(updates.Address)
+	}
+	if updates.Settings != nil {
+		shopEntity.SetSettings(updates.Settings)
+	}
+	if updates.OrderStatusFlow != nil {
+		shopEntity.SetOrderStatusFlow(*updates.OrderStatusFlow)
+	} else if len(shopModel.OrderStatusFlow.Statuses) == 0 {
+		var defaultFlow models.OrderStatusFlow
+		if err := json.Unmarshal([]byte(models.DefaultOrderStatusFlow), &defaultFlow); err == nil {
+			shopEntity.SetOrderStatusFlow(defaultFlow)
+		}
+	}
+	if updates.ValidUntil != "" {
+		validUntil, err := time.Parse(time.RFC3339, updates.ValidUntil)
+		if err != nil {
+			return nil, fmt.Errorf("无效的有效期格式")
+		}
+		shopEntity.SetValidUntil(validUntil)
+	}
+	if updates.OwnerUsername != "" {
+		shopEntity.SetOwnerUsername(updates.OwnerUsername)
+	}
+	if updates.OwnerPassword != nil && *updates.OwnerPassword != "" {
+		shopEntity.SetOwnerPassword(*updates.OwnerPassword)
+	}
+
+	updatedModel := shopEntity.ToModel()
+
+	if err := s.db.Save(updatedModel).Error; err != nil {
+		return nil, fmt.Errorf("更新店铺失败: %w", err)
+	}
+
+	return updatedModel, nil
+}
+
+// UpdateOrderStatusFlow 更新店铺订单状态流转配置
+func (s *Service) UpdateOrderStatusFlow(shopID snowflake.ID, flow models.OrderStatusFlow) (*models.Shop, error) {
+	var shopModel models.Shop
+	if err := s.db.First(&shopModel, shopID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("店铺不存在")
+		}
+		return nil, fmt.Errorf("查询店铺失败: %w", err)
+	}
+
+	shopModel.OrderStatusFlow = flow
+
+	if err := s.db.Save(&shopModel).Error; err != nil {
+		return nil, fmt.Errorf("更新店铺订单流转状态配置失败: %w", err)
+	}
+
+	return &shopModel, nil
+}
+
+// UpdatePassword 更新店铺密码
+func (s *Service) UpdatePassword(shopID snowflake.ID, newPassword string) error {
+	var shopModel models.Shop
+	if err := s.db.First(&shopModel, shopID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("店铺账户不存在")
+		}
+		return fmt.Errorf("查询店铺失败: %w", err)
+	}
+
+	shopEntity := ShopFromModel(&shopModel)
+	shopEntity.SetOwnerPassword(newPassword)
+	updatedModel := shopEntity.ToModel()
+
+	if err := s.db.Save(updatedModel).Error; err != nil {
+		return fmt.Errorf("保存新密码失败: %w", err)
+	}
+
+	return nil
 }

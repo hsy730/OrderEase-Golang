@@ -13,8 +13,12 @@ package product
 import (
 	"fmt"
 
+	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
+	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
+	// TODO(DDD-P3): 移除 *gorm.DB 直接注入，改为通过 Repository 接口操作数据
 	"orderease/models"
+	"orderease/utils"
 )
 
 // Service 商品领域服务
@@ -132,4 +136,117 @@ func GetModelStatusFromDomain(status ProductStatus) string {
 	default:
 		return models.ProductStatusPending
 	}
+}
+
+// ToggleStatus 切换商品状态（含状态流转验证+持久化）
+func (s *Service) ToggleStatus(productID uint64, shopID snowflake.ID, newStatus string) error {
+	var product models.Product
+	if err := s.db.Where("id = ? AND shop_id = ?", productID, shopID).First(&product).Error; err != nil {
+		return fmt.Errorf("商品不存在")
+	}
+
+	if !s.CanTransitionTo(product.Status, newStatus) {
+		return fmt.Errorf("无效的状态变更")
+	}
+
+	return s.db.Model(&product).Update("status", newStatus).Error
+}
+
+// UpdateWithCategories 更新商品信息及参数类别（事务）
+func (s *Service) UpdateWithCategories(product *models.Product, categories []models.ProductOptionCategory) error {
+	maxRetries := 3
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		tx := s.db.Begin()
+
+		if err := tx.Save(product).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("更新商品失败: %w", err)
+		}
+
+		if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("更新商品参数失败: %w", err)
+		}
+
+		for i := range categories {
+			categoryRetry := 0
+			category := categories[i]
+			for categoryRetry < maxRetries {
+				category.ProductID = product.ID
+
+				if err := tx.Create(&category).Error; err != nil {
+					if isDuplicateKeyErr(err) && categoryRetry < maxRetries-1 {
+						category.ID = snowflake.ID(utils.GenerateSnowflakeID())
+						categoryRetry++
+						continue
+					}
+					tx.Rollback()
+					return fmt.Errorf("更新商品参数失败: %w", err)
+				}
+				break
+			}
+			categories[i].ID = category.ID
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			return fmt.Errorf("更新商品失败: %w", err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("更新商品失败：重试次数超限")
+}
+
+// DeleteWithDependencies 删除商品及其关联数据（事务）
+func (s *Service) DeleteWithDependencies(productID uint64, shopID snowflake.ID) error {
+	tx := s.db.Begin()
+
+	if err := tx.Where(`category_id IN (
+		SELECT id FROM product_option_categories WHERE product_id = ?
+	)`, productID).Delete(&models.ProductOption{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除商品参数选项失败: %w", err)
+	}
+
+	if err := tx.Where("product_id = ?", productID).Delete(&models.ProductOptionCategory{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除商品参数类别失败: %w", err)
+	}
+
+	result := tx.Where("id = ? AND shop_id = ?", productID, shopID).Delete(&models.Product{})
+	if result.Error != nil {
+		tx.Rollback()
+		return fmt.Errorf("删除商品记录失败: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return fmt.Errorf("商品不存在")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("删除商品失败: %w", err)
+	}
+
+	return nil
+}
+
+// isDuplicateKeyErr 检查是否是MySQL重复键错误
+func isDuplicateKeyErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return containsStr(errStr, "Duplicate entry") || containsStr(errStr, "1062")
+}
+
+func containsStr(s, substr string) bool { return len(s) >= len(substr) && searchString(s, substr) }
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

@@ -130,16 +130,9 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	}
 
 	log2.Debugf("更新商品前状态: %s", productModel.Status)
-	// 使用领域服务验证状态流转
-	if !h.productService.CanTransitionTo(productModel.Status, req.Status) {
-		errorResponse(c, http.StatusBadRequest, "无效的状态变更")
-		return
-	}
-
-	// 更新商品状态
-	if err := h.productRepo.UpdateStatus(uint64(req.ID), validShopID, req.Status); err != nil {
-		log2.Errorf("更新商品状态失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "更新商品状态失败")
+	// 使用领域服务验证状态流转并执行更新
+	if err := h.productService.ToggleStatus(uint64(req.ID), validShopID, req.Status); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -314,8 +307,8 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		request.OptionCategories[i].ID = utils.GenerateSnowflakeID()
 	}
 
-	// 使用 Repository 更新商品（包含参数类别）
-	if err := h.productRepo.UpdateWithCategories(productModel, request.OptionCategories); err != nil {
+	// 使用领域服务更新商品（包含参数类别，事务内）
+	if err := h.productService.UpdateWithCategories(productModel, request.OptionCategories); err != nil {
 		log2.Errorf("更新商品失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -374,8 +367,8 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		}
 	}
 
-	// 使用 Repository 删除商品及其关联数据
-	if err := h.productRepo.DeleteWithDependencies(id, validShopID); err != nil {
+	// 使用领域服务删除商品及其关联数据（事务内）
+	if err := h.productService.DeleteWithDependencies(id, validShopID); err != nil {
 		errorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}

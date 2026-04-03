@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"errors"
+	appservices "orderease/contexts/ordercontext/application/services"
+	"orderease/contexts/ordercontext/domain/admin"
 	"orderease/contexts/ordercontext/domain/media"
 	"orderease/contexts/ordercontext/domain/order"
 	"orderease/contexts/ordercontext/domain/product"
@@ -37,11 +39,13 @@ type Handler struct {
 	dashboardRepo         *repositories.DashboardRepository
 	tempTokenService       *services.TempTokenService
 	userDomain            *user.Service
+	adminDomain           *admin.Service
 	orderService          *order.Service
 	productService        *product.Service
 	mediaService          *media.ImageUploadService
 	shopService           *shop.Service
 	tagService            *tag.Service
+	exportService         *appservices.ExportService
 	miniProgramAuthHandler *MiniProgramAuthHandler
 }
 
@@ -92,11 +96,13 @@ func NewHandler(db *gorm.DB) *Handler {
 	)
 
 	userDomain := user.NewService(userRepoAdapter)
+	adminDomain := admin.NewService(db)
 	orderService := order.NewService(db)
 	productService := product.NewService(db)
 	mediaService := media.NewImageUploadService(log2.GetLogger())
 	shopService := shop.NewService(db)
 	tagService := tag.NewService(db)
+	exportService := appservices.NewExportService(db)
 
 	// 初始化小程序认证处理器
 	miniProgramHandler, err := NewMiniProgramAuthHandler(db)
@@ -118,11 +124,13 @@ func NewHandler(db *gorm.DB) *Handler {
 		logger:                log2.GetLogger(),
 		tempTokenService:       services.NewTempTokenService(db),
 		userDomain:            userDomain,
+		adminDomain:           adminDomain,
 		orderService:          orderService,
 		productService:        productService,
 		mediaService:          mediaService,
 		shopService:           shopService,
 		tagService:            tagService,
+		exportService:         exportService,
 		miniProgramAuthHandler: miniProgramHandler,
 	}
 }

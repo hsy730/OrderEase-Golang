@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"orderease/contexts/ordercontext/domain/tag"
 	"orderease/models"
@@ -220,7 +219,8 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 
 	tag.ShopID = validShopID // 将shopID设置为请求的店铺ID
 
-	if err := h.tagRepo.Update(&tag); err != nil {
+	// 使用领域服务更新标签
+	if err := h.tagService.UpdateTag(tag, validShopID); err != nil {
 		h.logger.Errorf("更新标签失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新标签失败")
 		return
@@ -249,34 +249,10 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	// 检查标签是否存在
-	tagIDInt, _ := strconv.Atoi(id)
-	tag, err := h.tagRepo.GetByIDAndShopID(tagIDInt, validShopID)
-	if err != nil {
-		h.logger.Errorf("标签不存在, ID: %s", id)
-		errorResponse(c, http.StatusNotFound, "标签不存在")
-		return
-	}
-
-	// 检查是否有关联的商品
-	var count int64
-	if err := h.DB.Model(&models.ProductTag{}).Where("tag_id = ?", id).Count(&count).Error; err != nil {
-		h.logger.Errorf("检查标签关联商品失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除标签失败")
-		return
-	}
-
-	// 如果有关联商品，不允许删除
-	if count > 0 {
-		errorResponse(c, http.StatusBadRequest,
-			fmt.Sprintf("该标签已关联 %d 个商品，请先解除关联后再删除", count))
-		return
-	}
-
-	// 删除标签
-	if err := h.tagRepo.Delete(tag); err != nil {
+	// 使用领域服务删除标签（含关联检查）
+	if err := h.tagService.DeleteTag(id, validShopID); err != nil {
 		h.logger.Errorf("删除标签失败: %v", err)
-		errorResponse(c, http.StatusInternalServerError, "删除标签失败")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

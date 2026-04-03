@@ -36,6 +36,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"golang.org/x/crypto/bcrypt"
 	"orderease/contexts/ordercontext/domain/shared/value_objects"
+	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
 	"orderease/models"
 	"orderease/utils"
 )
