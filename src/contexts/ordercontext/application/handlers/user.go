@@ -378,15 +378,15 @@ func (h *Handler) FrontendUserLogin(c *gin.Context) {
 //   - 业务逻辑委托给领域服务 (userDomain)
 //   - 不直接操作 Repository
 func (h *Handler) UploadAvatar(c *gin.Context) {
-	// 获取用户ID
-	userID, exists := c.Get("userID")
+	userInfo, exists := c.Get("userInfo")
 	if !exists {
 		errorResponse(c, http.StatusUnauthorized, "未认证")
 		return
 	}
+	userID := strconv.FormatUint(uint64(userInfo.(models.UserInfo).UserID), 10)
 
 	// 查询当前用户，清理旧头像
-	currentUser, err := h.userRepo.GetUserByID(userID.(string))
+	currentUser, err := h.userRepo.GetUserByID(userID)
 	if err == nil && currentUser.Avatar != "" {
 		oldAvatarPath := "." + currentUser.Avatar
 		if removeErr := os.Remove(oldAvatarPath); removeErr != nil && !os.IsNotExist(removeErr) {
@@ -427,7 +427,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 
 	// 使用领域服务更新用户头像（遵循DDD架构）
 	avatarURL := "/uploads/avatars/" + filename
-	if err := h.userDomain.UpdateAvatar(userdomain.UserID(userID.(string)), avatarURL); err != nil {
+	if err := h.userDomain.UpdateAvatar(userdomain.UserID(userID), avatarURL); err != nil {
 		h.logger.Errorf("更新用户头像失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "更新头像失败")
 		return
