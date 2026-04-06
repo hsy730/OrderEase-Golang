@@ -383,7 +383,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		errorResponse(c, http.StatusUnauthorized, "未认证")
 		return
 	}
-	userID := strconv.FormatUint(uint64(userInfo.(models.UserInfo).UserID), 10)
+	userID := strconv.FormatUint(userInfo.(models.UserInfo).UserID, 10)
 
 	// 查询当前用户，清理旧头像
 	currentUser, err := h.userRepo.GetUserByID(userID)
