@@ -292,11 +292,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	})
 }
 
-type UserInfo struct {
-	UserID   uint
-	Username string
-	IsAdmin  bool
-}
+
 
 // TempTokenLogin 使用临时令牌登录
 func (h *Handler) TempTokenLogin(c *gin.Context) {
