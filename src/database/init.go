@@ -44,13 +44,13 @@ func Init() (*gorm.DB, error) {
 		// 基础表（无依赖）
 		&models.User{},             // User 必须在 Order 之前，因为 Order 有外键引用 User
 		&models.Shop{},             // Shop 必须在 Product 之前，因为 Product 有外键引用 Shop
-		&models.Tag{},              // Tag 不依赖其他表，ShopID只是关联查询字段
 		&models.OAuthState{},       // OAuth State 管理表
 		&models.Admin{},            // 不需要迁移数据
 		&models.BlacklistedToken{}, // 不需要迁移数据
 
 		// 依赖基础表的表
 		&models.Product{},               // 依赖 Shop
+		&models.Tag{},                   // 依赖 Shop
 		&models.TempToken{},             // 依赖 Shop
 		&models.UserThirdpartyBinding{}, // 依赖 User
 		&models.Order{},                 // 依赖 User 和 Shop
