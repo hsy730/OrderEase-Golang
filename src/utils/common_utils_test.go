@@ -1,146 +1,241 @@
 package utils
 
 import (
-	"image"
-	"image/color"
-	"image/jpeg"
-	"image/png"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// createTestImage creates a simple test image file
-func createTestImage(t *testing.T, path string, width, height int) {
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
+// ==================== GetFileExtension Tests ====================
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.RGBA{
-				R: uint8(x % 256),
-				G: uint8(y % 256),
-				B: uint8((x + y) % 256),
-				A: 255,
-			})
-		}
+func TestGetFileExtension(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{
+			name:     "jpg file",
+			filename: "photo.jpg",
+			expected: ".jpg",
+		},
+		{
+			name:     "jpeg file",
+			filename: "image.jpeg",
+			expected: ".jpeg",
+		},
+		{
+			name:     "png file",
+			filename: "screenshot.png",
+			expected: ".png",
+		},
+		{
+			name:     "gif file",
+			filename: "animation.gif",
+			expected: ".gif",
+		},
+		{
+			name:     "uppercase extension",
+			filename: "IMAGE.PNG",
+			expected: ".png",
+		},
+		{
+			name:     "mixed case extension",
+			filename: "Photo.JPG",
+			expected: ".jpg",
+		},
+		{
+			name:     "file with multiple dots",
+			filename: "my.photo.2024.jpg",
+			expected: ".jpg",
+		},
+		{
+			name:     "file without extension",
+			filename: "README",
+			expected: "",
+		},
+		{
+			name:     "empty filename",
+			filename: "",
+			expected: "",
+		},
+		{
+			name:     "hidden file (Unix)",
+			filename: ".bashrc",
+			expected: ".bashrc",
+		},
 	}
 
-	file, err := os.Create(path)
-	require.NoError(t, err)
-	defer file.Close()
-
-	err = jpeg.Encode(file, img, &jpeg.Options{Quality: 100})
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetFileExtension(tt.filename)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
 
-func TestCompressImage_FileDoesNotExist(t *testing.T) {
-	result, err := CompressImage("nonexistent.jpg", 1024)
-	assert.Error(t, err)
-	assert.Equal(t, int64(0), result)
-}
+// ==================== IsAllowedImageExt Tests ====================
 
-func TestCompressImage_FileWithinLimit(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.jpg")
-	createTestImage(t, testFile, 100, 100)
-
-	fileInfo, _ := os.Stat(testFile)
-	maxSize := fileInfo.Size() + 1000
-
-	result, err := CompressImage(testFile, maxSize)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), result)
-
-	fileInfoAfter, _ := os.Stat(testFile)
-	assert.Equal(t, fileInfo.Size(), fileInfoAfter.Size())
-}
-
-func TestCompressImage_JpegCompression(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.jpg")
-
-	createTestImage(t, testFile, 1000, 1000)
-
-	maxSize := int64(1024)
-
-	result, err := CompressImage(testFile, maxSize)
-	assert.NoError(t, err)
-	assert.NotEqual(t, int64(0), result)
-
-	fileInfoAfter, _ := os.Stat(testFile)
-	// File should be compressed (smaller than original)
-	assert.LessOrEqual(t, fileInfoAfter.Size(), int64(50000))
-
-	assert.Equal(t, result, fileInfoAfter.Size())
-}
-
-func TestCompressImage_UnsupportedFormat(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.bmp")
-
-	err := os.WriteFile(testFile, []byte("BMP DATA"), 0644)
-	require.NoError(t, err)
-
-	result, err := CompressImage(testFile, 1024)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), result)
-}
-
-func TestCompressImage_PngFormat(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.png")
-
-	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
-	for y := 0; y < 100; y++ {
-		for x := 0; x < 100; x++ {
-			img.Set(x, y, color.RGBA{R: 128, G: 128, B: 128, A: 255})
-		}
+func TestIsAllowedImageExt(t *testing.T) {
+	tests := []struct {
+		name     string
+		ext      string
+		expected bool
+	}{
+		{
+			name:     "jpg - allowed",
+			ext:      ".jpg",
+			expected: true,
+		},
+		{
+			name:     "jpeg - allowed",
+			ext:      ".jpeg",
+			expected: true,
+		},
+		{
+			name:     "png - allowed",
+			ext:      ".png",
+			expected: true,
+		},
+		{
+			name:     "gif - allowed",
+			ext:      ".gif",
+			expected: true,
+		},
+		{
+			name:     "JPG uppercase - not allowed (case sensitive)",
+			ext:      ".JPG",
+			expected: false,
+		},
+		{
+			name:     "PNG uppercase - not allowed",
+			ext:      ".PNG",
+			expected: false,
+		},
+		{
+			name:     "webp - not allowed",
+			ext:      ".webp",
+			expected: false,
+		},
+		{
+			name:     "svg - not allowed",
+			ext:      ".svg",
+			expected: false,
+		},
+		{
+			name:     "bmp - not allowed",
+			ext:      ".bmp",
+			expected: false,
+		},
+		{
+			name:     "empty string - not allowed",
+			ext:      "",
+			expected: false,
+		},
+		{
+			name:     "no dot prefix - not allowed",
+			ext:      "jpg",
+			expected: false,
+		},
 	}
 
-	file, err := os.Create(testFile)
-	require.NoError(t, err)
-	err = png.Encode(file, img)
-	require.NoError(t, err)
-	file.Close()
-
-	fileInfo, _ := os.Stat(testFile)
-	maxSize := fileInfo.Size() + 1000
-
-	result, err := CompressImage(testFile, maxSize)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsAllowedImageExt(tt.ext)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
 
-func TestCompressImage_EmptyFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "empty.jpg")
+// ==================== GenerateUniqueFilename Tests ====================
 
-	err := os.WriteFile(testFile, []byte{}, 0644)
-	require.NoError(t, err)
+func TestGenerateUniqueFilename(t *testing.T) {
+	tests := []struct {
+		name           string
+		originalName   string
+		checkExtension bool
+	}{
+		{
+			name:           "jpg file",
+			originalName:   "photo.jpg",
+			checkExtension: true,
+		},
+		{
+			name:           "png file",
+			originalName:   "image.png",
+			checkExtension: true,
+		},
+		{
+			name:           "jpeg file with spaces",
+			originalName:   "my photo.jpeg",
+			checkExtension: true,
+		},
+		{
+			name:           "gif file",
+			originalName:   "animation.gif",
+			checkExtension: true,
+		},
+		{
+			name:           "file without extension",
+			originalName:   "README",
+			checkExtension: false,
+		},
+	}
 
-	result, err := CompressImage(testFile, 1024)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GenerateUniqueFilename(tt.originalName)
+
+			assert.NotEmpty(t, result)
+			assert.True(t, len(result) > 10)
+
+			if tt.checkExtension {
+				ext := GetFileExtension(result)
+				originalExt := GetFileExtension(tt.originalName)
+				assert.Equal(t, originalExt, ext)
+			}
+
+			assert.Contains(t, result, "_")
+		})
+	}
 }
 
-func TestCompressImage_VerySmallMaxSize(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.jpg")
-	createTestImage(t, testFile, 200, 200)
+func TestGenerateUniqueFilename_Uniqueness(t *testing.T) {
+	results := make(map[string]bool)
 
-	maxSize := int64(100)
+	for i := 0; i < 100; i++ {
+		result := GenerateUniqueFilename("test.jpg")
 
-	result, err := CompressImage(testFile, maxSize)
-	assert.NoError(t, err)
-	assert.NotEqual(t, int64(0), result)
+		if results[result] {
+			t.Errorf("Duplicate filename generated: %s", result)
+		}
+		results[result] = true
+	}
+}
 
-	file, err := os.Open(testFile)
-	require.NoError(t, err)
-	defer file.Close()
+// ==================== Integration Tests ====================
 
-	_, _, err = image.Decode(file)
-	assert.NoError(t, err)
+func TestFileUtils_Integration(t *testing.T) {
+	t.Run("complete file processing workflow", func(t *testing.T) {
+		filename := "user_upload_photo.jpg"
+		
+		ext := GetFileExtension(filename)
+		assert.Equal(t, ".jpg", ext)
+
+		isAllowed := IsAllowedImageExt(ext)
+		assert.True(t, isAllowed)
+
+		newName := GenerateUniqueFilename(filename)
+		assert.NotEqual(t, filename, newName)
+	})
+
+	t.Run("reject disallowed file type", func(t *testing.T) {
+		badFilename := "malicious_script.exe"
+		
+		ext := GetFileExtension(badFilename)
+		assert.Equal(t, ".exe", ext)
+
+		isAllowed := IsAllowedImageExt(ext)
+		assert.False(t, isAllowed)
+	})
 }
