@@ -55,6 +55,7 @@ import (
 type User struct {
 	id       UserID
 	name     string
+	nickname string
 	phone    value_objects.Phone
 	password value_objects.Password
 	userType UserType
@@ -179,6 +180,10 @@ func (u *User) Name() string {
 	return u.name
 }
 
+func (u *User) Nickname() string {
+	return u.nickname
+}
+
 func (u *User) Phone() string {
 	return u.phone.String()
 }
@@ -207,6 +212,10 @@ func (u *User) Avatar() string {
 
 func (u *User) SetName(name string) {
 	u.name = name
+}
+
+func (u *User) SetNickname(nickname string) {
+	u.nickname = nickname
 }
 
 func (u *User) SetPhone(phone string) error {
@@ -332,6 +341,7 @@ func (u *User) ToModel() *models.User {
 	return &models.User{
 		ID:       id,
 		Name:     u.name,
+		Nickname: u.nickname,
 		Phone:    u.phone.String(),
 		Password: password,
 		Type:     string(u.userType),
@@ -346,6 +356,7 @@ func UserFromModel(model *models.User) *User {
 	return &User{
 		id:       NewUserIDFromSnowflake(model.ID),
 		name:     model.Name,
+		nickname: model.Nickname,
 		phone:    value_objects.Phone(model.Phone),
 		password: value_objects.Password(model.Password),
 		userType: UserType(model.Type),

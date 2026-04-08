@@ -270,6 +270,18 @@ func (s *Service) UpdateAvatar(id UserID, avatarURL string) error {
 	return s.repo.Update(user)
 }
 
+// UpdateNickname 更新用户昵称
+func (s *Service) UpdateNickname(id UserID, nickname string) error {
+	user, err := s.repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	user.SetNickname(nickname)
+
+	return s.repo.Update(user)
+}
+
 // UpdateProfile 更新用户基本信息（类型、角色、地址）
 //
 // 参数：

@@ -438,3 +438,180 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		"avatar_url": avatarURL,
 	})
 }
+
+func (h *Handler) GetUserInfo(c *gin.Context) {
+	userInfoVal, exists := c.Get("userInfo")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未认证")
+		return
+	}
+	userID := strconv.FormatUint(userInfoVal.(models.UserInfo).UserID, 10)
+
+	user, err := h.userRepo.GetUserByID(userID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, "用户未找到")
+		return
+	}
+
+	nickname := user.Nickname
+	avatar := user.Avatar
+
+	var binding models.UserThirdpartyBinding
+	if err := h.DB.Where("user_id = ? AND provider = ? AND is_active = ?", user.ID, "wechat", true).First(&binding).Error; err == nil {
+		if nickname == "" && binding.Nickname != "" {
+			nickname = binding.Nickname
+		}
+		if avatar == "" && binding.AvatarURL != "" {
+			avatar = binding.AvatarURL
+		}
+	}
+
+	successResponse(c, gin.H{
+		"id":       user.ID,
+		"name":     user.Name,
+		"nickname": nickname,
+		"avatar":   avatar,
+		"phone":    user.Phone,
+		"role":     user.Role,
+		"type":     user.Type,
+	})
+}
+
+func (h *Handler) SilentSyncUser(c *gin.Context) {
+	userInfoVal, exists := c.Get("userInfo")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未认证")
+		return
+	}
+	userID := strconv.FormatUint(userInfoVal.(models.UserInfo).UserID, 10)
+
+	var req struct {
+		Code     string `json:"code"`
+		Platform string `json:"platform"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的参数")
+		return
+	}
+
+	user, err := h.userRepo.GetUserByID(userID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, "用户未找到")
+		return
+	}
+
+	nickname := user.Nickname
+	avatar := user.Avatar
+
+	var binding models.UserThirdpartyBinding
+	if err := h.DB.Where("user_id = ? AND provider = ? AND is_active = ?", user.ID, "wechat", true).First(&binding).Error; err == nil {
+		now := time.Now()
+		binding.LastLoginAt = &now
+		h.DB.Save(&binding)
+
+		if nickname == "" && binding.Nickname != "" {
+			nickname = binding.Nickname
+		}
+		if avatar == "" && binding.AvatarURL != "" {
+			avatar = binding.AvatarURL
+		}
+	}
+
+	if user.Nickname == "" && nickname != "" {
+		h.userDomain.UpdateNickname(userdomain.UserID(userID), nickname)
+		user.Nickname = nickname
+	}
+	if user.Avatar == "" && avatar != "" {
+		h.userDomain.UpdateAvatar(userdomain.UserID(userID), avatar)
+		user.Avatar = avatar
+	}
+
+	successResponse(c, gin.H{
+		"user": gin.H{
+			"id":       user.ID,
+			"name":     user.Name,
+			"nickname": nickname,
+			"avatar":   avatar,
+			"phone":    user.Phone,
+			"role":     user.Role,
+			"type":     user.Type,
+		},
+	})
+}
+
+func (h *Handler) SyncUserInfo(c *gin.Context) {
+	userInfoVal, exists := c.Get("userInfo")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未认证")
+		return
+	}
+	userID := strconv.FormatUint(userInfoVal.(models.UserInfo).UserID, 10)
+
+	var req struct {
+		Nickname  string `json:"nickname"`
+		AvatarURL string `json:"avatar_url"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的参数")
+		return
+	}
+
+	if req.Nickname != "" {
+		if err := h.userDomain.UpdateNickname(userdomain.UserID(userID), req.Nickname); err != nil {
+			h.logger.Errorf("更新用户昵称失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新昵称失败")
+			return
+		}
+	}
+
+	if req.AvatarURL != "" {
+		if err := h.userDomain.UpdateAvatar(userdomain.UserID(userID), req.AvatarURL); err != nil {
+			h.logger.Errorf("更新用户头像失败: %v", err)
+			errorResponse(c, http.StatusInternalServerError, "更新头像失败")
+			return
+		}
+	}
+
+	if req.Nickname != "" || req.AvatarURL != "" {
+		var binding models.UserThirdpartyBinding
+		if err := h.DB.Where("user_id = ? AND provider = ? AND is_active = ?", userInfoVal.(models.UserInfo).UserID, "wechat", true).First(&binding).Error; err == nil {
+			if req.Nickname != "" {
+				binding.Nickname = req.Nickname
+			}
+			if req.AvatarURL != "" {
+				binding.AvatarURL = req.AvatarURL
+			}
+			h.DB.Save(&binding)
+		}
+	}
+
+	user, err := h.userRepo.GetUserByID(userID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "获取用户信息失败")
+		return
+	}
+
+	nickname := user.Nickname
+	avatar := user.Avatar
+
+	var binding models.UserThirdpartyBinding
+	if err := h.DB.Where("user_id = ? AND provider = ? AND is_active = ?", user.ID, "wechat", true).First(&binding).Error; err == nil {
+		if nickname == "" && binding.Nickname != "" {
+			nickname = binding.Nickname
+		}
+		if avatar == "" && binding.AvatarURL != "" {
+			avatar = binding.AvatarURL
+		}
+	}
+
+	successResponse(c, gin.H{
+		"success": true,
+		"user": gin.H{
+			"id":       user.ID,
+			"name":     user.Name,
+			"nickname": nickname,
+			"avatar":   avatar,
+			"phone":    user.Phone,
+		},
+	})
+}

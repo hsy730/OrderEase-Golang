@@ -142,7 +142,7 @@ func (r *UserRepository) Create(user *models.User) error {
 
 // Update 更新用户
 func (r *UserRepository) Update(user *models.User) error {
-	err := r.DB.Select("name", "role", "password", "phone", "address", "type", "nickname", "updated_at").Save(user).Error
+	err := r.DB.Select("name", "role", "password", "phone", "address", "type", "nickname", "avatar", "updated_at").Save(user).Error
 	if err != nil {
 		log2.Errorf("Update user failed: %v", err)
 		return errors.New("更新用户失败")

@@ -109,15 +109,27 @@ func (h *MiniProgramAuthHandler) WeChatMiniProgramLogin(c *gin.Context) {
 
 	log2.Infof("微信小程序登录成功: ID=%d, OpenID=%s, isNewUser=%v", user.ID, sessionInfo.OpenID, isNewUser)
 
-	// 4. 返回登录结果
+	nickname = user.Nickname
+	avatarURL = h.extractAvatarURL(user, sessionInfo.OpenID)
+
+	var binding models.UserThirdpartyBinding
+	if err := h.db.Where("user_id = ? AND provider = ? AND is_active = ?", user.ID, oauth.ProviderWeChat.String(), true).First(&binding).Error; err == nil {
+		if nickname == "" && binding.Nickname != "" {
+			nickname = binding.Nickname
+		}
+		if avatarURL == "" && binding.AvatarURL != "" {
+			avatarURL = binding.AvatarURL
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "登录成功",
 		"data": gin.H{
 			"user": gin.H{
 				"id":         user.ID,
 				"name":       user.Name,
-				"nickname":   user.Nickname,
-				"avatarUrl":  h.extractAvatarURL(user, sessionInfo.OpenID),
+				"nickname":   nickname,
+				"avatar":     avatarURL,
 				"role":       user.Role,
 				"type":       user.Type,
 				"created_at": user.CreatedAt.Format(time.RFC3339),

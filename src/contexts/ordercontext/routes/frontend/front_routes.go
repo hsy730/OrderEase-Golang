@@ -28,10 +28,13 @@ func SetupFrontRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 		// protected.POST("/order/pay", h.PayOrder)
 		protected.GET("/tag/list", h.GetTagsForFront)
 		protected.GET("/tag/detail", h.GetTag)
-		protected.GET("/tag/bound-products", h.GetTagBoundProducts) // 获取标签已绑定的商品列表
+		protected.GET("/tag/bound-products", h.GetTagBoundProducts)
 		protected.GET("/shop/:shopId/tags", h.GetShopTags)
 		protected.GET("/shop/detail", h.GetShopInfo)
 		protected.GET("/shop/image", h.GetShopImage)
 		protected.POST("/user/upload-avatar", h.UploadAvatar)
+		protected.GET("/user/info", h.GetUserInfo)
+		protected.POST("/user/silent-sync", h.SilentSyncUser)
+		protected.POST("/user/sync-info", h.SyncUserInfo)
 	}
 }
