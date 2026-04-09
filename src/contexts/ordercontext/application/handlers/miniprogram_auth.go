@@ -170,6 +170,24 @@ func (h *MiniProgramAuthHandler) findOrCreateUser(sessionInfo *wechat.SessionInf
 			log2.Warnf("update binding failed: %v", err)
 		}
 
+		// 同步更新用户表的昵称和头像
+		userUpdated := false
+		if nickname != "" && user.Nickname != nickname {
+			user.Nickname = nickname
+			userUpdated = true
+		}
+		if avatarURL != "" && user.Avatar != avatarURL {
+			user.Avatar = avatarURL
+			userUpdated = true
+		}
+		if userUpdated {
+			if err := h.db.Save(&user).Error; err != nil {
+				log2.Warnf("update user info failed: %v", err)
+			} else {
+				log2.Infof("Updated existing user: ID=%d, Nickname=%s, Avatar=%s", user.ID, user.Nickname, user.Avatar)
+			}
+		}
+
 		return &user, false, nil
 	}
 
