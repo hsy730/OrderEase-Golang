@@ -83,7 +83,7 @@ func (s *ExportService) exportTableToCSV(zipWriter *zip.Writer, filename string,
 	csvWriter := csv.NewWriter(w)
 	defer csvWriter.Flush()
 
-	if err := s.db.Select("*").Find(model).Error; err != nil {
+	if err := s.db.Find(model).Error; err != nil {
 		return fmt.Errorf("导出 %s 失败: %w", filename, err)
 	}
 

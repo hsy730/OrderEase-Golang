@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"orderease/contexts/ordercontext/infrastructure/repositories"
@@ -50,7 +51,7 @@ func (s *MiniProgramAuthService) FindOrCreateUser(sessionInfo *wechat.SessionInf
 }
 
 func (s *MiniProgramAuthService) handleExistingUser(binding *models.UserThirdpartyBinding, sessionInfo *wechat.SessionInfo, nickname, avatarURL string) (*LoginResult, error) {
-	userModel, err := s.userRepo.GetUserByID(string(binding.UserID))
+	userModel, err := s.userRepo.GetUserByID(strconv.FormatInt(int64(binding.UserID), 10))
 	if err != nil {
 		return nil, fmt.Errorf("find user by binding failed: %w", err)
 	}
