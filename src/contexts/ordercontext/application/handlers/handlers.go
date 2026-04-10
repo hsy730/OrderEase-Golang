@@ -11,6 +11,7 @@ import (
 	"orderease/contexts/ordercontext/domain/tag"
 	"orderease/contexts/ordercontext/domain/user"
 	"orderease/contexts/ordercontext/infrastructure/repositories"
+	thirdpartyrepos "orderease/contexts/thirdparty/infrastructure/persistence/repositories"
 	"orderease/models"
 	"orderease/services"
 	"orderease/utils/log2"
@@ -105,7 +106,9 @@ func NewHandler(db *gorm.DB) *Handler {
 	exportService := appservices.NewExportService(db)
 
 	// 初始化小程序认证处理器
-	miniProgramHandler, err := NewMiniProgramAuthHandler(db)
+	thirdpartyBindingRepo := thirdpartyrepos.NewUserThirdpartyBindingRepository(db)
+	miniProgramAuthService := appservices.NewMiniProgramAuthService(db, userRepo, thirdpartyBindingRepo)
+	miniProgramHandler, err := NewMiniProgramAuthHandler(miniProgramAuthService, thirdpartyBindingRepo)
 	if err != nil {
 		log2.GetLogger().Warnf("小程序认证处理器初始化失败: %v", err)
 		miniProgramHandler = nil

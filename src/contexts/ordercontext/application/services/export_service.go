@@ -3,6 +3,7 @@ package services
 import (
 	"archive/zip"
 	"bytes"
+	"database/sql/driver"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -82,8 +83,8 @@ func (s *ExportService) exportTableToCSV(zipWriter *zip.Writer, filename string,
 	csvWriter := csv.NewWriter(w)
 	defer csvWriter.Flush()
 
-	if err := s.db.Find(model).Error; err != nil {
-		return err
+	if err := s.db.Select("*").Find(model).Error; err != nil {
+		return fmt.Errorf("导出 %s 失败: %w", filename, err)
 	}
 
 	headers, err := getCSVHeaders(model)
@@ -108,8 +109,16 @@ func (s *ExportService) exportTableToCSV(zipWriter *zip.Writer, filename string,
 
 func (s *ExportService) addUploadsToZip(zipWriter *zip.Writer) error {
 	basePath := filepath.Join("uploads")
+
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		return nil
+	}
+
 	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return err
 		}
 		relPath, _ := filepath.Rel(basePath, path)
@@ -233,11 +242,55 @@ func convertValueToString(fieldValue reflect.Value) fieldConverter {
 				return string(jsonData), nil
 			}
 		}
+		// 支持 driver.Valuer 接口（如自定义枚举类型）
+		if _, ok := fieldValue.Interface().(driver.Valuer); ok {
+			return func(v reflect.Value) (string, error) {
+				if valuer, ok := v.Interface().(driver.Valuer); ok {
+					val, err := valuer.Value()
+					if err != nil {
+						return "", err
+					}
+					if val == nil {
+						return "", nil
+					}
+					// 特殊处理：如果 Value() 返回 []byte，直接转为字符串（避免 Go 切片格式）
+					if b, ok := val.([]byte); ok {
+						return string(b), nil
+					}
+					return fmt.Sprintf("%v", val), nil
+				}
+				return fmt.Sprintf("%v", v.Interface()), nil
+			}
+		}
 		if stringer, ok := fieldValue.Interface().(fmt.Stringer); ok {
 			return func(v reflect.Value) (string, error) { return stringer.String(), nil }
 		}
+		// 对于其他结构体，尝试 JSON 序列化
+		return func(v reflect.Value) (string, error) {
+			jsonData, err := json.Marshal(v.Interface())
+			if err != nil {
+				return "", err
+			}
+			return string(jsonData), nil
+		}
 	case reflect.Bool:
 		return func(v reflect.Value) (string, error) { return strconv.FormatBool(v.Bool()), nil }
+	case reflect.Ptr:
+		// 处理指针类型，如果为nil则返回空字符串
+		return func(v reflect.Value) (string, error) {
+			if v.IsNil() {
+				return "", nil
+			}
+			converter := convertValueToString(v.Elem())
+			return converter(v.Elem())
+		}
+	case reflect.Interface:
+		return func(v reflect.Value) (string, error) {
+			if !v.IsValid() || v.IsNil() {
+				return "", nil
+			}
+			return fmt.Sprintf("%v", v.Interface()), nil
+		}
 	}
 	return func(v reflect.Value) (string, error) {
 		return "", fmt.Errorf("unsupported type: %s, kind: %v", fieldValue.Type(), fieldValue.Kind())

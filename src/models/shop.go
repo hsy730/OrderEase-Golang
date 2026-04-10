@@ -11,23 +11,23 @@ import (
 
 // OrderStatusAction 订单状态动作
 type OrderStatusAction struct {
-	Name            string `json:"name" binding:"required"`
-	NextStatus      int    `json:"nextStatus" binding:"required"`
-	NextStatusLabel string `json:"nextStatusLabel" binding:"required"`
+	Name            string `json:"name" gorm:"-" binding:"required"`
+	NextStatus      int    `json:"nextStatus" gorm:"-" binding:"required"`
+	NextStatusLabel string `json:"nextStatusLabel" gorm:"-" binding:"required"`
 }
 
 // OrderStatus 订单状态
 type OrderStatus struct {
-	Value   int                 `json:"value" binding:"required"`
-	Label   string              `json:"label" binding:"required"`
-	Type    string              `json:"type" binding:"required"`
-	IsFinal bool                `json:"isFinal" binding:"required"`
-	Actions []OrderStatusAction `json:"actions" binding:"required"`
+	Value   int                 `json:"value" gorm:"-" binding:"required"`
+	Label   string              `json:"label" gorm:"-" binding:"required"`
+	Type    string              `json:"type" gorm:"-" binding:"required"`
+	IsFinal bool                `json:"isFinal" gorm:"-" binding:"required"`
+	Actions []OrderStatusAction `json:"actions" gorm:"-" binding:"required"`
 }
 
 // OrderStatusFlow 订单流转状态配置
 type OrderStatusFlow struct {
-	Statuses []OrderStatus `json:"statuses"`
+	Statuses []OrderStatus `json:"statuses" gorm:"-"`
 }
 
 // Value 实现 driver.Valuer 接口，将 OrderStatusFlow 转换为 JSON 字符串存入数据库

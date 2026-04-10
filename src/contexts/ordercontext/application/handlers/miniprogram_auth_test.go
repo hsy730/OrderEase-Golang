@@ -10,8 +10,11 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"orderease/contexts/thirdparty/infrastructure/config"
-	"orderease/contexts/thirdparty/infrastructure/persistence/repositories"
+	repoThirdparty "orderease/contexts/thirdparty/infrastructure/persistence/repositories"
 	"orderease/contexts/thirdparty/infrastructure/external/wechat"
+	orderRepo "orderease/contexts/ordercontext/infrastructure/repositories"
+
+	services "orderease/contexts/ordercontext/application/services"
 )
 
 func setupMiniProgramAuthHandlerTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
@@ -32,11 +35,14 @@ func setupMiniProgramAuthHandlerTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock)
 }
 
 func newTestMiniProgramAuthHandler(db *gorm.DB) *MiniProgramAuthHandler {
+	userRepo := orderRepo.NewUserRepository(db)
+	bindingRepo := repoThirdparty.NewUserThirdpartyBindingRepository(db)
+	authService := services.NewMiniProgramAuthService(db, userRepo, bindingRepo)
 	return &MiniProgramAuthHandler{
-		db:                db,
 		miniProgramClient: wechat.NewMiniProgramClient("test_app_id", "test_app_secret"),
 		config:            &config.MiniProgramConfig{Enabled: true, AppID: "test_app_id", AppSecret: "test_app_secret"},
-		bindingRepo:       repositories.NewUserThirdpartyBindingRepository(db),
+		bindingRepo:       bindingRepo,
+		authService:       authService,
 	}
 }
 

@@ -303,6 +303,18 @@ func createImportConverter(value reflect.Value) (func(string) (interface{}, erro
 			}
 
 			return datatypes.JSON(trimmed), nil
+	}, nil
+	case fieldType == reflect.TypeOf(json.RawMessage{}):
+		return func(s string) (interface{}, error) {
+			trimmed := strings.TrimSpace(s)
+			if trimmed == "" {
+				return json.RawMessage("{}"), nil
+			}
+			var rawData interface{}
+			if err := json.Unmarshal([]byte(trimmed), &rawData); err != nil {
+				return nil, fmt.Errorf("解析 JSON RawMessage 失败: %w", err)
+			}
+			return json.RawMessage(trimmed), nil
 		}, nil
 	case fieldType.Kind() == reflect.Slice:
 		elemType := fieldType.Elem()
@@ -400,6 +412,38 @@ func createImportConverter(value reflect.Value) (func(string) (interface{}, erro
 				return datatypes.JSON(s), nil
 			}
 			return nil, fmt.Errorf("暂不支持%s类型的map转换", fieldType)
+		}, nil
+	case fieldType == reflect.TypeOf(models.OrderStatusFlow{}):
+		return func(s string) (interface{}, error) {
+			trimmed := strings.TrimSpace(s)
+			if trimmed == "" || trimmed == "null" || trimmed == "{}" {
+				return models.OrderStatusFlow{}, nil
+			}
+			var flow models.OrderStatusFlow
+			if err := json.Unmarshal([]byte(trimmed), &flow); err != nil {
+				return nil, fmt.Errorf("解析 OrderStatusFlow 失败: %w", err)
+			}
+			return flow, nil
+		}, nil
+	case fieldType.Kind() == reflect.Ptr:
+		// 处理指针类型，如 *time.Time
+		elemType := fieldType.Elem()
+		elemConverter, err := createImportConverter(reflect.New(elemType).Elem())
+		if err != nil {
+			return nil, fmt.Errorf("无法创建指针元素转换器: %w", err)
+		}
+		return func(s string) (interface{}, error) {
+			trimmed := strings.TrimSpace(s)
+			if trimmed == "" {
+				return reflect.Zero(fieldType).Interface(), nil // 返回nil指针
+			}
+			value, err := elemConverter(trimmed)
+			if err != nil {
+				return nil, err
+			}
+			ptr := reflect.New(elemType)
+			ptr.Elem().Set(reflect.ValueOf(value))
+			return ptr.Interface(), nil
 		}, nil
 	default:
 		return parseBasicType(value), nil
