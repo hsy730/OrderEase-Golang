@@ -18,7 +18,6 @@ func SetupFrontRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 	protected.Use(middleware.FrontendAuthMiddleware())
 
 	{
-		protected.GET("/product/image", h.GetProductImage)
 		protected.GET("/product/list", h.GetProducts)
 		protected.GET("/product/detail", h.GetProduct)
 		protected.POST("/order/create", h.CreateOrder)
@@ -31,9 +30,7 @@ func SetupFrontRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 		protected.GET("/tag/bound-products", h.GetTagBoundProducts)
 		protected.GET("/shop/:shopId/tags", h.GetShopTags)
 		protected.GET("/shop/detail", h.GetShopInfo)
-		protected.GET("/shop/image", h.GetShopImage)
 		protected.POST("/user/upload-avatar", h.UploadAvatar)
-		protected.GET("/user/avatar", h.GetUserAvatar)
 		protected.GET("/user/info", h.GetUserInfo)
 		protected.POST("/user/silent-sync", h.SilentSyncUser)
 		protected.POST("/user/sync-info", h.SyncUserInfo)

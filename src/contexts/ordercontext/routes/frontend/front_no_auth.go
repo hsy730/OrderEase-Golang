@@ -25,4 +25,9 @@ func SetupFrontNoAuthRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 		public.POST("/user/wechat-login", miniProgramHandler.WeChatMiniProgramLogin)
 	}
 
+	// 图片接口公开访问，便于 CDN 缓存和浏览器缓存
+	public.GET("/product/image", h.GetProductImage)
+	public.GET("/shop/image", h.GetShopImage)
+	public.GET("/user/avatar", h.GetUserAvatar)
+
 }

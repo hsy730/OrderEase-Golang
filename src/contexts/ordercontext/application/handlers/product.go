@@ -411,7 +411,12 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 	file, err := c.FormFile("image")
 	if err != nil {
 		log2.Errorf("获取上传文件失败: %v", err)
-		errorResponse(c, http.StatusBadRequest, "获取上传文件失败")
+		// 检查是否是文件大小超过限制的错误
+		if err.Error() == "http: request body too large" {
+			errorResponse(c, http.StatusBadRequest, fmt.Sprintf("文件大小超过限制，最大允许 %dMB", maxProductImageSize/(1024*1024)))
+		} else {
+			errorResponse(c, http.StatusBadRequest, "获取上传文件失败")
+		}
 		return
 	}
 
