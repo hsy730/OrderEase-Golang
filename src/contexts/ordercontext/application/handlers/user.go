@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	userdomain "orderease/contexts/ordercontext/domain/user"
 	"orderease/models"
@@ -437,6 +438,35 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		"message":    "头像上传成功",
 		"avatar_url": avatarURL,
 	})
+}
+
+// GetUserAvatar 获取用户头像图片
+func (h *Handler) GetUserAvatar(c *gin.Context) {
+	fileName := c.Query("path")
+	if fileName == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少图片路径")
+		return
+	}
+
+	// 验证图片路径安全
+	if err := utils.ValidateImageURL(fileName, "avatar"); err != nil {
+		h.logger.Errorf("头像路径验证失败: %v", err)
+		errorResponse(c, http.StatusBadRequest, "无效的图片路径")
+		return
+	}
+
+	// 构建图片物理路径
+	imagePath := fmt.Sprintf("./uploads/avatars/%s", fileName)
+
+	// 检查文件是否存在
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		h.logger.Errorf("头像文件不存在: %s", imagePath)
+		errorResponse(c, http.StatusNotFound, "头像不存在")
+		return
+	}
+
+	// 返回图片文件
+	c.File(imagePath)
 }
 
 func (h *Handler) GetUserInfo(c *gin.Context) {

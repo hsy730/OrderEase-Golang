@@ -33,6 +33,7 @@ func SetupFrontRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 		protected.GET("/shop/detail", h.GetShopInfo)
 		protected.GET("/shop/image", h.GetShopImage)
 		protected.POST("/user/upload-avatar", h.UploadAvatar)
+		protected.GET("/user/avatar", h.GetUserAvatar)
 		protected.GET("/user/info", h.GetUserInfo)
 		protected.POST("/user/silent-sync", h.SilentSyncUser)
 		protected.POST("/user/sync-info", h.SyncUserInfo)
