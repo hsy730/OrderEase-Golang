@@ -86,7 +86,7 @@ func (r *OrderRepository) GetOrdersByShop(shopID snowflake.ID, page, pageSize in
 }
 
 // GetOrdersByUser 获取用户的订单列表（分页）
-func (r *OrderRepository) GetOrdersByUser(userID string, shopID snowflake.ID, page, pageSize int) ([]models.Order, int64, error) {
+func (r *OrderRepository) GetOrdersByUser(userID snowflake.ID, shopID snowflake.ID, page, pageSize int) ([]models.Order, int64, error) {
 	var orders []models.Order
 	var total int64
 

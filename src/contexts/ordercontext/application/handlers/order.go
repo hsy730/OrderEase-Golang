@@ -199,9 +199,15 @@ func (h *Handler) GetOrder(c *gin.Context) {
 
 // 查询某用户创建的所有订单
 func (h *Handler) GetOrdersByUser(c *gin.Context) {
-	userID := c.Query("user_id")
-	if userID == "" {
+	userIDStr := c.Query("user_id")
+	if userIDStr == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+		return
+	}
+
+	userID, err := utils.StringToSnowflakeID(userIDStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
 		return
 	}
 
