@@ -20,12 +20,14 @@ package order
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
 	// TODO(DDD-P3): 移除 models 依赖，改用领域内部值对象 + Infrastructure Mapper
 	// TODO(DDD-P3): 移除 *gorm.DB 直接注入，改为通过 Repository 接口操作数据
 	"orderease/models"
+	"orderease/utils/log2"
 )
 
 // Service 订单领域服务
@@ -442,19 +444,29 @@ func (s *Service) PersistUpdate(order *models.Order, newItems []models.OrderItem
 
 // PersistDeleteInTx 在给定事务中删除订单及其关联数据（不提交事务）
 func (s *Service) PersistDeleteInTx(tx *gorm.DB, orderID string, shopID snowflake.ID) error {
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+	// 将字符串 orderID 转换为 uint64
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("无效的订单ID: %w", err)
+	}
+
+	// 添加调试日志
+	log2.Infof("PersistDeleteInTx: orderID=%s, orderIDUint64=%d, shopID=%d", orderID, orderIDUint64, shopID)
+
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderItem{}).Error; err != nil {
 		return fmt.Errorf("删除订单项失败: %w", err)
 	}
 
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderStatusLog{}).Error; err != nil {
 		return fmt.Errorf("删除订单状态日志失败: %w", err)
 	}
 
-	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	result := tx.Where("id = ? AND shop_id = ?", orderIDUint64, shopID).Delete(&models.Order{})
 	if result.Error != nil {
 		return fmt.Errorf("删除订单记录失败: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
+		log2.Warnf("PersistDeleteInTx: 订单不存在, orderID=%s, orderIDUint64=%d, shopID=%d", orderID, orderIDUint64, shopID)
 		return fmt.Errorf("订单不存在")
 	}
 

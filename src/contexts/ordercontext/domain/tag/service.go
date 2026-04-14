@@ -2,6 +2,7 @@ package tag
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
@@ -106,12 +107,18 @@ func (s *Service) UpdateTag(tag models.Tag, shopID snowflake.ID) error {
 
 // DeleteTag 删除标签（含关联检查）
 func (s *Service) DeleteTag(id string, shopID snowflake.ID) error {
+	// 将字符串 id 转换为 int，以匹配数据库 int 类型（Tag ID 是 int 类型，不是 bigint）
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		return fmt.Errorf("无效的标签ID")
+	}
+
 	var count int64
-	if err := s.db.Model(&models.ProductTag{}).Where("tag_id = ?", id).Count(&count).Error; err != nil {
+	if err := s.db.Model(&models.ProductTag{}).Where("tag_id = ?", idInt).Count(&count).Error; err != nil {
 		return fmt.Errorf("查询标签关联失败: %w", err)
 	}
 	if count > 0 {
 		return fmt.Errorf("该标签已关联 %d 个商品", count)
 	}
-	return s.db.Delete(&models.Tag{}, id).Error
+	return s.db.Delete(&models.Tag{}, idInt).Error
 }

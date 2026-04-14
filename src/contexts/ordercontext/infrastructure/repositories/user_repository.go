@@ -4,6 +4,7 @@ import (
 	"errors"
 	"orderease/models"
 	"orderease/utils/log2"
+	"strconv"
 
 	"gorm.io/gorm"
 )
@@ -20,8 +21,14 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 // GetUserByID 根据ID获取用户
 func (r *UserRepository) GetUserByID(id string) (*models.User, error) {
+	// 将字符串 id 转换为 uint64，以匹配数据库 bigint 类型
+	idUint64, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return nil, errors.New("无效的用户ID")
+	}
+
 	var user models.User
-	err := r.DB.First(&user, id).Error
+	err = r.DB.First(&user, idUint64).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("用户不存在")
 	}

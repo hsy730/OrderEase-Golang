@@ -4,6 +4,7 @@ import (
 	"errors"
 	"orderease/models"
 	"orderease/utils/log2"
+	"strconv"
 
 	"github.com/bwmarrin/snowflake"
 	"gorm.io/gorm"
@@ -23,11 +24,13 @@ func NewOrderRepository(db *gorm.DB) *OrderRepository {
 func (r *OrderRepository) GetOrderByIDAndShopID(orderID uint64, shopID snowflake.ID) (*models.Order, error) {
 	var order models.Order
 	// 预加载Items和Items.Options
+	// 使用 orders.id 明确指定订单表的id列，避免与users表的id列冲突
 	err := r.DB.Preload("Items").
 		Preload("Items.Options").
-		Where("shop_id = ?", shopID).
+		Where("orders.shop_id = ?", shopID).
+		Where("orders.id = ?", orderID).
 		Joins("User").
-		First(&order, orderID).Error
+		First(&order).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("订单不存在")
 	}
@@ -40,12 +43,19 @@ func (r *OrderRepository) GetOrderByIDAndShopID(orderID uint64, shopID snowflake
 
 // GetOrderByIDAndShopIDStr 根据订单ID（字符串）和店铺ID获取订单（预加载Items和Options）
 func (r *OrderRepository) GetOrderByIDAndShopIDStr(orderID string, shopID snowflake.ID) (*models.Order, error) {
+	// 将字符串 orderID 转换为 uint64
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return nil, errors.New("无效的订单ID")
+	}
+
 	var order models.Order
 	// 预加载Items和Items.Options
-	err := r.DB.Preload("Items").
+	// 使用 orders.id 明确指定订单表的id列，避免与users表的id列冲突
+	err = r.DB.Preload("Items").
 		Preload("Items.Options").
-		Where("shop_id = ?", shopID).
-		Where("id = ?", orderID).
+		Where("orders.shop_id = ?", shopID).
+		Where("orders.id = ?", orderIDUint64).
 		Joins("User").
 		First(&order).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -144,8 +154,14 @@ func (r *OrderRepository) GetUnfinishedOrders(shopID snowflake.ID, unfinishedSta
 
 // GetByIDStr 根据订单ID（字符串）获取订单
 func (r *OrderRepository) GetByIDStr(orderID string) (*models.Order, error) {
+	// 将字符串 orderID 转换为 uint64，以匹配数据库 bigint 类型
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return nil, errors.New("无效的订单ID")
+	}
+
 	var order models.Order
-	err := r.DB.First(&order, orderID).Error
+	err = r.DB.First(&order, orderIDUint64).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("订单不存在")
 	}
@@ -158,10 +174,16 @@ func (r *OrderRepository) GetByIDStr(orderID string) (*models.Order, error) {
 
 // GetByIDStrWithItems 根据订单ID（字符串）获取订单（预加载Items和Options）
 func (r *OrderRepository) GetByIDStrWithItems(orderID string) (*models.Order, error) {
+	// 将字符串 orderID 转换为 uint64，以匹配数据库 bigint 类型
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return nil, errors.New("无效的订单ID")
+	}
+
 	var order models.Order
-	err := r.DB.Preload("Items").
+	err = r.DB.Preload("Items").
 		Preload("Items.Options").
-		First(&order, orderID).Error
+		First(&order, orderIDUint64).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("订单不存在")
 	}
@@ -313,24 +335,30 @@ func (r *OrderRepository) UpdateOrder(order *models.Order, newItems []models.Ord
 
 // DeleteOrder 删除订单及其关联数据（事务）
 func (r *OrderRepository) DeleteOrder(orderID string, shopID snowflake.ID) error {
+	// 将字符串 orderID 转换为 uint64，以匹配数据库 bigint 类型
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return errors.New("无效的订单ID")
+	}
+
 	tx := r.DB.Begin()
 
 	// 删除订单项
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderItem{}).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("DeleteOrder delete items failed: %v", err)
 		return errors.New("删除订单项失败")
 	}
 
 	// 删除订单状态日志
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderStatusLog{}).Error; err != nil {
 		tx.Rollback()
 		log2.Errorf("DeleteOrder delete status logs failed: %v", err)
 		return errors.New("删除订单状态日志失败")
 	}
 
 	// 删除订单记录
-	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	result := tx.Where("id = ? AND shop_id = ?", orderIDUint64, shopID).Delete(&models.Order{})
 	if result.Error != nil {
 		tx.Rollback()
 		log2.Errorf("DeleteOrder delete order failed: %v", result.Error)
@@ -351,20 +379,26 @@ func (r *OrderRepository) DeleteOrder(orderID string, shopID snowflake.ID) error
 
 // DeleteOrderInTx 在给定事务中删除订单及其关联数据（不提交事务）
 func (r *OrderRepository) DeleteOrderInTx(tx *gorm.DB, orderID string, shopID snowflake.ID) error {
+	// 将字符串 orderID 转换为 uint64，以匹配数据库 bigint 类型
+	orderIDUint64, err := strconv.ParseUint(orderID, 10, 64)
+	if err != nil {
+		return errors.New("无效的订单ID")
+	}
+
 	// 删除订单项
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderItem{}).Error; err != nil {
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderItem{}).Error; err != nil {
 		log2.Errorf("DeleteOrderInTx delete items failed: %v", err)
 		return errors.New("删除订单项失败")
 	}
 
 	// 删除订单状态日志
-	if err := tx.Where("order_id = ?", orderID).Delete(&models.OrderStatusLog{}).Error; err != nil {
+	if err := tx.Where("order_id = ?", orderIDUint64).Delete(&models.OrderStatusLog{}).Error; err != nil {
 		log2.Errorf("DeleteOrderInTx delete status logs failed: %v", err)
 		return errors.New("删除订单状态日志失败")
 	}
 
 	// 删除订单记录
-	result := tx.Where("id = ? AND shop_id = ?", orderID, shopID).Delete(&models.Order{})
+	result := tx.Where("id = ? AND shop_id = ?", orderIDUint64, shopID).Delete(&models.Order{})
 	if result.Error != nil {
 		log2.Errorf("DeleteOrderInTx delete order failed: %v", result.Error)
 		return errors.New("删除订单记录失败")
