@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +23,7 @@ const maxProductImageZipSize = 512 * 1024
 // 修改商品结构体以支持参数类别
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var request struct {
-		ShopID          snowflake.ID                       `json:"shop_id" binding:"required"`
+		ShopID          models.SnowflakeString                       `json:"shop_id" binding:"required"`
 		Name            string                             `json:"name" binding:"required,min=1,max=200"`
 		Description     string                             `json:"description" binding:"max=5000"`
 		Price           float64                            `json:"price" binding:"required,gt=0"`
@@ -37,7 +36,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, request.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, request.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -102,9 +101,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 func (h *Handler) ToggleProductStatus(c *gin.Context) {
 	// 解析请求参数
 	var req struct {
-		ID     snowflake.ID `json:"id" binding:"required"`
+		ID     models.SnowflakeString `json:"id" binding:"required"`
 		Status string       `json:"status" binding:"required,oneof=pending online offline"`
-		ShopID snowflake.ID `json:"shop_id" binding:"required"`
+		ShopID models.SnowflakeString `json:"shop_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log2.Errorf("解析请求参数失败: %v", err)
@@ -112,14 +111,14 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 获取当前商品信息
-	productModel, err := h.productRepo.GetProductByID(uint64(req.ID), validShopID)
+	productModel, err := h.productRepo.GetProductByID(uint64(req.ID.ToSnowflakeID()), validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return
@@ -131,7 +130,7 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 
 	log2.Debugf("更新商品前状态: %s", productModel.Status)
 	// 使用领域服务验证状态流转并执行更新
-	if err := h.productService.ToggleStatus(uint64(req.ID), validShopID, req.Status); err != nil {
+	if err := h.productService.ToggleStatus(uint64(req.ID.ToSnowflakeID()), validShopID, req.Status); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}

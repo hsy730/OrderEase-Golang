@@ -373,13 +373,13 @@ func (o *Order) ToCreateOrderRequest() CreateOrderRequest {
 		responseOptions := make([]CreateOrderItemOption, len(item.options))
 		for j, opt := range item.options {
 			responseOptions[j] = CreateOrderItemOption{
-				CategoryID: opt.CategoryID,
-				OptionID:   opt.OptionID,
+				CategoryID: models.FromSnowflakeID(opt.CategoryID),
+				OptionID:   models.FromSnowflakeID(opt.OptionID),
 			}
 		}
 
 		responseItems[i] = CreateOrderItemRequest{
-			ProductID: item.ProductID(),
+			ProductID: models.FromSnowflakeID(item.ProductID()),
 			Quantity:  item.Quantity(),
 			Price:     float64(item.Price()),
 			Options:   responseOptions,
@@ -387,9 +387,9 @@ func (o *Order) ToCreateOrderRequest() CreateOrderRequest {
 	}
 
 	return CreateOrderRequest{
-		ID:     o.ID(),
-		UserID: o.UserID(),
-		ShopID: o.ShopID(),
+		ID:     models.FromSnowflakeID(o.ID()),
+		UserID: models.FromSnowflakeID(o.UserID()),
+		ShopID: models.FromSnowflakeID(o.ShopID()),
 		Items:  responseItems,
 		Remark: o.Remark(),
 		Status: int(o.Status()),

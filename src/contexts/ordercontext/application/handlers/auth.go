@@ -297,7 +297,7 @@ func (h *Handler) Logout(c *gin.Context) {
 // TempTokenLogin 使用临时令牌登录
 func (h *Handler) TempTokenLogin(c *gin.Context) {
 	var loginData struct {
-		ShopID snowflake.ID `json:"shop_id" binding:"required"`
+		ShopID models.SnowflakeString `json:"shop_id" binding:"required"`
 		Token  string       `json:"token" binding:"required,len=6"`
 	}
 
@@ -306,8 +306,10 @@ func (h *Handler) TempTokenLogin(c *gin.Context) {
 		return
 	}
 
+	shopID := loginData.ShopID.ToSnowflakeID()
+
 	// 验证临时令牌
-	valid, user, err := h.tempTokenService.ValidateTempToken(loginData.ShopID, loginData.Token)
+	valid, user, err := h.tempTokenService.ValidateTempToken(shopID, loginData.Token)
 	if err != nil || !valid {
 		errorResponse(c, http.StatusUnauthorized, "无效的临时令牌")
 		return
@@ -321,7 +323,7 @@ func (h *Handler) TempTokenLogin(c *gin.Context) {
 	}
 
 	// 使用 Repository 获取店铺信息
-	shop, err := h.shopRepo.GetShopByID(loginData.ShopID)
+	shop, err := h.shopRepo.GetShopByID(shopID)
 	if err != nil {
 		errorResponse(c, http.StatusInternalServerError, "获取店铺信息失败")
 		return
@@ -329,7 +331,7 @@ func (h *Handler) TempTokenLogin(c *gin.Context) {
 
 	successResponse(c, gin.H{
 		"role":      "user",
-		"user_info": gin.H{"id": user.ID, "name": user.Name, "shop_id": loginData.ShopID, "shop_name": shop.Name},
+		"user_info": gin.H{"id": user.ID, "name": user.Name, "shop_id": shopID, "shop_name": shop.Name},
 		"token":     token,
 		"expiredAt": expiredAt.Unix(),
 	})

@@ -146,12 +146,12 @@ func TestShopStructWithProducts(t *testing.T) {
 func TestShopStructWithTags(t *testing.T) {
 	tag := Tag{
 		ID:     1,
-		ShopID: snowflake.ID(123),
+		ShopID: SnowflakeString(123),
 		Name:   "Electronics",
 	}
 
 	shop := Shop{
-		ID:    snowflake.ID(123),
+		ID:    123,
 		Name:  "Test Shop",
 		Tags:   []Tag{tag},
 	}

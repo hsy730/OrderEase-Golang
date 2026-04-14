@@ -8,7 +8,7 @@ import (
 
 type Admin struct {
 	// 管理员只有几个，可以不使用雪花算法
-	ID        uint64    `gorm:"primarykey;column:id" json:"id"`
+	ID        uint64    `gorm:"primarykey;column:id" json:"id,string"`
 	Username  string    `gorm:"column:username;unique" json:"username"`
 	Password  string    `json:"-" gorm:"column:password"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`

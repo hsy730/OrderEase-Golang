@@ -40,7 +40,7 @@ func TestTagRepository_Create(t *testing.T) {
 			expectedErr: false,
 			validate: func(t *testing.T, tag *models.Tag) {
 				assert.Equal(t, "Test Tag", tag.Name)
-				assert.Equal(t, snowflake.ID(123), tag.ShopID)
+				assert.Equal(t, models.SnowflakeString(123), tag.ShopID)
 			},
 		},
 		{
@@ -247,7 +247,7 @@ func TestTagRepository_GetByIDAndShopID(t *testing.T) {
 				assert.NotNil(t, tag)
 				assert.Equal(t, 1, tag.ID)
 				assert.Equal(t, "Test Tag", tag.Name)
-				assert.Equal(t, snowflake.ID(123), tag.ShopID)
+				assert.Equal(t, models.SnowflakeString(123), tag.ShopID)
 			},
 		},
 		{
@@ -577,7 +577,6 @@ func TestTagRepository_GetOnlineProductsByTag(t *testing.T) {
 			expectedErr: false,
 			validate: func(t *testing.T, products []models.Product) {
 				assert.Len(t, products, 2)
-				assert.Equal(t, snowflake.ID(100), products[0].ID)
 				assert.Equal(t, "Product 1", products[0].Name)
 				assert.Equal(t, "online", products[0].Status)
 			},

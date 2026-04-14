@@ -39,13 +39,13 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	// 假设存在一个 IsValidUserID 函数来验证用户ID的合法性
-	if !h.IsValidUserID(req.UserID) {
+	if !h.IsValidUserID(req.UserID.ToSnowflakeID()) {
 		log2.Errorf("创建订单失败: 非法用户")
 		errorResponse(c, http.StatusBadRequest, "创建订单失败")
 		return
 	}
 
-	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(req.ShopID))
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -57,12 +57,12 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		var optionsDTO []orderdomain.CreateOrderItemOptionDTO
 		for _, optionReq := range itemReq.Options {
 			optionsDTO = append(optionsDTO, orderdomain.CreateOrderItemOptionDTO{
-				OptionID:   optionReq.OptionID,
-				CategoryID: optionReq.CategoryID,
+				OptionID:   optionReq.OptionID.ToSnowflakeID(),
+				CategoryID: optionReq.CategoryID.ToSnowflakeID(),
 			})
 		}
 		itemsDTO = append(itemsDTO, orderdomain.CreateOrderItemDTO{
-			ProductID: itemReq.ProductID,
+			ProductID: itemReq.ProductID.ToSnowflakeID(),
 			Quantity:  itemReq.Quantity,
 			Options:   optionsDTO,
 		})
@@ -70,7 +70,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	// 调用领域服务创建订单（处理库存验证、快照、价格计算、库存扣减）
 	orderModel, totalPrice, err := h.orderService.CreateOrder(orderdomain.CreateOrderDTO{
-		UserID: req.UserID,
+		UserID: req.UserID.ToSnowflakeID(),
 		ShopID: validShopID,
 		Items:  itemsDTO,
 		Remark: req.Remark,
@@ -294,12 +294,12 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	}
 
 	// 验证 shop_id（与 CreateOrder 保持一致）
-	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(updateData.ShopID))
+	validShopID, err := h.validAndReturnShopID(c, updateData.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	updateData.ShopID = validShopID
+	updateData.ShopID = models.FromSnowflakeID(validShopID)
 
 	// 构建领域服务 DTO
 	var itemsDTO []orderdomain.CreateOrderItemDTO
@@ -307,12 +307,12 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		var optionsDTO []orderdomain.CreateOrderItemOptionDTO
 		for _, opt := range item.Options {
 			optionsDTO = append(optionsDTO, orderdomain.CreateOrderItemOptionDTO{
-				OptionID:   opt.OptionID,
-				CategoryID: opt.CategoryID,
+				OptionID:   opt.OptionID.ToSnowflakeID(),
+				CategoryID: opt.CategoryID.ToSnowflakeID(),
 			})
 		}
 		itemsDTO = append(itemsDTO, orderdomain.CreateOrderItemDTO{
-			ProductID: item.ProductID,
+			ProductID: item.ProductID.ToSnowflakeID(),
 			Quantity:  item.Quantity,
 			Options:   optionsDTO,
 		})
@@ -321,7 +321,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	// 使用领域服务处理订单更新逻辑
 	updatedOrder, _, err := h.orderService.UpdateOrder(orderdomain.UpdateOrderDTO{
 		OrderID: order.ID,
-		ShopID:  updateData.ShopID,
+		ShopID:  validShopID,
 		Items:   itemsDTO,
 		Remark:  updateData.Remark,
 		Status:  updateData.Status,
@@ -440,7 +440,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 验证店铺ID
-	validShopID, err := h.validAndReturnShopID(c, req.ShopID)
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -455,7 +455,7 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 	}
 
 	// 获取订单信息
-	order, err := h.orderRepo.GetOrderByIDAndShopID(uint64(req.ID), validShopID)
+	order, err := h.orderRepo.GetOrderByIDAndShopID(uint64(req.ID.ToSnowflakeID()), validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, err.Error())
 		return

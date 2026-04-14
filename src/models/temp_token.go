@@ -8,8 +8,8 @@ import (
 
 // TempToken 临时令牌模型
 type TempToken struct {
-	ID        snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id"`
-	ShopID    snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"`
+	ID        snowflake.ID `gorm:"primarykey;type:bigint unsigned" json:"id,string"`
+	ShopID    snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id,string"`
 	UserID    uint64    `gorm:"index;not null" json:"user_id"` // 关联系统用户
 	Token     string    `gorm:"size:6;not null" json:"token"`  // 6位数字令牌
 	ExpiresAt time.Time `gorm:"index;not null" json:"expires_at"`

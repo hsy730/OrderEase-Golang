@@ -45,7 +45,7 @@ func (osf *OrderStatusFlow) Scan(value interface{}) error {
 }
 
 type Shop struct {
-	ID            snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id"`
+	ID            snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id,string"`
 	Name          string `gorm:"column:name;size:100;not null" json:"name"`                                //店名
 	OwnerUsername string `gorm:"column:owner_username;size:50;not null;uniqueIndex" json:"owner_username"` // 店主登录用户
 	OwnerPassword string `gorm:"column:owner_password;size:255;not null" json:"-"`                         // 店主登录密码

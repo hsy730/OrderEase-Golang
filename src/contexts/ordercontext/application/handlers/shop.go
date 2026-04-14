@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 
@@ -211,7 +210,7 @@ func (h *Handler) CreateShop(c *gin.Context) {
 // UpdateShop 更新店铺信息
 func (h *Handler) UpdateShop(c *gin.Context) {
 	var updateData struct {
-		ID              snowflake.ID            `json:"id" binding:"required"`
+		ID              models.SnowflakeString            `json:"id" binding:"required"`
 		OwnerUsername   string                  `json:"owner_username" binding:"required"`
 		OwnerPassword   *string                 `json:"owner_password"`
 		Name            string                  `json:"name"`
@@ -245,7 +244,7 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 	}
 
 	// 使用领域服务更新店铺信息（封装所有字段更新逻辑）
-	updatedShop, err := h.shopService.UpdateInfo(updateData.ID, shopdomain.ShopUpdates{
+	updatedShop, err := h.shopService.UpdateInfo(updateData.ID.ToSnowflakeID(), shopdomain.ShopUpdates{
 		Name:            updateData.Name,
 		ContactPhone:    updateData.ContactPhone,
 		ContactEmail:    updateData.ContactEmail,
@@ -527,7 +526,7 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 // UpdateOrderStatusFlow 更新店铺订单流转状态配置
 func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
-		ShopID          snowflake.ID           `json:"shop_id" binding:"required"`
+		ShopID          models.SnowflakeString           `json:"shop_id" binding:"required"`
 		OrderStatusFlow models.OrderStatusFlow `json:"order_status_flow" binding:"required"`
 	}
 
@@ -537,7 +536,7 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	}
 
 	// 使用领域服务更新订单流转状态配置
-	updatedShop, err := h.shopService.UpdateOrderStatusFlow(req.ShopID, req.OrderStatusFlow)
+	updatedShop, err := h.shopService.UpdateOrderStatusFlow(req.ShopID.ToSnowflakeID(), req.OrderStatusFlow)
 	if err != nil {
 		h.logger.Errorf("更新店铺订单流转状态配置失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())

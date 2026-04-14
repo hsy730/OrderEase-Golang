@@ -4,16 +4,27 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/snowflake"
+	"orderease/models"
 )
 
 // CreateOrderRequest 创建订单请求 DTO
 type CreateOrderRequest struct {
-	ID     snowflake.ID             `json:"id"`
-	UserID snowflake.ID             `json:"user_id"`
-	ShopID snowflake.ID             `json:"shop_id"`
+	ID     models.SnowflakeString   `json:"id"`
+	UserID models.SnowflakeString   `json:"user_id"`
+	ShopID models.SnowflakeString   `json:"shop_id"`
 	Items  []CreateOrderItemRequest `json:"items"`
 	Remark string                   `json:"remark"`
 	Status int                      `json:"status"`
+}
+
+// GetUserID 获取用户ID作为 snowflake.ID
+func (r *CreateOrderRequest) GetUserID() snowflake.ID {
+	return r.UserID.ToSnowflakeID()
+}
+
+// GetShopID 获取店铺ID作为 snowflake.ID
+func (r *CreateOrderRequest) GetShopID() snowflake.ID {
+	return r.ShopID.ToSnowflakeID()
 }
 
 // Validate 验证创建订单请求
@@ -32,10 +43,15 @@ func (r *CreateOrderRequest) Validate() error {
 
 // CreateOrderItemRequest 创建订单项请求 DTO
 type CreateOrderItemRequest struct {
-	ProductID snowflake.ID            `json:"product_id"`
+	ProductID models.SnowflakeString  `json:"product_id"`
 	Quantity  int                     `json:"quantity"`
 	Price     float64                 `json:"price"`
 	Options   []CreateOrderItemOption `json:"options"`
+}
+
+// GetProductID 获取商品ID作为 snowflake.ID
+func (r *CreateOrderItemRequest) GetProductID() snowflake.ID {
+	return r.ProductID.ToSnowflakeID()
 }
 
 // Validate 验证订单项
@@ -54,19 +70,34 @@ func (r *CreateOrderItemRequest) Validate() error {
 
 // CreateOrderItemOption 创建订单项选项请求 DTO
 type CreateOrderItemOption struct {
-	CategoryID snowflake.ID `json:"category_id"`
-	OptionID   snowflake.ID `json:"option_id"`
+	CategoryID models.SnowflakeString `json:"category_id"`
+	OptionID   models.SnowflakeString `json:"option_id"`
+}
+
+// GetCategoryID 获取类别ID作为 snowflake.ID
+func (o *CreateOrderItemOption) GetCategoryID() snowflake.ID {
+	return o.CategoryID.ToSnowflakeID()
+}
+
+// GetOptionID 获取选项ID作为 snowflake.ID
+func (o *CreateOrderItemOption) GetOptionID() snowflake.ID {
+	return o.OptionID.ToSnowflakeID()
 }
 
 // AdvanceSearchOrderRequest 高级查询订单请求 DTO
 type AdvanceSearchOrderRequest struct {
-	Page      int          `json:"page"`
-	PageSize  int          `json:"pageSize"`
-	UserID    string       `json:"user_id"`
-	Status    []int        `json:"status"`
-	StartTime string       `json:"start_time"`
-	EndTime   string       `json:"end_time"`
-	ShopID    snowflake.ID `json:"shop_id"`
+	Page      int                  `json:"page"`
+	PageSize  int                  `json:"pageSize"`
+	UserID    string               `json:"user_id"`
+	Status    []int                `json:"status"`
+	StartTime string               `json:"start_time"`
+	EndTime   string               `json:"end_time"`
+	ShopID    models.SnowflakeString `json:"shop_id"`
+}
+
+// GetShopID 获取店铺ID作为 snowflake.ID
+func (r *AdvanceSearchOrderRequest) GetShopID() snowflake.ID {
+	return r.ShopID.ToSnowflakeID()
 }
 
 // Validate 验证高级查询请求
@@ -85,9 +116,19 @@ func (r *AdvanceSearchOrderRequest) Validate() error {
 
 // ToggleOrderStatusRequest 切换订单状态请求 DTO
 type ToggleOrderStatusRequest struct {
-	ID         snowflake.ID `json:"id" binding:"required"`
-	ShopID     snowflake.ID `json:"shop_id" binding:"required"`
-	NextStatus int          `json:"next_status" binding:"required"`
+	ID         models.SnowflakeString `json:"id" binding:"required"`
+	ShopID     models.SnowflakeString `json:"shop_id" binding:"required"`
+	NextStatus int                    `json:"next_status" binding:"required"`
+}
+
+// GetID 获取订单ID作为 snowflake.ID
+func (r *ToggleOrderStatusRequest) GetID() snowflake.ID {
+	return r.ID.ToSnowflakeID()
+}
+
+// GetShopID 获取店铺ID作为 snowflake.ID
+func (r *ToggleOrderStatusRequest) GetShopID() snowflake.ID {
+	return r.ShopID.ToSnowflakeID()
 }
 
 // Validate 验证切换订单状态请求

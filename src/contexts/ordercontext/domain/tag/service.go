@@ -101,7 +101,7 @@ func (s *Service) UpdateProductTags(dto UpdateProductTagsDTO) (*UpdateProductTag
 
 // UpdateTag 更新标签
 func (s *Service) UpdateTag(tag models.Tag, shopID snowflake.ID) error {
-	tag.ShopID = shopID
+	tag.ShopID = models.FromSnowflakeID(shopID)
 	return s.db.Save(&tag).Error
 }
 

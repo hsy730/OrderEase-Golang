@@ -226,6 +226,7 @@ func createComprehensiveTestData(t *testing.T) TestData {
 	optionID1 := snowflake.ID(7001)
 	optionID2 := snowflake.ID(7002)
 	bindingID := uint(1)
+	shopIDForTag := models.FromSnowflakeID(shopID)
 
 	defaultOrderStatusFlow := models.OrderStatusFlow{
 		Statuses: []models.OrderStatus{
@@ -337,7 +338,7 @@ func createComprehensiveTestData(t *testing.T) TestData {
 		Tags: []models.Tag{
 			{
 				ID:          tagID1,
-				ShopID:      shopID,
+				ShopID:      shopIDForTag,
 				Name:        "热销",
 				Description: "热门销售商品标签",
 				CreatedAt:   now.Add(-25 * 24 * time.Hour),
@@ -345,7 +346,7 @@ func createComprehensiveTestData(t *testing.T) TestData {
 			},
 			{
 				ID:          tagID2,
-				ShopID:      shopID,
+				ShopID:      shopIDForTag,
 				Name:        "新品",
 				Description: "新上架商品标签",
 				CreatedAt:   now.Add(-10 * 24 * time.Hour),

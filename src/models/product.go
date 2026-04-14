@@ -14,8 +14,8 @@ const (
 )
 
 type Product struct {
-	ID          snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id"`
-	ShopID      snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index:idx_shop;index:idx_shop_status,priority:1;not null" json:"shop_id" binding:"required"` // 店铺ID
+	ID          snowflake.ID `gorm:"column:id;primarykey;type:bigint unsigned" json:"id,string"`
+	ShopID      snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index:idx_shop;index:idx_shop_status,priority:1;not null" json:"shop_id,string" binding:"required"` // 店铺ID
 	Name        string       `gorm:"column:name" json:"name" binding:"required,min=1,max=200"`
 	Description string       `gorm:"column:description" json:"description" binding:"max=5000"`
 	Price       float64      `gorm:"column:price;type:double" json:"price" binding:"required,gt=0"`
@@ -31,9 +31,9 @@ type Product struct {
 
 // ProductTag 商品和标签的多对多关系表
 type ProductTag struct {
-	ProductID snowflake.ID `gorm:"column:product_id;primaryKey" json:"product_id"`
+	ProductID snowflake.ID `gorm:"column:product_id;primaryKey" json:"product_id,string"`
 	TagID     int          `gorm:"column:tag_id;primaryKey" json:"tag_id"`
-	ShopID    snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id"` // 店铺ID
+	ShopID    snowflake.ID `gorm:"column:shop_id;type:bigint unsigned;index;not null" json:"shop_id,string"` // 店铺ID
 	CreatedAt time.Time    `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time    `gorm:"column:updated_at" json:"updated_at"`
 }

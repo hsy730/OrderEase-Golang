@@ -54,7 +54,7 @@ type SalesTrendData struct {
 }
 
 type HotProduct struct {
-	ID       snowflake.ID `json:"id"`
+	ID       snowflake.ID `json:"id,string"`
 	Name     string       `json:"name"`
 	ImageURL string       `json:"image_url"`
 	Price    float64      `json:"price"`
@@ -62,7 +62,7 @@ type HotProduct struct {
 }
 
 type RecentOrder struct {
-	ID         snowflake.ID `json:"id"`
+	ID         snowflake.ID `json:"id,string"`
 	TotalPrice float64      `json:"total_price"`
 	Status     int          `json:"status"`
 	CreatedAt  time.Time    `json:"created_at"`

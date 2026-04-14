@@ -281,7 +281,7 @@ func createImportConverters(model interface{}) map[string]func(string) (interfac
 
 func createImportConverter(value reflect.Value) (func(string) (interface{}, error), error) {
 	fieldType := value.Type()
-	log2.Debugf("createImportConverter, kind: %v, type: %v", value.Kind(), value.Type())
+	log2.Debugf("createImportConverter, kind: %v, type: %v", value.Kind(), fieldType)
 	switch {
 	case fieldType == reflect.TypeOf(time.Time{}):
 		return parseTime, nil
@@ -289,6 +289,8 @@ func createImportConverter(value reflect.Value) (func(string) (interface{}, erro
 		return parsePrice, nil
 	case fieldType == reflect.TypeOf(snowflake.ID(0)):
 		return parseSnowflakeID, nil
+	case fieldType == reflect.TypeOf(models.SnowflakeString(0)):
+		return parseSnowflakeString, nil
 	case fieldType == reflect.TypeOf(datatypes.JSON{}):
 		return func(s string) (interface{}, error) {
 			trimmed := strings.TrimSpace(s)
@@ -539,6 +541,14 @@ func parsePrice(s string) (interface{}, error) {
 
 func parseSnowflakeID(s string) (interface{}, error) {
 	return utils.StringToSnowflakeID(s)
+}
+
+func parseSnowflakeString(s string) (interface{}, error) {
+	id, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return models.SnowflakeString(id), nil
 }
 
 func parseBasicType(value reflect.Value) func(string) (interface{}, error) {

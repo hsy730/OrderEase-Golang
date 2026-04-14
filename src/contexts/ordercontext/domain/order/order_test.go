@@ -476,13 +476,14 @@ func TestOrder_ToCreateOrderRequest(t *testing.T) {
 
 	request := order.ToCreateOrderRequest()
 
-	assert.Equal(t, snowflake.ID(789), request.ID)
-	assert.Equal(t, snowflake.ID(123), request.UserID)
-	assert.Equal(t, snowflake.ID(456), request.ShopID)
+	// 现在 request 使用 models.SnowflakeString 类型
+	assert.Equal(t, models.SnowflakeString(789), request.ID)
+	assert.Equal(t, models.SnowflakeString(123), request.UserID)
+	assert.Equal(t, models.SnowflakeString(456), request.ShopID)
 	assert.Equal(t, "测试备注", request.Remark)
 	assert.Equal(t, int(value_objects.OrderStatusPending), request.Status)
 	assert.Len(t, request.Items, 1)
-	assert.Equal(t, snowflake.ID(111), request.Items[0].ProductID)
+	assert.Equal(t, models.SnowflakeString(111), request.Items[0].ProductID)
 	assert.Equal(t, 2, request.Items[0].Quantity)
 	assert.Len(t, request.Items[0].Options, 1)
 }
