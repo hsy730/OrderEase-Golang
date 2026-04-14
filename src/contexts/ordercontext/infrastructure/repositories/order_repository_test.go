@@ -247,7 +247,7 @@ func TestOrderRepository_GetOrdersByShop(t *testing.T) {
 func TestOrderRepository_GetOrdersByUser(t *testing.T) {
 	tests := []struct {
 		name        string
-		userID      string
+		userID      snowflake.ID
 		shopID      snowflake.ID
 		page        int
 		pageSize    int
@@ -257,20 +257,20 @@ func TestOrderRepository_GetOrdersByUser(t *testing.T) {
 	}{
 		{
 			name:     "successfully get user orders",
-			userID:   "user123",
+			userID:   123,
 			shopID:   456,
 			page:     1,
 			pageSize: 10,
 			setupMock: func(mock sqlmock.Sqlmock) {
 				countRows := sqlmock.NewRows([]string{"count"}).AddRow(5)
 				mock.ExpectQuery("SELECT count\\(\\*\\) FROM `orders`").
-					WithArgs("user123", int64(456)).
+					WithArgs(int64(123), int64(456)).
 					WillReturnRows(countRows)
 
 				orderRows := sqlmock.NewRows([]string{"id", "user_id", "shop_id", "total_price", "status"}).
 					AddRow(1, 123, 456, 10000, 1)
 				mock.ExpectQuery("SELECT \\* FROM `orders`").
-					WithArgs("user123", int64(456), 10).
+					WithArgs(int64(123), int64(456), 10).
 					WillReturnRows(orderRows)
 
 				itemRows := sqlmock.NewRows([]string{"id", "order_id", "product_id", "quantity"}).
@@ -600,19 +600,19 @@ func TestOrderRepository_AdvanceSearch(t *testing.T) {
 				ShopID:   123,
 				Page:     1,
 				PageSize: 10,
-				UserID:   "user123",
+				UserID:   "456",
 				Status:   []int{1},
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				countRows := sqlmock.NewRows([]string{"count"}).AddRow(5)
 				mock.ExpectQuery("SELECT count\\(\\*\\) FROM `orders`").
-					WithArgs(int64(123), "user123", 1).
+					WithArgs(int64(123), int64(456), 1).
 					WillReturnRows(countRows)
 
 				orderRows := sqlmock.NewRows([]string{"id", "user_id", "shop_id", "total_price", "status"}).
 					AddRow(1, 456, 123, 10000, 1)
 				mock.ExpectQuery("SELECT \\* FROM `orders`").
-					WithArgs(int64(123), "user123", 1, 10).
+					WithArgs(int64(123), int64(456), 1, 10).
 					WillReturnRows(orderRows)
 			},
 			expectedErr: false,

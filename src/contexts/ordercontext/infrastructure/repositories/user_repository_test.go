@@ -166,7 +166,7 @@ func TestUserRepository_GetUserByID_Success(t *testing.T) {
 		AddRow(userID, "testuser", "user", "hashedpass", "13800138000", "Test Address", "delivery", "Test Nick", now, now)
 
 	mock.ExpectQuery("SELECT \\* FROM `users`").
-		WithArgs("123", 1).
+		WithArgs(int64(123), 1).
 		WillReturnRows(rows)
 
 	repo := NewUserRepository(db)
@@ -183,7 +183,7 @@ func TestUserRepository_GetUserByID_NotFound(t *testing.T) {
 	defer sqlDB.Close()
 
 	mock.ExpectQuery("SELECT \\* FROM `users`").
-		WithArgs("999", 1).
+		WithArgs(int64(999), 1).
 		WillReturnError(gorm.ErrRecordNotFound)
 
 	repo := NewUserRepository(db)
@@ -200,7 +200,7 @@ func TestUserRepository_GetUserByID_DatabaseError(t *testing.T) {
 	defer sqlDB.Close()
 
 	mock.ExpectQuery("SELECT \\* FROM `users`").
-		WithArgs("123", 1).
+		WithArgs(int64(123), 1).
 		WillReturnError(fmt.Errorf("database error"))
 
 	repo := NewUserRepository(db)

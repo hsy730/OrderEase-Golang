@@ -218,7 +218,12 @@ func (r *OrderRepository) AdvanceSearch(req AdvanceSearchOrderRequest) (*Advance
 
 	// 添加用户ID筛选
 	if req.UserID != "" {
-		query = query.Where("user_id = ?", req.UserID)
+		// 将字符串 user_id 转换为 uint64，以匹配数据库 bigint 类型
+		userIDUint64, err := strconv.ParseUint(req.UserID, 10, 64)
+		if err != nil {
+			return nil, errors.New("无效的用户ID")
+		}
+		query = query.Where("user_id = ?", userIDUint64)
 	}
 
 	// 添加状态筛选（支持多个状态）
