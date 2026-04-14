@@ -45,8 +45,9 @@ func (r *OrderRepository) GetOrderByIDAndShopIDStr(orderID string, shopID snowfl
 	err := r.DB.Preload("Items").
 		Preload("Items.Options").
 		Where("shop_id = ?", shopID).
+		Where("id = ?", orderID).
 		Joins("User").
-		First(&order, orderID).Error
+		First(&order).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("订单不存在")
 	}

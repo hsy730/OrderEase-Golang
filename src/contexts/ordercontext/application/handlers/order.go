@@ -169,9 +169,16 @@ func (h *Handler) GetOrders(c *gin.Context) {
 
 // 获取订单详情
 func (h *Handler) GetOrder(c *gin.Context) {
-	id := c.Query("id")
-	if id == "" {
+	idStr := c.Query("id")
+	if idStr == "" {
 		errorResponse(c, http.StatusBadRequest, "缺少订单ID")
+		return
+	}
+
+	// 将订单ID字符串转换为 snowflake.ID
+	orderID, err := utils.StringToSnowflakeID(idStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的订单ID")
 		return
 	}
 
@@ -188,7 +195,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	}
 
 	// 使用 repository 查询订单
-	order, err := h.orderRepo.GetOrderByIDAndShopIDStr(id, validShopID)
+	order, err := h.orderRepo.GetOrderByIDAndShopID(uint64(orderID), validShopID)
 	if err != nil {
 		errorResponse(c, http.StatusNotFound, "订单未找到")
 		return
