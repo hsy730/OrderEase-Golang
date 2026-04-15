@@ -14,6 +14,7 @@ import (
 	thirdpartyrepos "orderease/contexts/thirdparty/infrastructure/persistence/repositories"
 	"orderease/models"
 	"orderease/services"
+	"orderease/utils"
 	"orderease/utils/log2"
 
 	"strings"
@@ -150,6 +151,21 @@ func (h *Handler) getRequestUserInfo(c *gin.Context) (*models.UserInfo, error) {
 	}
 
 	return &userInfo, nil
+}
+
+// getShopIDFromQueryOrContext 从URL参数或用户上下文中获取店铺ID
+// 对于店主接口，如果没有传入shop_id，则自动从用户上下文中获取
+func (h *Handler) getShopIDFromQueryOrContext(c *gin.Context) (snowflake.ID, error) {
+	shopIDStr := c.Query("shop_id")
+	if shopIDStr == "" {
+		// 如果没有传入shop_id，尝试从用户上下文中获取
+		userInfo, err := h.getRequestUserInfo(c)
+		if err != nil {
+			return 0, errors.New("缺少店铺ID")
+		}
+		return snowflake.ID(userInfo.UserID), nil
+	}
+	return utils.StringToSnowflakeID(shopIDStr)
 }
 
 func (h *Handler) validAndReturnShopID(c *gin.Context, shopID snowflake.ID) (snowflake.ID, error) {

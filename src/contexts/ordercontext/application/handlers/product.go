@@ -153,13 +153,15 @@ func (h *Handler) ToggleProductStatus(c *gin.Context) {
 func (h *Handler) GetProducts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
-	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+
+	if err := ValidatePaginationParams(page, pageSize); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := ValidatePaginationParams(page, pageSize); err != nil {
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
+	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -200,9 +202,10 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -228,9 +231,10 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -334,9 +338,10 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -389,9 +394,10 @@ func (h *Handler) UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

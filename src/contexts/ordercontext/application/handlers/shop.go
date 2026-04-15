@@ -39,11 +39,13 @@ func (h *Handler) GetShopTags(c *gin.Context) {
 
 // GetShopInfo 获取店铺详细信息
 func (h *Handler) GetShopInfo(c *gin.Context) {
-	shopID := c.Query("shop_id")
-
-	// 转换店铺ID为雪花ID
-	shopSnowflakeID, err := utils.StringToSnowflakeID(shopID)
-	if err != nil || shopSnowflakeID <= 0 {
+	// 从URL参数或用户上下文中获取店铺ID
+	shopSnowflakeID, err := h.getShopIDFromQueryOrContext(c)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	if shopSnowflakeID <= 0 {
 		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
 		return
 	}
@@ -287,9 +289,10 @@ func (h *Handler) UpdateShop(c *gin.Context) {
 
 // 删除店铺及关联数据
 func (h *Handler) DeleteShop(c *gin.Context) {
-	shopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	shopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -490,11 +493,10 @@ func (h *Handler) GetShopImage(c *gin.Context) {
 
 // GetShopTempToken 获取店铺的临时令牌
 func (h *Handler) GetShopTempToken(c *gin.Context) {
-	// 从URL参数中获取shopID
-	shopIDStr := c.Query("shop_id")
-	shopID, err := utils.StringToSnowflakeID(shopIDStr)
+	// 从URL参数或用户上下文中获取店铺ID
+	shopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -526,7 +528,7 @@ func (h *Handler) GetShopTempToken(c *gin.Context) {
 // UpdateOrderStatusFlow 更新店铺订单流转状态配置
 func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 	var req struct {
-		ShopID          models.SnowflakeString           `json:"shop_id" binding:"required"`
+		ShopID          models.SnowflakeString           `json:"shop_id"`
 		OrderStatusFlow models.OrderStatusFlow `json:"order_status_flow" binding:"required"`
 	}
 
@@ -535,8 +537,15 @@ func (h *Handler) UpdateOrderStatusFlow(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
+	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	// 使用领域服务更新订单流转状态配置
-	updatedShop, err := h.shopService.UpdateOrderStatusFlow(req.ShopID.ToSnowflakeID(), req.OrderStatusFlow)
+	updatedShop, err := h.shopService.UpdateOrderStatusFlow(validShopID, req.OrderStatusFlow)
 	if err != nil {
 		h.logger.Errorf("更新店铺订单流转状态配置失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, err.Error())

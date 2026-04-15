@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/http"
 	"orderease/models"
-	"orderease/utils"
 	"orderease/utils/log2"
 	"sync"
 
@@ -66,10 +65,10 @@ func (h *Handler) SSEConnection(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("Access-Control-Allow-Origin", "*")
 
-	// 获取店铺ID验证权限
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的店铺ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

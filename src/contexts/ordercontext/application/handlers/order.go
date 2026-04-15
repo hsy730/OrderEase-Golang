@@ -45,6 +45,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -137,9 +138,10 @@ func (h *Handler) GetOrders(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -182,9 +184,10 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -218,9 +221,10 @@ func (h *Handler) GetOrdersByUser(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -293,7 +297,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	// 验证 shop_id（与 CreateOrder 保持一致）
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, updateData.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -371,9 +375,10 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -433,13 +438,17 @@ func (h *Handler) ToggleOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// 使用 Domain DTO 的验证方法
-	if err := req.Validate(); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+	// 使用 Domain DTO 的验证方法（只验证ID和NextStatus，shop_id可能从上下文获取）
+	if req.ID == 0 {
+		errorResponse(c, http.StatusBadRequest, "订单ID不能为空")
+		return
+	}
+	if req.NextStatus == 0 {
+		errorResponse(c, http.StatusBadRequest, "下一个状态不能为空")
 		return
 	}
 
-	// 验证店铺ID
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -520,13 +529,15 @@ func (h *Handler) GetAdvanceSearchOrders(c *gin.Context) {
 		return
 	}
 
-	// 使用 Domain DTO 的验证方法（包含分页参数和店铺ID验证）
-	if err := req.Validate(); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
-		return
+	// 验证分页参数
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 || req.PageSize > 100 {
+		req.PageSize = 10
 	}
 
-	// 验证并获取有效的店铺ID
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, snowflake.ID(req.ShopID))
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -568,10 +579,10 @@ func (h *Handler) IsValidUserID(userID snowflake.ID) bool {
 
 // 获取订单状态流转配置
 func (h *Handler) GetOrderStatusFlow(c *gin.Context) {
-	// 获取并验证shop_id参数
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -611,9 +622,10 @@ func (h *Handler) GetUnfinishedOrders(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 

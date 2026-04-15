@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"orderease/contexts/ordercontext/domain/tag"
 	"orderease/models"
-	"orderease/utils"
 	"orderease/utils/log2"
 	"strconv"
 	"strings"
@@ -53,9 +52,10 @@ func (h *Handler) GetTagOnlineProducts(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -87,9 +87,10 @@ func (h *Handler) GetBoundTags(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -128,9 +129,10 @@ func (h *Handler) GetUnboundTags(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -166,7 +168,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []models.SnowflakeString `json:"product_ids" binding:"required"`
 		TagID      int            `json:"tag_id" binding:"required"`
-		ShopID     models.SnowflakeString   `json:"shop_id" binding:"required"`
+		ShopID     models.SnowflakeString   `json:"shop_id"`
 	}
 
 	var req request
@@ -175,6 +177,7 @@ func (h *Handler) BatchTagProducts(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -218,6 +221,7 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, tag.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -244,9 +248,10 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -280,9 +285,10 @@ func (h *Handler) GetTags(c *gin.Context, isFront bool) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -336,9 +342,10 @@ func (h *Handler) GetUnboundProductsForTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -374,9 +381,10 @@ func (h *Handler) GetUnboundTagsList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -414,9 +422,10 @@ func (h *Handler) GetTagBoundProducts(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -482,9 +491,10 @@ func (h *Handler) GetTag(c *gin.Context) {
 		return
 	}
 
-	requestShopID, err := utils.StringToSnowflakeID(c.Query("shop_id"))
+	// 从URL参数或用户上下文中获取店铺ID
+	requestShopID, err := h.getShopIDFromQueryOrContext(c)
 	if err != nil {
-		errorResponse(c, http.StatusBadRequest, "无效的店铺ID")
+		errorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -509,7 +519,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 	type request struct {
 		ProductIDs []models.SnowflakeString `json:"product_ids" binding:"required"`
 		TagID      uint           `json:"tag_id" binding:"required"`
-		ShopID     models.SnowflakeString   `json:"shop_id" binding:"required"`
+		ShopID     models.SnowflakeString   `json:"shop_id"`
 	}
 
 	var req request
@@ -519,6 +529,7 @@ func (h *Handler) BatchUntagProducts(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
@@ -559,7 +570,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 	type request struct {
 		ProductID models.SnowflakeString   `json:"product_id" binding:"required"`
 		TagIDs    []int          `json:"tag_ids" binding:"required"`
-		ShopID    models.SnowflakeString   `json:"shop_id" binding:"required"`
+		ShopID    models.SnowflakeString   `json:"shop_id"`
 	}
 
 	var req request
@@ -568,6 +579,7 @@ func (h *Handler) BatchTagProduct(c *gin.Context) {
 		return
 	}
 
+	// 验证并获取有效的店铺ID（validAndReturnShopID 会自动处理店主接口的逻辑）
 	validShopID, err := h.validAndReturnShopID(c, req.ShopID.ToSnowflakeID())
 	if err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
