@@ -30,4 +30,8 @@ func SetupFrontNoAuthRoutes(r *gin.Engine, h *ordercontextHandlers.Handler) {
 	public.GET("/shop/image", h.GetShopImage)
 	public.GET("/user/avatar", h.GetUserAvatar)
 
+	// 公开访问的店铺和标签商品接口
+	public.GET("/shop/detail", h.GetShopInfo)
+	public.GET("/tag/bound-products", h.GetTagBoundProducts)
+
 }
